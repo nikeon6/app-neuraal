@@ -75,12 +75,13 @@ Build an app where authenticated users can:
 
 ### Feature-Based Structure (The Scope Rule)
 
-The codebase uses a **feature-based architecture** with two scopes:
+The codebase uses a **feature-based architecture** with clear scopes:
 
 | Scope | Location | Visibility | Contains |
 |-------|----------|------------|----------|
-| **Global** | `src/shared/` | Entire app | Types, utils, store, UI components |
+| **Global** | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI |
 | **Local** | `src/features/X/` | Only feature X | Feature-specific components/logic |
+| **Infra** | `src/infrastructure/` | Services layer | Sentry, API clients, external services |
 
 **Folder structure:**
 ```
@@ -88,7 +89,9 @@ src/
   shared/           # Global scope
     types/          # Domain types (Task, Note, Topic...)
     lib/            # Utilities (cn, uid, clamp...)
+    constants/      # Business rules (TOPICS, DAYS...)
     store/          # Global Zustand store
+    hooks/          # Reusable custom hooks
     ui/             # Reusable UI components
   features/         # Local scope (per feature)
     dashboard/
@@ -96,11 +99,14 @@ src/
     tasks/
     topics/
     layout/
+  infrastructure/   # External services
+  test/             # Test configuration
 ```
 
 ### Import rules
 - `shared/` → can import from `shared/` only
 - `features/X/` → can import from `shared/` and `features/X/` only
+- `infrastructure/` → can import from `shared/` only
 - **Never** import across features (`features/A/` → `features/B/`)
 - Use barrel exports (`index.ts`) for cleaner imports
 

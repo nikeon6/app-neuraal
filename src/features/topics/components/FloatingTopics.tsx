@@ -9,7 +9,8 @@ import React, {
   useEffect,
 } from "react";
 import { useStore } from "@/shared/store";
-import { TOPICS, type TopicId } from "@/shared/types";
+import { type TopicId } from "@/shared/types";
+import { TOPICS } from "@/shared/constants";
 import { clamp, median, quadPath } from "@/shared/lib/utils";
 
 // Configuration constants

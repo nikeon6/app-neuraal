@@ -3,7 +3,8 @@
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { useStore } from "@/shared/store";
-import { TOPICS, DAYS, type TopicId } from "@/shared/types";
+import { type TopicId } from "@/shared/types";
+import { TOPICS, DAYS } from "@/shared/constants";
 
 export function TaskForm() {
   const { selectedDay, setSelectedDay, addTask } = useStore();

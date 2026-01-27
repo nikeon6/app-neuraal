@@ -67,46 +67,37 @@ src/
   
   shared/                 # Global Scope - available across the entire app
     types/                # Domain types (Task, Note, Topic, etc.)
-      index.ts
-    lib/                  # Shared utilities
-      utils.ts            # cn, uid, clamp, median, quadPath
-      utils.test.ts       # Unit tests
-      index.ts
+    lib/                  # Shared utilities (cn, uid, clamp, etc.)
+    constants/            # Business rules and constants (TOPICS, DAYS)
     store/                # Global Zustand store
-      index.ts
+    hooks/                # Reusable custom hooks
     ui/                   # Reusable UI components (Button, Modal, etc.)
-      index.ts
   
   features/               # Local Scope - feature-specific code
     dashboard/            # Main dashboard feature
       components/
-        Dashboard.tsx
-      index.ts
     calendar/             # Calendar feature
       components/
-        VerticalCalendar.tsx
-      index.ts
     tasks/                # Task management feature
       components/
-        TaskForm.tsx
-      index.ts
     topics/               # Floating topics/bubbles feature
       components/
-        FloatingTopics.tsx
-      index.ts
     layout/               # App layout with auth protection
       components/
-        MainLayout.tsx
-      index.ts
-    index.ts              # Barrel exports
+  
+  infrastructure/         # External services (Sentry, API clients)
+  
+  test/                   # Test configuration
+    setup.ts              # Vitest setup file
 ```
 
 ### The Scope Rule
 
 | Type | Location | Visibility | Examples |
 |------|----------|------------|----------|
-| Global Scope | `src/shared/` | Entire app | Types, utils, store, UI components |
-| Local Scope | `src/features/X/` | Only in feature X | Dashboard, Calendar, TaskForm |
+| Global Scope | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI |
+| Local Scope | `src/features/X/` | Only feature X | Dashboard, Calendar, TaskForm |
+| Infrastructure | `src/infrastructure/` | Services layer | Sentry, API clients |
 
 ### Benefits
 
