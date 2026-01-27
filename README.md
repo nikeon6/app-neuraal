@@ -79,9 +79,62 @@ pnpm run dev
 
 ## Testing
 
+This project uses **Vitest** + **Testing Library** for testing, following a **TDD approach**.
+
+### Test Commands
+
 ```bash
+# Run tests in watch mode (interactive development)
 pnpm test
+
+# Run tests once (CI/CD mode)
+pnpm test:run
+
+# Run tests with coverage report
+pnpm test:coverage
 ```
+
+### Test Stack
+
+| Tool | Purpose |
+|------|---------|
+| **Vitest** | Fast test runner with native TypeScript support |
+| **Testing Library** | Testing utilities focused on user behavior |
+| **jsdom** | DOM environment for testing React components |
+| **@testing-library/jest-dom** | Custom matchers for DOM assertions |
+| **@testing-library/user-event** | Simulates user interactions |
+
+### Test Structure
+
+```
+src/
+  __tests__/              # Integration tests
+  components/
+    ComponentName/
+      ComponentName.tsx
+      ComponentName.test.tsx   # Component tests
+  domain/
+    types.ts
+    types.test.ts              # Domain logic tests
+  lib/
+    store.ts
+    store.test.ts              # Store tests
+    utils.ts
+    utils.test.ts              # Utility tests
+```
+
+### TDD Workflow
+
+1. **Red**: Write a failing test
+2. **Green**: Write the minimum code to pass
+3. **Refactor**: Improve the code while keeping tests green
+
+### Coverage Targets
+
+- **Domain logic**: 100%
+- **Auth/access control**: 100%
+- **Core utilities**: High coverage
+- **UI components**: Focus on behavior, not implementation
 
 ---
 

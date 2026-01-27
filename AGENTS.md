@@ -137,23 +137,50 @@ If any security tradeoff is unclear, ask before implementing.
 
 ## 7) Testing Policy (TDD-Friendly)
 
-Preferred workflow:
+### Test Stack
+- **Vitest**: Fast test runner with native TypeScript support
+- **Testing Library**: React testing utilities (behavior-focused)
+- **jsdom**: Browser environment for component tests
+- **Playwright**: E2E tests for critical flows
+
+### Commands
+```bash
+pnpm test           # Watch mode (interactive development)
+pnpm test:run       # Single run (CI/CD)
+pnpm test:coverage  # With coverage report
+```
+
+### Preferred workflow
 - TDD when feasible: red → green → refactor.
 - Tests are required for core logic and critical user flows.
+- Write tests BEFORE implementing features.
 
-Testing layers:
-- Unit: domain logic / pure functions
-- Integration: use cases + repository adapters (test DB when needed)
-- E2E: Playwright for critical flows (auth + calendar operations + reminders)
+### Testing layers
+- **Unit**: domain logic / pure functions / utilities
+- **Component**: React components with Testing Library (focus on user behavior)
+- **Integration**: use cases + repository adapters (test DB when needed)
+- **E2E**: Playwright for critical flows (auth + calendar operations + reminders)
 
-Coverage policy (strategic):
+### Test file naming
+- Unit/Component tests: `*.test.ts` or `*.test.tsx` (colocated with source)
+- Integration tests: `src/__tests__/*.test.ts`
+- E2E tests: `e2e/*.spec.ts` (when Playwright is configured)
+
+### Coverage policy (strategic)
 - 100% for core business rules and auth/access control paths.
 - High coverage for scheduling/reminder logic.
 - Lower priority for glue code/wiring.
 
-Avoid:
+### Best practices
+- Test behavior, not implementation details.
+- Use `screen.getByRole`, `getByLabelText` over `getByTestId`.
+- Avoid testing internal state; test what the user sees.
+- Mock external dependencies (API calls, timers) when needed.
+
+### Avoid
 - Overusing snapshots for meaningful UI logic.
 - Flaky E2E: use stable selectors and deterministic test data.
+- Testing implementation details (internal state, private methods).
 
 ---
 
