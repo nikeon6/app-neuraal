@@ -1,0 +1,103 @@
+Descripción muy básica del proyecto:su funcion es la de que los usuarios se puedan logear y entrar a un dashboard en el que grabar notas y tareas a traves de un calendario, tendran una pagina principal donde ver un resumen y también podran grabar nuevas tareas y notas o modificar existentes, además de programar avisos de las tareas, el calendario mostrará los dias en una barra lateral a la derecha y se podrá desplegar cada dia para ver las tareas. 
+
+
+Al escribir código se deben seguir buenas prácticas y hacerlo como un autentico profesional, evitar antipatrones y utilizar los patrones recomendados para los lenguajes modernos que usaremos como en este caso react, typescript, y framework como next.js
+
+Todo el código se debe escribir y comentar en inglés aunque el usuario de instrucciones a la IA en español, pero al final elcodigoq ue se desarrolle debe estar en inglés para que sea internacional
+
+
+-Arquitectura
+La arquitectura será clean architecture, el sistema de carpetas y organización de componentes se debe desarrollar teniendo siempre en cuenta que debe seguir esta arquitectura en todo momento. Aunque si la complejidad del proyecto noe s muy grande se puede usar una clean architecture "light" lo dejo a tu elección pero me gustaría prepararlo con esta arquitectura para poder escalarlo en un futuro.
+
+## 
+- **Frontend**: React 19 + Next.js 16 + TypeScript 
+- **Estilos**: Tailwind CSS
+- **Backend**:	postgres + pgvector + S3 + BullMQ/Redis+ worker
+- **Testing**: Vitest + Testing Library + Playwright + ESlint
+- **Observabilidad**: Sentry
+- **Calidad**: ESLint + SonarJS + jsx-a11y + prettier
+
+
+Muy importante: El diseño debe ser responsive para que sirva tanto para pc como para movil
+
+Se usará pnpm, Use pnpm exclusively (per project standards)
+Commands: pnpm install, pnpm test, pnpm run dev
+
+Conforme se vayan haciendo cambios y añadiendo features y componentes hay que que subir el contenido a github y hacer pull request
+
+-Despliegue:
+Para desplegar el proyecto en produccion se usará docker y habrá que prepara un secuencia de despliegue para subirlo a un vps, habrá que preparar las imagenes de docker y el dockercompose y se podria subir a docker hub, desde un vps lo montaremos
+
+Bases de datos:
+Para la base de datos y persistencia se usará postgress
+
+-Documentación: 
+ver ejemplos del documento Docs-as-Code-Minimal para saber como se tiene que documentar
+utilizar open api y swagger para APIs
+
+-Seguridad: 
+todo los componentes y features deben ser desarrollados con la seguridad por diseño, muy importante tener en cuenta OWASP 10 a la hora de desarrolar el rpoyecto y siempre revisar la seguridad. 
+Se usaran variables de entorno para los secretos con validacion con zod.
+Se utilizaran jwt tokens con 2 tokens uno de corta duracion y otro de larga duracion, mirar en el documento auth-tokens para ver toda la informacion
+requerir contraseñas fuertes
+
+-Testing y calidad:
+También será muy importante seguir una metodologia de testing, se usaran herramientas como ESlint, vitest, sentry para observabilidad y playwright para e2e e incluso zod para validaciones en secretos y cosas de ese estilo.
+Se intentará seguir la filosofia TDD para crear todos los componentes y features
+Se podrá usar testing library
+Testing coverage, seguir la guia del documento strategic-coverage
+Calidad:
+Seguir buenas practicas del documento performance-percibida
+
+
+
+
+Ejemplo de contexto para desarrollo con IA:
+Vamos a construir juntos una aplicación e-commerce llamada "Simple Product Shop".
+
+SOBRE EL PROYECTO:
+- Tienda online simple con catálogo de productos y carrito de compras
+- Stack: React + TypeScript + Vite + Tailwind CSS v4
+- Testing: Vitest + Testing Library + Playwright (E2E)
+
+METODOLOGÍA DE TRABAJO:
+
+1. TDD (Test-Driven Development):
+   - Siempre escribir el test PRIMERO
+   - Verificar que FALLA (Red)
+   - Implementar código MÍNIMO para pasar (Green)
+   - Refactorizar si es necesario
+
+2. Scope Rule para organización de carpetas:
+   - GLOBAL SCOPE (src/shared/): Código usado en múltiples features
+     → types/, utils/, constants/, components/, strategies/, hooks/
+   - LOCAL SCOPE (src/features/X/): Código específico de una feature
+     → product-catalog/, shopping-cart/, auth/
+   - Context global: src/context/
+   - Infraestructura: src/infrastructure/
+
+3. Verificación continua:
+   - Después de cada feature: pnpm test:run && pnpm build
+   - Después de E2E (video 7+): agregar pnpm test:e2e
+   - Al final: pnpm verify (lint + typecheck + tests + e2e + build)
+
+MI ROL COMO ESTUDIANTE:
+- Te daré los REQUISITOS de lo que necesito
+- Tú generas el código basándote en esos requisitos
+- Yo ejecuto, verifico que funciona, y continuamos
+
+TU ROL COMO ASISTENTE:
+- NO me des código que no te pida
+- Cuando pida un TEST, genera SOLO el test
+- Cuando pida la IMPLEMENTACIÓN, genera SOLO la implementación
+- Sigue las convenciones del proyecto (Scope Rule, TDD, etc.)
+- Si algo no está claro, pregunta antes de generar
+
+REGLAS DE CÓDIGO:
+- TypeScript estricto
+- Tailwind CSS para estilos
+- Testing Library con queries accesibles (getByRole > getByTestId)
+- Componentes funcionales con hooks
+- Nombres descriptivos en inglés
+
+¿Entendido? Cuando confirmes, comenzamos con el primer paso.
