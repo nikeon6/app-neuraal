@@ -2,8 +2,8 @@
 
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { useStore } from "@/lib/store";
-import { TOPICS, DAYS, type TopicId } from "@/domain/types";
+import { useStore } from "@/shared/store";
+import { TOPICS, DAYS, type TopicId } from "@/shared/types";
 
 export function TaskForm() {
   const { selectedDay, setSelectedDay, addTask } = useStore();

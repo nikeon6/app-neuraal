@@ -3,9 +3,9 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
-import { useStore } from "@/lib/store";
-import { TOPICS } from "@/domain/types";
-import { cn } from "@/lib/utils";
+import { useStore } from "@/shared/store";
+import { TOPICS } from "@/shared/types";
+import { cn } from "@/shared/lib/utils";
 
 export function VerticalCalendar() {
   const {

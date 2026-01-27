@@ -53,6 +53,71 @@ Monorepo with pnpm workspaces:
 
 ---
 
+## Current Source Structure (Feature-Based)
+
+The codebase follows a **feature-based architecture** with clear separation between shared (global) and feature-specific (local) code:
+
+```
+src/
+  app/                    # Next.js App Router pages
+    page.tsx              # Home page
+    login/page.tsx        # Login page
+    layout.tsx            # Root layout
+    globals.css           # Global styles
+  
+  shared/                 # Global Scope - available across the entire app
+    types/                # Domain types (Task, Note, Topic, etc.)
+      index.ts
+    lib/                  # Shared utilities
+      utils.ts            # cn, uid, clamp, median, quadPath
+      utils.test.ts       # Unit tests
+      index.ts
+    store/                # Global Zustand store
+      index.ts
+    ui/                   # Reusable UI components (Button, Modal, etc.)
+      index.ts
+  
+  features/               # Local Scope - feature-specific code
+    dashboard/            # Main dashboard feature
+      components/
+        Dashboard.tsx
+      index.ts
+    calendar/             # Calendar feature
+      components/
+        VerticalCalendar.tsx
+      index.ts
+    tasks/                # Task management feature
+      components/
+        TaskForm.tsx
+      index.ts
+    topics/               # Floating topics/bubbles feature
+      components/
+        FloatingTopics.tsx
+      index.ts
+    layout/               # App layout with auth protection
+      components/
+        MainLayout.tsx
+      index.ts
+    index.ts              # Barrel exports
+```
+
+### The Scope Rule
+
+| Type | Location | Visibility | Examples |
+|------|----------|------------|----------|
+| Global Scope | `src/shared/` | Entire app | Types, utils, store, UI components |
+| Local Scope | `src/features/X/` | Only in feature X | Dashboard, Calendar, TaskForm |
+
+### Benefits
+
+- **Modularity**: Each feature is independent and self-contained
+- **Efficient reuse**: Shared components without redundancy
+- **Lazy loading**: Features can be loaded on demand
+- **Clarity**: Easy to find and understand code location
+- **Scalability**: New features don't affect existing ones
+
+---
+
 ## Prerequisites
 
 - Node.js (LTS recommended)

@@ -73,10 +73,36 @@ Build an app where authenticated users can:
 - `application` can depend on `domain`, but not on concrete infrastructure.
 - `infrastructure` depends on `application` + `domain` and provides implementations.
 
-### Allowed imports (example)
-- domain → domain only
-- application → domain + application
-- infrastructure → everything (but infrastructure-only details stay contained)
+### Feature-Based Structure (The Scope Rule)
+
+The codebase uses a **feature-based architecture** with two scopes:
+
+| Scope | Location | Visibility | Contains |
+|-------|----------|------------|----------|
+| **Global** | `src/shared/` | Entire app | Types, utils, store, UI components |
+| **Local** | `src/features/X/` | Only feature X | Feature-specific components/logic |
+
+**Folder structure:**
+```
+src/
+  shared/           # Global scope
+    types/          # Domain types (Task, Note, Topic...)
+    lib/            # Utilities (cn, uid, clamp...)
+    store/          # Global Zustand store
+    ui/             # Reusable UI components
+  features/         # Local scope (per feature)
+    dashboard/
+    calendar/
+    tasks/
+    topics/
+    layout/
+```
+
+### Import rules
+- `shared/` → can import from `shared/` only
+- `features/X/` → can import from `shared/` and `features/X/` only
+- **Never** import across features (`features/A/` → `features/B/`)
+- Use barrel exports (`index.ts`) for cleaner imports
 
 ### Configuration
 - Only the infrastructure/config layer may read `process.env`.

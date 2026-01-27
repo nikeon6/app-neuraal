@@ -8,8 +8,8 @@ import {
   type NotesByDate,
   type TopicId,
   type TopicPosition,
-} from "@/domain/types";
-import { uid } from "./utils";
+} from "@/shared/types";
+import { uid } from "@/shared/lib/utils";
 
 interface AppState {
   // Authentication

@@ -4,10 +4,10 @@ import React, { useRef } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
-import { useStore } from "@/lib/store";
-import { FloatingTopics } from "@/components/topics/FloatingTopics";
-import { TaskForm } from "@/components/tasks/TaskForm";
-import { VerticalCalendar } from "@/components/calendar/VerticalCalendar";
+import { useStore } from "@/shared/store";
+import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
+import { TaskForm } from "@/features/tasks/components/TaskForm";
+import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 
 export function Dashboard() {
   const { selectedDate, selectedDay } = useStore();

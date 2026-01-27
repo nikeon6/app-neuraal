@@ -8,9 +8,9 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { useStore } from "@/lib/store";
-import { TOPICS, type TopicId } from "@/domain/types";
-import { clamp, median, quadPath } from "@/lib/utils";
+import { useStore } from "@/shared/store";
+import { TOPICS, type TopicId } from "@/shared/types";
+import { clamp, median, quadPath } from "@/shared/lib/utils";
 
 // Configuration constants
 const JUNCTION_PULL_LEFT = 120;
