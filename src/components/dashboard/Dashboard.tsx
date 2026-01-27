@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
@@ -12,30 +12,18 @@ import { VerticalCalendar } from "@/components/calendar/VerticalCalendar";
 export function Dashboard() {
   const { selectedDate, selectedDay } = useStore();
 
-  // Refs for task elements (used by FloatingTopics for wire connections)
-  const taskRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const calendarRef = useRef<HTMLDivElement | null>(null);
-
-  const handleTaskRefUpdate = useCallback(
-    (taskId: string, el: HTMLDivElement | null) => {
-      if (el) {
-        taskRefs.current.set(taskId, el);
-      } else {
-        taskRefs.current.delete(taskId);
-      }
-    },
-    []
-  );
+  // Ref for the main container (used by FloatingTopics)
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div className="flex h-full w-full relative">
-      {/* Main content area with floating topics */}
-      <div className="flex-1 relative flex flex-col">
-        {/* Floating topics visualization */}
-        <FloatingTopics taskRefs={taskRefs} calendarRef={calendarRef} />
+    <div ref={containerRef} className="flex h-full w-full relative">
+      {/* Floating topics visualization - covers entire area */}
+      <FloatingTopics containerRef={containerRef} />
 
+      {/* Main content area */}
+      <div className="flex-1 relative flex flex-col z-10">
         {/* Header with date */}
-        <header className="relative z-40 p-6 md:p-12">
+        <header className="relative p-6 md:p-12">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -58,8 +46,11 @@ export function Dashboard() {
           </motion.div>
         </header>
 
+        {/* Spacer */}
+        <div className="flex-1" />
+
         {/* Task form at bottom */}
-        <div className="mt-auto relative z-40 p-6 md:p-12 bg-gradient-to-t from-background via-background to-transparent">
+        <div className="relative p-6 md:p-12 bg-gradient-to-t from-background via-background to-transparent">
           <div className="max-w-2xl">
             <TaskForm />
           </div>
@@ -67,11 +58,8 @@ export function Dashboard() {
       </div>
 
       {/* Right sidebar with calendar (visible on md+ screens) */}
-      <aside
-        ref={calendarRef}
-        className="hidden md:block h-full"
-      >
-        <VerticalCalendar onTaskRefUpdate={handleTaskRefUpdate} />
+      <aside className="hidden md:block h-full relative z-20">
+        <VerticalCalendar />
       </aside>
 
       {/* Mobile bottom sheet for calendar (hidden on md+ screens) */}
@@ -80,7 +68,7 @@ export function Dashboard() {
           <h3 className="text-sm font-semibold text-white/60 mb-3 uppercase tracking-wider">
             Tareas del mes
           </h3>
-          <VerticalCalendar onTaskRefUpdate={handleTaskRefUpdate} />
+          <VerticalCalendar />
         </div>
       </div>
     </div>
