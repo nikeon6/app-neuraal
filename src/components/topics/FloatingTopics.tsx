@@ -54,17 +54,21 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     offsetY: number;
   } | null>(null);
 
-  // Flatten all tasks
+  // Flatten all tasks and filter out invalid topics
   const flatTasks = useMemo(
-    () => Object.values(tasksByDay).flat(),
+    () => Object.values(tasksByDay).flat().filter((t) => TOPICS[t.topicId]),
     [tasksByDay]
   );
 
   // Count tasks per topic
   const topicCounts = useMemo(() => {
-    const counts: Record<TopicId, number> = { work: 0, health: 0, fun: 0 };
-    for (const t of flatTasks) counts[t.topicId]++;
-    return counts;
+    const counts: Partial<Record<TopicId, number>> = {};
+    for (const t of flatTasks) {
+      if (TOPICS[t.topicId]) {
+        counts[t.topicId] = (counts[t.topicId] || 0) + 1;
+      }
+    }
+    return counts as Record<TopicId, number>;
   }, [flatTasks]);
 
   // Active topics (with at least one task)
@@ -226,7 +230,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       const ys: number[] = [];
       for (const tasks of Object.values(tasksByDay)) {
         for (const t of tasks) {
-          if (t.topicId !== topicId) continue;
+          if (t.topicId !== topicId || !TOPICS[t.topicId]) continue;
           const c = taskCenters[t.id];
           if (!c) continue;
           ys.push(c.y);
@@ -349,7 +353,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       const items: Array<{ id: string; x: number; y: number }> = [];
       for (const tasks of Object.values(tasksByDay)) {
         for (const t of tasks) {
-          if (t.topicId !== id) continue;
+          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
           const c = taskCenters[t.id];
           if (!c) continue;
           items.push({ id: t.id, x: c.x, y: c.y });

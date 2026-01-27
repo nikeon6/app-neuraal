@@ -16,12 +16,12 @@ export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div ref={containerRef} className="flex h-full w-full relative">
+    <div ref={containerRef} className="flex h-full w-full relative flex-nowrap overflow-hidden">
       {/* Floating topics visualization - covers entire area */}
       <FloatingTopics containerRef={containerRef} />
 
       {/* Main content area */}
-      <div className="flex-1 relative flex flex-col z-10">
+      <div className="flex-1 relative flex flex-col z-10 min-w-0 overflow-hidden">
         {/* Header with date */}
         <header className="relative p-6 md:p-12">
           <motion.div
@@ -57,20 +57,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Right sidebar with calendar (visible on md+ screens) */}
-      <aside className="hidden md:block h-full relative z-20">
+      {/* Right sidebar with calendar - always visible */}
+      <aside className="h-full relative z-20 flex-shrink-0">
         <VerticalCalendar />
       </aside>
-
-      {/* Mobile bottom sheet for calendar (hidden on md+ screens) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl border-t border-white/10 max-h-[40vh] overflow-auto">
-        <div className="p-4">
-          <h3 className="text-sm font-semibold text-white/60 mb-3 uppercase tracking-wider">
-            Tareas del mes
-          </h3>
-          <VerticalCalendar />
-        </div>
-      </div>
     </div>
   );
 }
