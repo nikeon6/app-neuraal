@@ -6,23 +6,23 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import { useStore } from "@/lib/store";
 import { TOPICS, type TopicId } from "@/domain/types";
 import { clamp, median, quadPath } from "@/lib/utils";
 
 // Configuration constants
-const TASK_ANCHOR_INSET = 6;
-const JUNCTION_PULL_LEFT = 180;
-const JUNCTION_FOLLOW = 0.14;
-const JUNCTION_TO_NODE_BLEND = 0.77;
+const JUNCTION_PULL_LEFT = 120;
+const JUNCTION_FOLLOW = 0.18;
+const JUNCTION_TO_NODE_BLEND = 0.65;
+const NODE_MARGIN = 8;
 
 interface FloatingTopicsProps {
-  taskRefs: React.RefObject<Map<string, HTMLDivElement | null>>;
-  calendarRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
+export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   const {
     tasksByDay,
     topicPositions,
@@ -30,9 +30,6 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     highlightedTopic,
     setHighlightedTopic,
   } = useStore();
-
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
 
   const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0 });
   const [taskCenters, setTaskCenters] = useState<
@@ -44,11 +41,10 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     Partial<Record<TopicId, { x: number; y: number }>>
   >({});
   const junctionTargetRef = useRef<Partial<Record<TopicId, { y: number }>>>({});
-  const junctionRaf = useRef<number | null>(null);
   const [junctionPositions, setJunctionPositions] = useState<
     Partial<Record<TopicId, { x: number; y: number }>>
   >({});
-  const [junctionTick, setJunctionTick] = useState(0);
+  const [, setJunctionTick] = useState(0);
 
   // Drag state
   const dragRef = useRef<{
@@ -78,87 +74,124 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     );
   }, [topicCounts]);
 
-  // Recalculate task positions
+  // Recalculate positions
   const recalc = useCallback(() => {
-    const board = boardRef.current;
-    if (!board) return;
+    const container = containerRef?.current;
+    if (!container) return;
 
-    const b = board.getBoundingClientRect();
-    const rightW = calendarRef?.current
-      ? calendarRef.current.getBoundingClientRect().width
-      : 0;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Find the calendar aside
+    const aside = container.querySelector('aside');
+    const asideRect = aside?.getBoundingClientRect();
+    const rightW = asideRect ? asideRect.width : 0;
+    const asideLeft = asideRect ? asideRect.left - containerRect.left : containerRect.width;
 
-    setBoardSize({ w: Math.max(1, b.width), h: Math.max(1, b.height), rightW });
+    setBoardSize({
+      w: Math.max(1, containerRect.width),
+      h: Math.max(1, containerRect.height),
+      rightW,
+    });
 
     const centers: Record<string, { x: number; y: number }> = {};
-    const scroller = calendarRef?.current;
-    const s = scroller ? scroller.getBoundingClientRect() : null;
 
-    if (taskRefs.current) {
-      for (const t of flatTasks) {
-        const el = taskRefs.current.get(t.id);
-        if (!el) continue;
+    // Find all visible task pills in the DOM
+    const taskPills = container.querySelectorAll('[data-task-id]');
+    
+    taskPills.forEach((el) => {
+      const taskId = el.getAttribute('data-task-id');
+      if (!taskId) return;
 
-        const r = el.getBoundingClientRect();
-
-        // Only include visible tasks
-        if (s) {
-          const visible =
-            r.bottom >= s.top &&
-            r.top <= s.bottom &&
-            r.right >= s.left &&
-            r.left <= s.right;
-          if (!visible) continue;
-        }
-
-        // Anchor from left side of task pill
-        centers[t.id] = {
-          x: r.left - b.left + TASK_ANCHOR_INSET,
-          y: r.top - b.top + r.height / 2,
-        };
+      const r = el.getBoundingClientRect();
+      
+      // Check if the element is actually visible (within the aside's visible area)
+      if (asideRect) {
+        const isVisible = 
+          r.top < asideRect.bottom && 
+          r.bottom > asideRect.top &&
+          r.left < asideRect.right &&
+          r.right > asideRect.left;
+        
+        if (!isVisible) return;
       }
-    }
+      
+      // Calculate position - anchor point on the LEFT side of the task pill
+      const x = r.left - containerRect.left;
+      const y = r.top - containerRect.top + r.height / 2;
+
+      // Only include if within visible bounds
+      if (y > 0 && y < containerRect.height && x > 0) {
+        centers[taskId] = { x, y };
+      }
+    });
 
     setTaskCenters(centers);
-  }, [flatTasks, taskRefs, calendarRef]);
+  }, [containerRef]);
 
-  const scheduleRecalc = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      recalc();
+  // Setup observers
+  useEffect(() => {
+    const container = containerRef?.current;
+    if (!container) return;
+
+    // Initial calculation with delay
+    const initialTimeout = setTimeout(recalc, 200);
+
+    // Resize observer
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(recalc);
     });
-  }, [recalc]);
+    ro.observe(container);
 
-  // Setup resize and scroll observers
-  useLayoutEffect(() => {
-    recalc();
+    // Find scroll container in calendar and observe it
+    const aside = container.querySelector('aside');
+    if (aside) {
+      ro.observe(aside);
+      
+      // Find the scrollable element
+      const scrollEl = aside.querySelector('.overflow-y-auto') || aside;
+      scrollEl.addEventListener("scroll", recalc, { passive: true });
+      
+      // Cleanup function needs this reference
+      const cleanup = () => {
+        scrollEl.removeEventListener("scroll", recalc);
+      };
+      
+      // Window resize
+      window.addEventListener("resize", recalc);
 
-    const board = boardRef.current;
-    if (!board) return;
+      // Mutation observer for DOM changes
+      const mo = new MutationObserver(() => {
+        setTimeout(recalc, 50);
+      });
+      mo.observe(container, { childList: true, subtree: true });
 
-    const ro = new ResizeObserver(() => recalc());
-    ro.observe(board);
-    if (calendarRef?.current) ro.observe(calendarRef.current);
-
-    const scroller = calendarRef?.current;
-    if (scroller)
-      scroller.addEventListener("scroll", scheduleRecalc, { passive: true });
+      return () => {
+        clearTimeout(initialTimeout);
+        ro.disconnect();
+        mo.disconnect();
+        window.removeEventListener("resize", recalc);
+        cleanup();
+      };
+    }
 
     window.addEventListener("resize", recalc);
-
     return () => {
+      clearTimeout(initialTimeout);
       ro.disconnect();
       window.removeEventListener("resize", recalc);
-      if (scroller) scroller.removeEventListener("scroll", scheduleRecalc);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [recalc, scheduleRecalc, calendarRef]);
+  }, [recalc, containerRef]);
+
+  // Recalculate when tasks change
+  useEffect(() => {
+    const timeout = setTimeout(recalc, 100);
+    return () => clearTimeout(timeout);
+  }, [tasksByDay, recalc]);
 
   // Calculate topic node centers and radii
   const topicCenters = useMemo(() => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-    const margin = 60;
+    const margin = 40;
     const areaW = Math.max(1, leftW - margin * 2);
     const areaH = Math.max(1, boardSize.h - margin * 2);
 
@@ -176,10 +209,10 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
 
       const pos = topicPositions[id] ?? { x: defX, y: defY };
 
-      const minX = r + 20;
-      const maxX = Math.max(minX, leftW - r - 20);
-      const minY = r + 20;
-      const maxY = Math.max(minY, boardSize.h - r - 20);
+      const minX = r + NODE_MARGIN;
+      const maxX = Math.max(minX, leftW - r - NODE_MARGIN);
+      const minY = r + NODE_MARGIN;
+      const maxY = Math.max(minY, boardSize.h - r - NODE_MARGIN);
 
       centers[id] = { x: clamp(pos.x, minX, maxX), y: clamp(pos.y, minY, maxY), r };
     }
@@ -253,7 +286,8 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
       junctionTargetRef.current[id] = { y: targetY };
     }
 
-    // Animation step
+    // Animation
+    let animationId: number;
     const step = () => {
       let changed = false;
 
@@ -274,26 +308,15 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
       if (changed) {
         setJunctionPositions(collectJunctionPositions());
         setJunctionTick((t) => t + 1);
-        junctionRaf.current = requestAnimationFrame(step);
-      } else {
-        junctionRaf.current = null;
+        animationId = requestAnimationFrame(step);
       }
     };
 
-    // Initial positions
-    const initialPositions = collectJunctionPositions();
-    if (Object.keys(initialPositions).length > 0) {
-      requestAnimationFrame(() => {
-        setJunctionPositions((prev) => ({ ...prev, ...initialPositions }));
-      });
-    }
-
-    if (junctionRaf.current) cancelAnimationFrame(junctionRaf.current);
-    junctionRaf.current = requestAnimationFrame(step);
+    setJunctionPositions(collectJunctionPositions());
+    animationId = requestAnimationFrame(step);
 
     return () => {
-      if (junctionRaf.current) cancelAnimationFrame(junctionRaf.current);
-      junctionRaf.current = null;
+      if (animationId) cancelAnimationFrame(animationId);
     };
   }, [
     activeTopics,
@@ -304,10 +327,8 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     collectJunctionPositions,
   ]);
 
-  // Build wire bundles
+  // Build wire bundles - only for visible tasks
   const bundles = useMemo(() => {
-    void junctionTick; // Force re-render dependency
-
     type Branch = { key: string; d: string };
     type Bundle = {
       topicId: TopicId;
@@ -322,8 +343,9 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     for (const id of activeTopics) {
       const node = topicCenters[id];
       const j = junctionPositions[id];
-      if (!node || !j) continue;
+      if (!node) continue;
 
+      // Collect visible tasks for this topic
       const items: Array<{ id: string; x: number; y: number }> = [];
       for (const tasks of Object.values(tasksByDay)) {
         for (const t of tasks) {
@@ -334,6 +356,7 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
         }
       }
 
+      // Skip if no visible tasks
       if (items.length === 0) continue;
 
       if (items.length === 1) {
@@ -347,6 +370,9 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
         continue;
       }
 
+      // Need junction for multiple tasks
+      if (!j) continue;
+
       const trunk = quadPath(node.x, node.y, j.x, j.y, -0.7);
       const branches: Branch[] = items.map((p) => ({
         key: p.id,
@@ -357,21 +383,21 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     }
 
     return out;
-  }, [activeTopics, junctionTick, junctionPositions, topicCenters, tasksByDay, taskCenters]);
+  }, [activeTopics, junctionPositions, topicCenters, tasksByDay, taskCenters]);
 
   // Drag handlers
   const handlePointerDown =
     (id: TopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
-      const board = boardRef.current;
+      const container = containerRef?.current;
       const c = topicCenters[id];
-      if (!board || !c) return;
+      if (!container || !c) return;
 
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
 
-      const b = board.getBoundingClientRect();
-      const px = e.clientX - b.left;
-      const py = e.clientY - b.top;
+      const rect = container.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
 
       dragRef.current = {
         id,
@@ -381,10 +407,10 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
       };
 
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const minX = c.r + 20;
-      const maxX = Math.max(minX, leftW - c.r - 20);
-      const minY = c.r + 20;
-      const maxY = Math.max(minY, boardSize.h - c.r - 20);
+      const minX = c.r + NODE_MARGIN;
+      const maxX = Math.max(minX, leftW - c.r - NODE_MARGIN);
+      const minY = c.r + NODE_MARGIN;
+      const maxY = Math.max(minY, boardSize.h - c.r - NODE_MARGIN);
 
       const nx = clamp(px - dragRef.current.offsetX, minX, maxX);
       const ny = clamp(py - dragRef.current.offsetY, minY, maxY);
@@ -394,23 +420,23 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
 
   const handlePointerMove =
     (id: TopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
-      const board = boardRef.current;
+      const container = containerRef?.current;
       const c = topicCenters[id];
       const drag = dragRef.current;
 
-      if (!board || !c || !drag) return;
+      if (!container || !c || !drag) return;
       if (drag.id !== id || drag.pointerId !== e.pointerId) return;
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
 
-      const b = board.getBoundingClientRect();
-      const px = e.clientX - b.left;
-      const py = e.clientY - b.top;
+      const rect = container.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
 
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const minX = c.r + 20;
-      const maxX = Math.max(minX, leftW - c.r - 20);
-      const minY = c.r + 20;
-      const maxY = Math.max(minY, boardSize.h - c.r - 20);
+      const minX = c.r + NODE_MARGIN;
+      const maxX = Math.max(minX, leftW - c.r - NODE_MARGIN);
+      const minY = c.r + NODE_MARGIN;
+      const maxY = Math.max(minY, boardSize.h - c.r - NODE_MARGIN);
 
       const nx = clamp(px - drag.offsetX, minX, maxX);
       const ny = clamp(py - drag.offsetY, minY, maxY);
@@ -428,19 +454,18 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
     };
 
   return (
-    <div ref={boardRef} className="absolute inset-0 overflow-hidden">
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 15 }}>
       {/* SVG Wires */}
       <svg
-        className="wires"
+        className="absolute inset-0"
         width="100%"
         height="100%"
-        viewBox={`0 0 ${boardSize.w} ${boardSize.h}`}
-        preserveAspectRatio="none"
+        style={{ overflow: 'visible' }}
       >
         {bundles.map((b) => {
           const dim = highlightedTopic && b.topicId !== highlightedTopic;
-          const trunkOpacity = dim ? 0.03 : 0.18;
-          const branchOpacity = dim ? 0.04 : 0.24;
+          const trunkOpacity = dim ? 0.08 : 0.25;
+          const branchOpacity = dim ? 0.1 : 0.3;
 
           if (b.single) {
             return (
@@ -450,8 +475,8 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
                   stroke={b.color}
                   fill="none"
                   strokeLinecap="round"
-                  strokeWidth={dim ? 1 : 1.6}
-                  strokeOpacity={dim ? 0.06 : 0.22}
+                  strokeWidth={dim ? 1 : 2}
+                  strokeOpacity={dim ? 0.1 : 0.3}
                   strokeDasharray="4 8"
                 />
               </g>
@@ -467,7 +492,7 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
                     stroke={b.color}
                     fill="none"
                     strokeLinecap="round"
-                    strokeWidth={dim ? 1.4 : 3}
+                    strokeWidth={dim ? 2 : 3}
                     strokeOpacity={trunkOpacity}
                   />
                   <path
@@ -475,8 +500,8 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
                     stroke={b.color}
                     fill="none"
                     strokeLinecap="round"
-                    strokeWidth={dim ? 1 : 2.2}
-                    strokeOpacity={dim ? 0.03 : 0.1}
+                    strokeWidth={dim ? 1 : 2}
+                    strokeOpacity={dim ? 0.05 : 0.12}
                     strokeDasharray="4 8"
                   />
                 </>
@@ -488,7 +513,7 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
                   stroke={b.color}
                   fill="none"
                   strokeLinecap="round"
-                  strokeWidth={dim ? 1 : 1.7}
+                  strokeWidth={dim ? 1 : 1.5}
                   strokeOpacity={branchOpacity}
                   strokeDasharray="4 8"
                 />
@@ -514,7 +539,7 @@ export function FloatingTopics({ taskRefs, calendarRef }: FloatingTopicsProps) {
             onPointerMove={handlePointerMove(id)}
             onPointerUp={handlePointerUp()}
             onPointerCancel={handlePointerUp()}
-            className="topic-node"
+            className="topic-node pointer-events-auto"
             style={{
               left: c.x - c.r,
               top: c.y - c.r,

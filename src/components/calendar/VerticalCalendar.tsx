@@ -7,11 +7,7 @@ import { useStore } from "@/lib/store";
 import { TOPICS } from "@/domain/types";
 import { cn } from "@/lib/utils";
 
-interface VerticalCalendarProps {
-  onTaskRefUpdate?: (taskId: string, el: HTMLDivElement | null) => void;
-}
-
-export function VerticalCalendar({ onTaskRefUpdate }: VerticalCalendarProps) {
+export function VerticalCalendar() {
   const {
     selectedDate,
     setSelectedDay,
@@ -27,14 +23,24 @@ export function VerticalCalendar({ onTaskRefUpdate }: VerticalCalendarProps) {
   const monthEnd = endOfMonth(selectedDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Scroll to selected day on mount
+  // Scroll to selected day within the calendar container only
   useEffect(() => {
-    if (scrollRef.current) {
-      const selectedEl = document.getElementById(`day-${format(selectedDate, 'yyyy-MM-dd')}`);
-      if (selectedEl) {
-        selectedEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const selectedEl = document.getElementById(`day-${format(selectedDate, 'yyyy-MM-dd')}`);
+    if (!selectedEl) return;
+
+    // Calculate scroll position to center the selected element
+    const containerHeight = container.clientHeight;
+    const elementTop = selectedEl.offsetTop;
+    const elementHeight = selectedEl.clientHeight;
+    const scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+
+    container.scrollTo({
+      top: Math.max(0, scrollTop),
+      behavior: "smooth"
+    });
   }, [selectedDate]);
 
   const handleRemoveTask = useCallback(
@@ -113,7 +119,6 @@ export function VerticalCalendar({ onTaskRefUpdate }: VerticalCalendarProps) {
                     <div
                       key={task.id}
                       className="task-pill"
-                      ref={(el) => onTaskRefUpdate?.(task.id, el)}
                       data-task-id={task.id}
                     >
                       <span
