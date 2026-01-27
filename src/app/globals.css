@@ -1,0 +1,290 @@
+@import "tailwindcss";
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /* Topic colors for floating nodes */
+  --color-topic-work: #e11d48;
+  --color-topic-health: #3b82f6;
+  --color-topic-fun: #facc15;
+}
+
+:root {
+  /* Blue/Purple elegant theme */
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  --accent: 217 32% 17%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 32% 17%;
+  --input: 217 32% 17%;
+  --ring: 224 76% 48%;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+  }
+}
+
+/* Custom utilities */
+@utility glass-panel {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
+}
+
+@utility glass-card {
+  @apply bg-white/5 backdrop-blur-md border border-white/5 hover:bg-white/10 transition-all duration-300;
+}
+
+@utility text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600;
+}
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Floating topics (nodes) styles */
+.topic-node {
+  position: absolute;
+  z-index: 30;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 60px rgba(0, 0, 0, 0.15);
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  user-select: none;
+  cursor: grab;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  font-family: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topic-node:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 80px rgba(0, 0, 0, 0.2);
+}
+
+.topic-node:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.topic-label {
+  text-align: center;
+  padding: 8px;
+  width: 100%;
+}
+
+.topic-name {
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.5px;
+}
+
+.topic-count {
+  font-size: 12px;
+  opacity: 0.85;
+  font-weight: 600;
+}
+
+/* Wires (SVG connections) */
+.wires {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.wires path {
+  transition: stroke-opacity 220ms ease, stroke-width 220ms ease;
+}
+
+/* Task pills in sidebar */
+.task-pill {
+  @apply border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-2 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all;
+}
+
+.task-pill .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex: 0 0 auto;
+}
+
+.task-pill .task-text {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.task-pill .remove-btn {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  user-select: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.15s ease;
+}
+
+.task-pill .remove-btn:hover {
+  color: #ef4444;
+}
+
+.task-pill .remove-btn:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Day rows in calendar */
+.day-row {
+  @apply cursor-pointer relative flex flex-col items-center justify-center py-3 mx-2 rounded-xl transition-all duration-300;
+  min-height: 70px;
+  border: none;
+  background: transparent;
+  width: calc(100% - 16px);
+}
+
+.day-row:hover {
+  @apply bg-white/5;
+}
+
+.day-row.active {
+  @apply bg-primary text-primary-foreground shadow-lg;
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.3);
+}
+
+.day-number {
+  @apply text-xl font-bold;
+}
+
+.day-weekday {
+  @apply text-xs font-medium uppercase opacity-70;
+}
+
+.day-tasks {
+  @apply flex flex-col gap-1.5 w-full px-2 mt-2;
+}
+
+.empty-day {
+  @apply text-white/30 text-xs;
+}
+
+/* Task form */
+.task-form {
+  @apply glass-panel rounded-2xl p-5;
+}
+
+.task-form-row {
+  @apply flex flex-wrap gap-3 items-center;
+}
+
+.task-form label {
+  @apply font-medium text-sm text-white/60 uppercase tracking-wider;
+}
+
+.task-form select,
+.task-form input {
+  @apply border border-white/10 rounded-xl px-3 py-2 bg-white/5 text-white text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:bg-white/10 transition-all;
+}
+
+.task-form select {
+  @apply cursor-pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .day-row {
+    min-height: 56px;
+    padding: 8px;
+  }
+
+  .topic-node {
+    min-width: 50px;
+    min-height: 50px;
+  }
+}
