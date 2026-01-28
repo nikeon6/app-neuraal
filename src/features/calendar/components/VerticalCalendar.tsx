@@ -4,8 +4,7 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
-import { TOPICS } from "@/shared/constants";
-import { cn } from "@/shared/lib/utils";
+import { cn, getDefaultTopic } from "@/shared/lib";
 
 export function VerticalCalendar() {
   const {
@@ -116,7 +115,7 @@ export function VerticalCalendar() {
               {hasTasks && (
                 <div className="day-tasks">
                   {tasks.map((task) => {
-                    const topic = TOPICS[task.topicId];
+                    const topic = getDefaultTopic(task.topicId);
                     const color = topic?.color || "#6b7280"; // Default gray if topic doesn't exist
                     
                     return (

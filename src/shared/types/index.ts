@@ -1,60 +1,147 @@
 /**
  * Domain types for the Neuraal application
- * These are the core business entities
+ * 
+ * This is the main entry point for all shared types.
+ * Import from "@/shared/types" to access any type.
+ * 
+ * NOTE: UI-specific types are in their respective features:
+ * - src/features/topics/types.ts (TopicPosition, TopicAnchor, etc.)
+ * - src/features/calendar/types.ts (CalendarViewState, CalendarDayUI, etc.)
+ * 
+ * @example
+ * import type { Entry, Topic, CalendarDay, CreateEntryInput } from "@/shared/types";
  */
 
-// Topic categories for tasks
-export type TopicId = 
-  | "work" 
-  | "health" 
-  | "fun"
-  | "family"
-  | "learning"
-  | "social";
+// ============================================================================
+// Base Types
+// ============================================================================
+export type {
+  ID,
+  EntryId,
+  TopicId,
+  DefaultTopicId,
+  ReminderId,
+  AttachmentId,
+  UserId,
+  ISODate,
+  ISODateTime,
+  Timezone,
+  EntityMeta,
+  RequireKeys,
+  PartialExcept,
+  EntityID,
+} from "./base";
 
-// Topic definition with visual properties
-export interface Topic {
-  id: TopicId;
-  name: string;
-  color: string;
-  anchor: {
-    xPct: number;
-    yPct: number;
-  };
-}
+// ============================================================================
+// Topic Types
+// ============================================================================
+export type {
+  UserTopic,
+  SystemTopic,
+  Topic,
+  TopicRef,
+} from "./topic";
 
-// Task entity
-export interface Task {
-  id: string;
-  title: string;
-  topicId: TopicId;
-  completed: boolean;
-  createdAt: number;
-}
+// ============================================================================
+// Entry Types
+// ============================================================================
+export type {
+  EntryType,
+  EntryStatus,
+  TopicMode,
+  TopicSuggestion,
+  ContentFormat,
+  Content,
+  AttachmentSource,
+  AttachmentKind,
+  ImageAttachment,
+  FileAttachment,
+  YouTubeAttachment,
+  CodeAttachment,
+  Attachment,
+  Entry,
+  // Legacy compatibility
+  LegacyTask,
+  LegacyNote,
+  TasksByDay,
+  NotesByDate,
+} from "./entry";
 
-// Note entity (from web-app)
-export interface Note {
-  id: string;
-  content: string;
-  createdAt: number;
-}
+export { MAX_ATTACHMENTS_SIZE_BYTES } from "./entry";
 
-// Tasks organized by day (1-31)
-export type TasksByDay = Record<number, Task[]>;
+// ============================================================================
+// Reminder Types
+// ============================================================================
+export type {
+  ReminderStatus,
+  ReminderChannel,
+  RecurrenceRule,
+  Reminder,
+} from "./reminder";
 
-// Notes organized by date string (yyyy-MM-dd)
-export type NotesByDate = Record<string, Note[]>;
+// ============================================================================
+// Calendar Types (Domain only, not UI)
+// ============================================================================
+export type {
+  CalendarRange,
+  EntrySummary,
+  CalendarDay,
+  TopicBubbleData,
+  TopicStats,
+} from "./calendar";
 
-// Topic position for dragging
+// ============================================================================
+// DTO Types
+// ============================================================================
+export type {
+  CreateEntryInput,
+  EntryPatch,
+  UpdateEntryInput,
+  AddAttachmentInput,
+  RemoveAttachmentInput,
+  CreateTopicInput,
+  TopicPatch,
+  UpdateTopicInput,
+  CreateReminderInput,
+  ReminderPatch,
+  UpdateReminderInput,
+  GetEntriesQuery,
+  GetRemindersQuery,
+} from "./dto";
+
+// ============================================================================
+// Legacy Compatibility Aliases
+// ============================================================================
+
+/**
+ * @deprecated Use LegacyTask from entry.ts
+ * Alias for backward compatibility with existing code.
+ */
+export type Task = import("./entry").LegacyTask;
+
+/**
+ * @deprecated Use LegacyNote from entry.ts
+ * Alias for backward compatibility with existing code.
+ */
+export type Note = import("./entry").LegacyNote;
+
+// ============================================================================
+// Legacy UI Types (for existing code compatibility)
+// ============================================================================
+
+/**
+ * @deprecated Import from "@/features/topics/types" instead.
+ * Kept here temporarily for backward compatibility.
+ */
 export interface TopicPosition {
-  x: number;
-  y: number;
+  readonly x: number;
+  readonly y: number;
 }
 
-// Junction position for SVG wires
+/**
+ * @deprecated Import from "@/features/calendar/types" instead.
+ */
 export interface JunctionPosition {
-  x: number;
-  y: number;
+  readonly x: number;
+  readonly y: number;
 }
-
-// Note: Business constants (TOPICS, DAYS) are in shared/constants/

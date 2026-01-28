@@ -5,10 +5,11 @@
  * that are used across multiple features.
  */
 
-import type { TopicId, Topic } from "@/shared/types";
+import type { DefaultTopicId } from "@/shared/types";
+import type { DefaultTopicConfig } from "@/features/topics/types";
 
 // Default topics configuration with visual properties
-export const TOPICS: Record<TopicId, Topic> = {
+export const TOPICS: Record<DefaultTopicId, DefaultTopicConfig> = {
   work: {
     id: "work",
     name: "Trabajo",
@@ -51,4 +52,4 @@ export const TOPICS: Record<TopicId, Topic> = {
 export const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 // Topic IDs list for iteration
-export const TOPIC_IDS = Object.keys(TOPICS) as TopicId[];
+export const TOPIC_IDS = Object.keys(TOPICS) as DefaultTopicId[];

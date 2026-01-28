@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 import { useStore } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
-import { TaskForm } from "@/features/tasks/components/TaskForm";
+import { TaskEditor } from "@/features/task-editor/components/TaskEditor";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 
 export function Dashboard() {
@@ -21,9 +21,9 @@ export function Dashboard() {
       <FloatingTopics containerRef={containerRef} />
 
       {/* Main content area */}
-      <div className="flex-1 relative flex flex-col z-10 min-w-0 overflow-hidden">
+      <div className="flex-1 relative flex flex-col z-10 min-w-0 overflow-hidden p-6 md:p-12">
         {/* Header with date */}
-        <header className="relative p-6 md:p-12">
+        <header className="relative mb-6">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -46,14 +46,9 @@ export function Dashboard() {
           </motion.div>
         </header>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Task form at bottom */}
-        <div className="relative p-6 md:p-12 bg-gradient-to-t from-background via-background to-transparent">
-          <div className="max-w-2xl">
-            <TaskForm />
-          </div>
+        {/* Task Editor - below the header */}
+        <div className="relative flex-1 overflow-auto">
+          <TaskEditor />
         </div>
       </div>
 
