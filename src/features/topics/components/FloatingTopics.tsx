@@ -9,7 +9,15 @@ import React, {
   useEffect,
 } from "react";
 import { useStore } from "@/shared/store";
-import { type TopicId, type DefaultTopicId } from "@/shared/types";
+import type { TopicId, DefaultTopicId, LegacyTask } from "@/shared/types";
+import type { 
+  TopicPosition, 
+  JunctionPosition,
+  WireBundle,
+  WireBranch,
+  TopicNodeCenter,
+  TaskCenter,
+} from "@/features/topics/types";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
 import { clamp, median, quadPath, isDefaultTopicId } from "@/shared/lib";
 
@@ -33,9 +41,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   } = useStore();
 
   const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0 });
-  const [taskCenters, setTaskCenters] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
+  const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>({});
 
   // Junction positions for smooth wire animation
   const junctionRef = useRef<
@@ -96,7 +102,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       rightW,
     });
 
-    const centers: Record<string, { x: number; y: number }> = {};
+    const centers: Record<string, TaskCenter> = {};
 
     // Find all visible task pills in the DOM
     const taskPills = container.querySelectorAll('[data-task-id]');
@@ -192,15 +198,13 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   }, [tasksByDay, recalc]);
 
   // Calculate topic node centers and radii
-  const topicCenters = useMemo(() => {
+  const topicCenters = useMemo((): Partial<Record<DefaultTopicId, TopicNodeCenter>> => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     const margin = 40;
     const areaW = Math.max(1, leftW - margin * 2);
     const areaH = Math.max(1, boardSize.h - margin * 2);
 
-    const centers: Partial<
-      Record<TopicId, { x: number; y: number; r: number }>
-    > = {};
+    const centers: Partial<Record<DefaultTopicId, TopicNodeCenter>> = {};
 
     for (const id of activeTopics) {
       const count = topicCounts[id];
@@ -331,17 +335,8 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   ]);
 
   // Build wire bundles - only for visible tasks
-  const bundles = useMemo(() => {
-    type Branch = { key: string; d: string };
-    type Bundle = {
-      topicId: TopicId;
-      color: string;
-      trunk?: string;
-      branches: Branch[];
-      single?: string;
-    };
-
-    const out: Bundle[] = [];
+  const bundles = useMemo((): WireBundle[] => {
+    const out: WireBundle[] = [];
 
     for (const id of activeTopics) {
       const node = topicCenters[id];
@@ -377,7 +372,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       if (!j) continue;
 
       const trunk = quadPath(node.x, node.y, j.x, j.y, -0.7);
-      const branches: Branch[] = items.map((p) => ({
+      const branches: WireBranch[] = items.map((p) => ({
         key: p.id,
         d: quadPath(j.x, j.y, p.x, p.y, +0.55),
       }));
@@ -422,7 +417,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     };
 
   const handlePointerMove =
-    (id: TopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const container = containerRef?.current;
       const c = topicCenters[id];
       const drag = dragRef.current;

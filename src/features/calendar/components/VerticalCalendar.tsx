@@ -5,6 +5,7 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
 import { cn, getDefaultTopic } from "@/shared/lib";
+import type { LegacyTask, ISODate } from "@/shared/types";
 
 export function VerticalCalendar() {
   const {
@@ -81,12 +82,12 @@ export function VerticalCalendar() {
         className="flex-1 overflow-y-auto scrollbar-hide py-4 space-y-2"
       >
         {days.map((day, i) => {
-          const dateKey = format(day, "yyyy-MM-dd");
-          const dayNumber = day.getDate();
-          const tasks = tasksByDay[dayNumber] || [];
-          const isSelected = isSameDay(day, selectedDate);
-          const isCurrentDay = isToday(day);
-          const hasTasks = tasks.length > 0;
+          const dateKey: ISODate = format(day, "yyyy-MM-dd");
+          const dayNumber: number = day.getDate();
+          const tasks: LegacyTask[] = tasksByDay[dayNumber] || [];
+          const isSelected: boolean = isSameDay(day, selectedDate);
+          const isCurrentDay: boolean = isToday(day);
+          const hasTasks: boolean = tasks.length > 0;
 
           return (
             <motion.div

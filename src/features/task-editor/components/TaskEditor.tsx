@@ -14,40 +14,69 @@ import {
   Paperclip,
   ChevronDown,
   Sparkles,
+  CheckCircle2,
+  Circle,
+  ListTodo,
+  StickyNote,
 } from "lucide-react";
 import { useStore } from "@/shared/store";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
-import { type TopicId, type DefaultTopicId } from "@/shared/types";
+import type { EntryId, DefaultTopicId, TopicMode, EntryType } from "@/shared/types";
+import { MAX_ATTACHMENTS_SIZE_BYTES } from "@/shared/constants";
 import { cn, getDefaultTopic } from "@/shared/lib";
+import type { ContentMenuItem, TaskEditorUIState } from "../types";
 
+/**
+ * Props for TaskEditor component.
+ */
 interface TaskEditorProps {
-  taskId?: string;
+  /** Entry ID for editing existing entry */
+  entryId?: EntryId;
+  /** Initial title value */
   initialTitle?: string;
+  /** Initial content value */
   initialContent?: string;
-  initialTopic?: TopicId | "auto";
+  /** Initial topic selection */
+  initialTopic?: DefaultTopicId | "auto";
+  /** Initial entry type (task or note) */
+  initialEntryType?: EntryType;
+  /** Initial completed state (for tasks) */
+  initialCompleted?: boolean;
+  /** Callback when editor is closed */
   onClose?: () => void;
 }
 
 export function TaskEditor({
-  taskId,
+  entryId,
   initialTitle = "",
   initialContent = "",
   initialTopic = "auto",
+  initialEntryType = "task",
+  initialCompleted = false,
   onClose,
 }: TaskEditorProps) {
   const { selectedDay, addTask, removeTask } = useStore();
 
-  // Form state
-  const [title, setTitle] = useState(initialTitle);
-  const [content, setContent] = useState(initialContent);
-  const [selectedTopic, setSelectedTopic] = useState<TopicId | "auto">(initialTopic);
+  // Form state (draft)
+  const [title, setTitle] = useState<string>(initialTitle);
+  const [content, setContent] = useState<string>(initialContent);
+  const [selectedTopic, setSelectedTopic] = useState<DefaultTopicId | "auto">(initialTopic);
+  const [topicMode, setTopicMode] = useState<TopicMode>(initialTopic === "auto" ? "auto" : "manual");
+  const [entryType, setEntryType] = useState<EntryType>(initialEntryType);
+  const [isCompleted, setIsCompleted] = useState<boolean>(initialCompleted);
 
   // UI state
-  const [isContentMenuOpen, setIsContentMenuOpen] = useState(false);
-  const [isTopicMenuOpen, setIsTopicMenuOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [totalFileSize, setTotalFileSize] = useState(0);
+  const [uiState, setUIState] = useState<TaskEditorUIState>({
+    isExpanded: false,
+    isContentMenuOpen: false,
+    isTopicMenuOpen: false,
+    isSaving: false,
+    saveError: undefined,
+  });
+  const [totalFileSize, setTotalFileSize] = useState<number>(0);
+
+  // Destructure UI state for convenience
+  const { isExpanded, isContentMenuOpen, isTopicMenuOpen, isSaving } = uiState;
 
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -57,9 +86,6 @@ export function TaskEditor({
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Max file size: 20MB in bytes
-  const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
   // Auto-save with debounce
   const triggerAutoSave = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -67,10 +93,11 @@ export function TaskEditor({
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      setIsSaving(true);
+      setUIState(prev => ({ ...prev, isSaving: true }));
       // Simulate save delay
+      // TODO: Implement actual save with Entry type
       setTimeout(() => {
-        setIsSaving(false);
+        setUIState(prev => ({ ...prev, isSaving: false }));
       }, 500);
     }, 1000);
   }, []);
@@ -93,23 +120,42 @@ export function TaskEditor({
   };
 
   // Handle topic selection
-  const handleTopicSelect = (topic: TopicId | "auto") => {
+  const handleTopicSelect = (topic: DefaultTopicId | "auto") => {
     setSelectedTopic(topic);
-    setIsTopicMenuOpen(false);
+    setTopicMode(topic === "auto" ? "auto" : "manual");
+    setUIState(prev => ({ ...prev, isTopicMenuOpen: false }));
+    triggerAutoSave();
+  };
+
+  // Handle entry type toggle
+  const handleEntryTypeToggle = () => {
+    const newType: EntryType = entryType === "task" ? "note" : "task";
+    setEntryType(newType);
+    // Reset completed state when switching to note
+    if (newType === "note") {
+      setIsCompleted(false);
+    }
+    triggerAutoSave();
+  };
+
+  // Handle toggle completed (for tasks only)
+  const handleToggleCompleted = () => {
+    if (entryType !== "task") return;
+    setIsCompleted(prev => !prev);
     triggerAutoSave();
   };
 
   // Handle delete
   const handleDelete = () => {
-    if (taskId) {
-      removeTask(selectedDay, taskId);
+    if (entryId) {
+      removeTask(selectedDay, entryId);
     }
     onClose?.();
   };
 
   // Handle click inside editor - expand
   const handleEditorClick = () => {
-    setIsExpanded(true);
+    setUIState(prev => ({ ...prev, isExpanded: true }));
   };
 
   // Handle click outside editor - collapse
@@ -119,9 +165,12 @@ export function TaskEditor({
         editorRef.current &&
         !editorRef.current.contains(event.target as Node)
       ) {
-        setIsExpanded(false);
-        setIsContentMenuOpen(false);
-        setIsTopicMenuOpen(false);
+        setUIState(prev => ({
+          ...prev,
+          isExpanded: false,
+          isContentMenuOpen: false,
+          isTopicMenuOpen: false,
+        }));
       }
     };
 
@@ -139,7 +188,7 @@ export function TaskEditor({
   }, []);
 
   // Content menu items
-  const contentMenuItems = [
+  const contentMenuItems: ContentMenuItem[] = [
     { id: "image", label: "Image", icon: Image },
     { id: "code", label: "Code snippet", icon: Code },
     { id: "youtube", label: "YouTube video", icon: Youtube },
@@ -166,27 +215,87 @@ export function TaskEditor({
     >
       {/* Top Row: Title + Topic Selector + Action Buttons */}
       <div className="flex items-center justify-between gap-4 mb-2">
-        {/* Title Input - Left side */}
-        <div className="flex-1">
-          <label htmlFor="task-title" className="sr-only">
-            Title
-          </label>
-          <input
-            ref={titleRef}
-            id="task-title"
-            type="text"
-            aria-label="Title"
-            value={title}
-            onChange={handleTitleChange}
-            placeholder="Title"
-            className="w-full bg-transparent border-none outline-none text-2xl font-semibold text-white/90 placeholder:text-white/30 focus:placeholder:text-white/10 transition-all"
-          />
+        {/* Left side: Complete button (task only) + Title */}
+        <div className="flex items-center gap-3 flex-1">
+          {/* Complete/Uncomplete button - only for tasks */}
+          {entryType === "task" && (
+            <button
+              type="button"
+              aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleCompleted();
+              }}
+              className={cn(
+                "p-1 rounded-lg transition-all flex-shrink-0",
+                isCompleted 
+                  ? "text-emerald-400 hover:text-emerald-300" 
+                  : "text-white/40 hover:text-white/70"
+              )}
+              title={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+            >
+              {isCompleted ? (
+                <CheckCircle2 className="w-6 h-6" />
+              ) : (
+                <Circle className="w-6 h-6" />
+              )}
+            </button>
+          )}
+
+          {/* Title Input */}
+          <div className="flex-1">
+            <label htmlFor="task-title" className="sr-only">
+              Title
+            </label>
+            <input
+              ref={titleRef}
+              id="task-title"
+              type="text"
+              aria-label="Title"
+              value={title}
+              onChange={handleTitleChange}
+              placeholder={entryType === "task" ? "Task title" : "Note title"}
+              className={cn(
+                "w-full bg-transparent border-none outline-none text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
+                isCompleted ? "text-white/50 line-through" : "text-white/90"
+              )}
+            />
+          </div>
         </div>
 
         {/* Right side: Buttons + File size */}
         <div className="flex flex-col items-end gap-2">
           {/* Buttons Row */}
           <div className="flex items-center gap-2">
+            {/* Entry Type Toggle */}
+            <button
+              type="button"
+              aria-label={entryType === "task" ? "Switch to note" : "Switch to task"}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEntryTypeToggle();
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all",
+                entryType === "task"
+                  ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                  : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+              )}
+              title={entryType === "task" ? "Task (click to switch to note)" : "Note (click to switch to task)"}
+            >
+              {entryType === "task" ? (
+                <>
+                  <ListTodo className="w-4 h-4" />
+                  <span>Task</span>
+                </>
+              ) : (
+                <>
+                  <StickyNote className="w-4 h-4" />
+                  <span>Note</span>
+                </>
+              )}
+            </button>
+
             {/* Topic Selector Dropdown */}
             <div className="relative" ref={topicMenuRef}>
               <button
@@ -196,7 +305,7 @@ export function TaskEditor({
                 aria-expanded={isTopicMenuOpen}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsTopicMenuOpen(!isTopicMenuOpen);
+                  setUIState(prev => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen }));
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all"
               >
@@ -298,11 +407,11 @@ export function TaskEditor({
             <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary/60 transition-all rounded-full"
-                style={{ width: `${(totalFileSize / MAX_FILE_SIZE) * 100}%` }}
+                style={{ width: `${(totalFileSize / MAX_ATTACHMENTS_SIZE_BYTES) * 100}%` }}
               />
             </div>
             <span className="text-[10px] text-white/30 whitespace-nowrap">
-              {(totalFileSize / (1024 * 1024)).toFixed(0)}/20MB
+              {(totalFileSize / (1024 * 1024)).toFixed(0)}/{(MAX_ATTACHMENTS_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB
             </span>
           </div>
         </div>
@@ -356,7 +465,7 @@ export function TaskEditor({
                   aria-expanded={isContentMenuOpen}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsContentMenuOpen(!isContentMenuOpen);
+                    setUIState(prev => ({ ...prev, isContentMenuOpen: !prev.isContentMenuOpen }));
                   }}
                   className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex items-center gap-1"
                 >
@@ -381,7 +490,7 @@ export function TaskEditor({
                           aria-label={item.label}
                           className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
                           onClick={() => {
-                            setIsContentMenuOpen(false);
+                            setUIState(prev => ({ ...prev, isContentMenuOpen: false }));
                             // TODO: Implement content insertion
                           }}
                         >

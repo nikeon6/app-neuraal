@@ -53,3 +53,6 @@ export const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 // Topic IDs list for iteration
 export const TOPIC_IDS = Object.keys(TOPICS) as DefaultTopicId[];
+
+// Re-export attachment constants
+export * from "./attachments";

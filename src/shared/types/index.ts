@@ -67,7 +67,7 @@ export type {
   NotesByDate,
 } from "./entry";
 
-export { MAX_ATTACHMENTS_SIZE_BYTES } from "./entry";
+// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants
 
 // ============================================================================
 // Reminder Types
@@ -112,36 +112,22 @@ export type {
 // ============================================================================
 // Legacy Compatibility Aliases
 // ============================================================================
+// These aliases maintain backward compatibility with existing store and components.
+// They will be removed once the migration to Entry type is complete.
 
 /**
- * @deprecated Use LegacyTask from entry.ts
- * Alias for backward compatibility with existing code.
+ * @deprecated Use Entry with entryType: "task" instead.
+ * Kept for backward compatibility with the current store.
  */
 export type Task = import("./entry").LegacyTask;
 
 /**
- * @deprecated Use LegacyNote from entry.ts
- * Alias for backward compatibility with existing code.
+ * @deprecated Use Entry with entryType: "note" instead.
+ * Kept for backward compatibility with the current store.
  */
 export type Note = import("./entry").LegacyNote;
 
-// ============================================================================
-// Legacy UI Types (for existing code compatibility)
-// ============================================================================
-
-/**
- * @deprecated Import from "@/features/topics/types" instead.
- * Kept here temporarily for backward compatibility.
- */
-export interface TopicPosition {
-  readonly x: number;
-  readonly y: number;
-}
-
-/**
- * @deprecated Import from "@/features/calendar/types" instead.
- */
-export interface JunctionPosition {
-  readonly x: number;
-  readonly y: number;
-}
+// NOTE: UI types like TopicPosition, JunctionPosition are in their respective
+// feature directories:
+// - src/features/topics/types.ts
+// - src/features/calendar/types.ts
