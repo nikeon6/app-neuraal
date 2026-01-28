@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/lib/store";
+import { useStore } from "@/shared/store";
 import { LogOut } from "lucide-react";
 
 interface MainLayoutProps {

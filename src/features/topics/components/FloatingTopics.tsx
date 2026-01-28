@@ -8,9 +8,10 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { useStore } from "@/lib/store";
-import { TOPICS, type TopicId } from "@/domain/types";
-import { clamp, median, quadPath } from "@/lib/utils";
+import { useStore } from "@/shared/store";
+import { type TopicId, type DefaultTopicId } from "@/shared/types";
+import { TOPICS, TOPIC_IDS } from "@/shared/constants";
+import { clamp, median, quadPath, isDefaultTopicId } from "@/shared/lib";
 
 // Configuration constants
 const JUNCTION_PULL_LEFT = 120;
@@ -38,40 +39,42 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
   // Junction positions for smooth wire animation
   const junctionRef = useRef<
-    Partial<Record<TopicId, { x: number; y: number }>>
+    Partial<Record<DefaultTopicId, { x: number; y: number }>>
   >({});
-  const junctionTargetRef = useRef<Partial<Record<TopicId, { y: number }>>>({});
+  const junctionTargetRef = useRef<Partial<Record<DefaultTopicId, { y: number }>>>({});
   const [junctionPositions, setJunctionPositions] = useState<
-    Partial<Record<TopicId, { x: number; y: number }>>
+    Partial<Record<DefaultTopicId, { x: number; y: number }>>
   >({});
   const [, setJunctionTick] = useState(0);
 
   // Drag state
   const dragRef = useRef<{
-    id: TopicId;
+    id: DefaultTopicId;
     pointerId: number;
     offsetX: number;
     offsetY: number;
   } | null>(null);
 
-  // Flatten all tasks
+  // Flatten all tasks and filter out tasks with valid default topics
   const flatTasks = useMemo(
-    () => Object.values(tasksByDay).flat(),
+    () => Object.values(tasksByDay).flat().filter((t) => isDefaultTopicId(t.topicId)),
     [tasksByDay]
   );
 
   // Count tasks per topic
   const topicCounts = useMemo(() => {
-    const counts: Record<TopicId, number> = { work: 0, health: 0, fun: 0 };
-    for (const t of flatTasks) counts[t.topicId]++;
-    return counts;
+    const counts: Partial<Record<DefaultTopicId, number>> = {};
+    for (const t of flatTasks) {
+      if (isDefaultTopicId(t.topicId)) {
+        counts[t.topicId] = (counts[t.topicId] || 0) + 1;
+      }
+    }
+    return counts as Record<DefaultTopicId, number>;
   }, [flatTasks]);
 
   // Active topics (with at least one task)
   const activeTopics = useMemo(() => {
-    return (Object.keys(TOPICS) as TopicId[]).filter(
-      (id) => topicCounts[id] > 0
-    );
+    return TOPIC_IDS.filter((id) => topicCounts[id] > 0);
   }, [topicCounts]);
 
   // Recalculate positions
@@ -222,11 +225,11 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
   // Helper functions for junction calculations
   const getTaskYsForTopic = useCallback(
-    (topicId: TopicId): number[] => {
+    (topicId: DefaultTopicId): number[] => {
       const ys: number[] = [];
       for (const tasks of Object.values(tasksByDay)) {
         for (const t of tasks) {
-          if (t.topicId !== topicId) continue;
+          if (t.topicId !== topicId || !isDefaultTopicId(t.topicId)) continue;
           const c = taskCenters[t.id];
           if (!c) continue;
           ys.push(c.y);
@@ -238,7 +241,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   );
 
   const collectJunctionPositions = useCallback(() => {
-    const positions: Partial<Record<TopicId, { x: number; y: number }>> = {};
+    const positions: Partial<Record<DefaultTopicId, { x: number; y: number }>> = {};
     for (const id of activeTopics) {
       const pos = junctionRef.current[id];
       if (pos) positions[id] = { ...pos };
@@ -349,7 +352,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       const items: Array<{ id: string; x: number; y: number }> = [];
       for (const tasks of Object.values(tasksByDay)) {
         for (const t of tasks) {
-          if (t.topicId !== id) continue;
+          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
           const c = taskCenters[t.id];
           if (!c) continue;
           items.push({ id: t.id, x: c.x, y: c.y });
@@ -387,7 +390,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
   // Drag handlers
   const handlePointerDown =
-    (id: TopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const container = containerRef?.current;
       const c = topicCenters[id];
       if (!container || !c) return;

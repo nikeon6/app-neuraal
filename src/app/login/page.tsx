@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useStore } from "@/lib/store";
+import { useStore } from "@/shared/store";
 import { ArrowRight } from "lucide-react";
 
 export default function LoginPage() {

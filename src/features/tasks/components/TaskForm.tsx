@@ -2,13 +2,14 @@
 
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { useStore } from "@/lib/store";
-import { TOPICS, DAYS, type TopicId } from "@/domain/types";
+import { useStore } from "@/shared/store";
+import { type DefaultTopicId } from "@/shared/types";
+import { TOPICS, TOPIC_IDS, DAYS } from "@/shared/constants";
 
 export function TaskForm() {
   const { selectedDay, setSelectedDay, addTask } = useStore();
   const [newTitle, setNewTitle] = useState("");
-  const [newTopic, setNewTopic] = useState<TopicId>("work");
+  const [newTopic, setNewTopic] = useState<DefaultTopicId>("work");
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -45,10 +46,10 @@ export function TaskForm() {
         <select
           id="topic-select"
           value={newTopic}
-          onChange={(e) => setNewTopic(e.target.value as TopicId)}
+          onChange={(e) => setNewTopic(e.target.value as DefaultTopicId)}
           className="w-28"
         >
-          {(Object.keys(TOPICS) as TopicId[]).map((id) => (
+          {TOPIC_IDS.map((id) => (
             <option key={id} value={id}>
               {TOPICS[id].name}
             </option>

@@ -3,9 +3,8 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
-import { useStore } from "@/lib/store";
-import { TOPICS } from "@/domain/types";
-import { cn } from "@/lib/utils";
+import { useStore } from "@/shared/store";
+import { cn, getDefaultTopic } from "@/shared/lib";
 
 export function VerticalCalendar() {
   const {
@@ -67,7 +66,7 @@ export function VerticalCalendar() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-black/20 backdrop-blur-md border-l border-white/10 w-48 lg:w-56 relative overflow-hidden">
+    <div className="h-full flex flex-col bg-black/20 backdrop-blur-md border-l border-white/10 w-48 min-w-[192px] relative overflow-hidden">
       {/* Month Header */}
       <div className="p-4 text-center border-b border-white/10">
         <h2 className="text-lg font-bold text-white/80">
@@ -115,36 +114,41 @@ export function VerticalCalendar() {
               {/* Tasks for this day */}
               {hasTasks && (
                 <div className="day-tasks">
-                  {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="task-pill"
-                      data-task-id={task.id}
-                    >
-                      <span
-                        className="dot"
-                        style={{ background: TOPICS[task.topicId].color }}
-                      />
-                      <span
-                        className={cn(
-                          "task-text",
-                          task.completed && "line-through opacity-50"
-                        )}
+                  {tasks.map((task) => {
+                    const topic = getDefaultTopic(task.topicId);
+                    const color = topic?.color || "#6b7280"; // Default gray if topic doesn't exist
+                    
+                    return (
+                      <div
+                        key={task.id}
+                        className="task-pill"
+                        data-task-id={task.id}
                       >
-                        {task.title}
-                      </span>
-                      <span
-                        className="remove-btn"
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => handleRemoveTask(e, dayNumber, task.id)}
-                        onKeyDown={(e) => handleKeyDown(e, dayNumber, task.id)}
-                        aria-label={`Eliminar tarea ${task.title}`}
-                      >
-                        ×
-                      </span>
-                    </div>
-                  ))}
+                        <span
+                          className="dot"
+                          style={{ background: color }}
+                        />
+                        <span
+                          className={cn(
+                            "task-text",
+                            task.completed && "line-through opacity-50"
+                          )}
+                        >
+                          {task.title}
+                        </span>
+                        <span
+                          className="remove-btn"
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleRemoveTask(e, dayNumber, task.id)}
+                          onKeyDown={(e) => handleKeyDown(e, dayNumber, task.id)}
+                          aria-label={`Eliminar tarea ${task.title}`}
+                        >
+                          ×
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>

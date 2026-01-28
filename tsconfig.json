@@ -39,6 +39,12 @@
     "node_modules",
     "proyectos-base-ejemplo-mvps",
     "docs",
-    "documentacion"
+    "documentacion",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "vitest.config.ts",
+    "vitest.setup.ts"
   ]
 }

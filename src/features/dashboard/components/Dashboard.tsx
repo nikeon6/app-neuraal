@@ -4,10 +4,10 @@ import React, { useRef } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
-import { useStore } from "@/lib/store";
-import { FloatingTopics } from "@/components/topics/FloatingTopics";
-import { TaskForm } from "@/components/tasks/TaskForm";
-import { VerticalCalendar } from "@/components/calendar/VerticalCalendar";
+import { useStore } from "@/shared/store";
+import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
+import { TaskEditor } from "@/features/task-editor/components/TaskEditor";
+import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 
 export function Dashboard() {
   const { selectedDate, selectedDay } = useStore();
@@ -16,14 +16,14 @@ export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div ref={containerRef} className="flex h-full w-full relative">
+    <div ref={containerRef} className="flex h-full w-full relative flex-nowrap overflow-hidden">
       {/* Floating topics visualization - covers entire area */}
       <FloatingTopics containerRef={containerRef} />
 
       {/* Main content area */}
-      <div className="flex-1 relative flex flex-col z-10">
+      <div className="flex-1 relative flex flex-col z-10 min-w-0 overflow-hidden p-6 md:p-12">
         {/* Header with date */}
-        <header className="relative p-6 md:p-12">
+        <header className="relative mb-6">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -46,31 +46,16 @@ export function Dashboard() {
           </motion.div>
         </header>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Task form at bottom */}
-        <div className="relative p-6 md:p-12 bg-gradient-to-t from-background via-background to-transparent">
-          <div className="max-w-2xl">
-            <TaskForm />
-          </div>
+        {/* Task Editor - below the header */}
+        <div className="relative flex-1 overflow-auto">
+          <TaskEditor />
         </div>
       </div>
 
-      {/* Right sidebar with calendar (visible on md+ screens) */}
-      <aside className="hidden md:block h-full relative z-20">
+      {/* Right sidebar with calendar - always visible */}
+      <aside className="h-full relative z-20 flex-shrink-0">
         <VerticalCalendar />
       </aside>
-
-      {/* Mobile bottom sheet for calendar (hidden on md+ screens) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl border-t border-white/10 max-h-[40vh] overflow-auto">
-        <div className="p-4">
-          <h3 className="text-sm font-semibold text-white/60 mb-3 uppercase tracking-wider">
-            Tareas del mes
-          </h3>
-          <VerticalCalendar />
-        </div>
-      </div>
     </div>
   );
 }

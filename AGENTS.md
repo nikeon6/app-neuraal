@@ -22,6 +22,7 @@ The project owner prefers answering questions over receiving unwanted assumption
 
 ### Language
 - All **code** and **code comments** must be written in **English**.
+- All **git commit messages** must be written in **English**.
 - Documentation (Markdown) can be Spanish or English, but keep it clear and consistent.
 
 ### Package Manager
@@ -73,10 +74,42 @@ Build an app where authenticated users can:
 - `application` can depend on `domain`, but not on concrete infrastructure.
 - `infrastructure` depends on `application` + `domain` and provides implementations.
 
-### Allowed imports (example)
-- domain → domain only
-- application → domain + application
-- infrastructure → everything (but infrastructure-only details stay contained)
+### Feature-Based Structure (The Scope Rule)
+
+The codebase uses a **feature-based architecture** with clear scopes:
+
+| Scope | Location | Visibility | Contains |
+|-------|----------|------------|----------|
+| **Global** | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI |
+| **Local** | `src/features/X/` | Only feature X | Feature-specific components/logic |
+| **Infra** | `src/infrastructure/` | Services layer | Sentry, API clients, external services |
+
+**Folder structure:**
+```
+src/
+  shared/           # Global scope
+    types/          # Domain types (Task, Note, Topic...)
+    lib/            # Utilities (cn, uid, clamp...)
+    constants/      # Business rules (TOPICS, DAYS...)
+    store/          # Global Zustand store
+    hooks/          # Reusable custom hooks
+    ui/             # Reusable UI components
+  features/         # Local scope (per feature)
+    dashboard/
+    calendar/
+    tasks/
+    topics/
+    layout/
+  infrastructure/   # External services
+  test/             # Test configuration
+```
+
+### Import rules
+- `shared/` → can import from `shared/` only
+- `features/X/` → can import from `shared/` and `features/X/` only
+- `infrastructure/` → can import from `shared/` only
+- **Never** import across features (`features/A/` → `features/B/`)
+- Use barrel exports (`index.ts`) for cleaner imports
 
 ### Configuration
 - Only the infrastructure/config layer may read `process.env`.
@@ -137,23 +170,50 @@ If any security tradeoff is unclear, ask before implementing.
 
 ## 7) Testing Policy (TDD-Friendly)
 
-Preferred workflow:
+### Test Stack
+- **Vitest**: Fast test runner with native TypeScript support
+- **Testing Library**: React testing utilities (behavior-focused)
+- **jsdom**: Browser environment for component tests
+- **Playwright**: E2E tests for critical flows
+
+### Commands
+```bash
+pnpm test           # Watch mode (interactive development)
+pnpm test:run       # Single run (CI/CD)
+pnpm test:coverage  # With coverage report
+```
+
+### Preferred workflow
 - TDD when feasible: red → green → refactor.
 - Tests are required for core logic and critical user flows.
+- Write tests BEFORE implementing features.
 
-Testing layers:
-- Unit: domain logic / pure functions
-- Integration: use cases + repository adapters (test DB when needed)
-- E2E: Playwright for critical flows (auth + calendar operations + reminders)
+### Testing layers
+- **Unit**: domain logic / pure functions / utilities
+- **Component**: React components with Testing Library (focus on user behavior)
+- **Integration**: use cases + repository adapters (test DB when needed)
+- **E2E**: Playwright for critical flows (auth + calendar operations + reminders)
 
-Coverage policy (strategic):
+### Test file naming
+- Unit/Component tests: `*.test.ts` or `*.test.tsx` (colocated with source)
+- Integration tests: `src/__tests__/*.test.ts`
+- E2E tests: `e2e/*.spec.ts` (when Playwright is configured)
+
+### Coverage policy (strategic)
 - 100% for core business rules and auth/access control paths.
 - High coverage for scheduling/reminder logic.
 - Lower priority for glue code/wiring.
 
-Avoid:
+### Best practices
+- Test behavior, not implementation details.
+- Use `screen.getByRole`, `getByLabelText` over `getByTestId`.
+- Avoid testing internal state; test what the user sees.
+- Mock external dependencies (API calls, timers) when needed.
+
+### Avoid
 - Overusing snapshots for meaningful UI logic.
 - Flaky E2E: use stable selectors and deterministic test data.
+- Testing implementation details (internal state, private methods).
 
 ---
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { MainLayout } from "@/components/layout/MainLayout";
-import { Dashboard } from "@/components/dashboard/Dashboard";
+import { MainLayout } from "@/features/layout";
+import { Dashboard } from "@/features/dashboard";
 
 export default function Home() {
   return (
