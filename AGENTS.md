@@ -22,6 +22,7 @@ The project owner prefers answering questions over receiving unwanted assumption
 
 ### Language
 - All **code** and **code comments** must be written in **English**.
+- All **git commit messages** must be written in **English**.
 - Documentation (Markdown) can be Spanish or English, but keep it clear and consistent.
 
 ### Package Manager
