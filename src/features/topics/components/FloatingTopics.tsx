@@ -9,65 +9,101 @@ import React, {
   useEffect,
 } from "react";
 import { useStore } from "@/shared/store";
-import type { TopicId, DefaultTopicId, LegacyTask } from "@/shared/types";
-import type { 
-  TopicPosition, 
-  JunctionPosition,
-  WireBundle,
-  WireBranch,
+import type { DefaultTopicId } from "@/shared/types";
+import type {
   TopicNodeCenter,
   TaskCenter,
 } from "@/features/topics/types";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
 import { clamp, median, quadPath, isDefaultTopicId } from "@/shared/lib";
 
-// Configuration constants
+// ============================================================================
+// Configuration Constants
+// ============================================================================
 const JUNCTION_PULL_LEFT = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
 const NODE_MARGIN = 8;
 
+// ============================================================================
+// Types
+// ============================================================================
 interface FloatingTopicsProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
-  const {
-    tasksByDay,
-    topicPositions,
-    setTopicPosition,
-    highlightedTopic,
-    setHighlightedTopic,
-  } = useStore();
+interface DragState {
+  id: DefaultTopicId;
+  pointerId: number;
+  offsetX: number;
+  offsetY: number;
+  bounds: { minX: number; maxX: number; minY: number; maxY: number };
+  containerRect: DOMRect;
+}
 
+interface NodePosition {
+  x: number;
+  y: number;
+  r: number;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
+  // ---------------------------------------------------------------------------
+  // Store selectors (optimized - only subscribe to what we need)
+  // ---------------------------------------------------------------------------
+  const tasksByDay = useStore((s) => s.tasksByDay);
+  const topicPositions = useStore((s) => s.topicPositions);
+  const setTopicPosition = useStore((s) => s.setTopicPosition);
+  const highlightedTopic = useStore((s) => s.highlightedTopic);
+  const setHighlightedTopic = useStore((s) => s.setHighlightedTopic);
+
+  // ---------------------------------------------------------------------------
+  // State (minimal - only what triggers necessary re-renders)
+  // ---------------------------------------------------------------------------
   const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0 });
   const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>({});
 
-  // Junction positions for smooth wire animation
-  const junctionRef = useRef<
-    Partial<Record<DefaultTopicId, { x: number; y: number }>>
-  >({});
+  // ---------------------------------------------------------------------------
+  // Refs for imperative updates (no re-renders during drag/animation)
+  // ---------------------------------------------------------------------------
+  
+  // Visual position of nodes (includes drag position)
+  // This is the "source of truth" for rendering during drag
+  const nodePosRef = useRef<Record<DefaultTopicId, NodePosition>>({} as Record<DefaultTopicId, NodePosition>);
+  
+  // DOM element refs for direct manipulation
+  const nodeElRef = useRef<Record<DefaultTopicId, HTMLButtonElement | null>>({} as Record<DefaultTopicId, HTMLButtonElement | null>);
+  
+  // SVG path refs for imperative "d" updates
+  const pathElRef = useRef<Record<string, SVGPathElement | null>>({});
+  
+  // Junction positions (current and target) - never triggers re-render
+  const junctionRef = useRef<Partial<Record<DefaultTopicId, { x: number; y: number }>>>({});
   const junctionTargetRef = useRef<Partial<Record<DefaultTopicId, { y: number }>>>({});
-  const [junctionPositions, setJunctionPositions] = useState<
-    Partial<Record<DefaultTopicId, { x: number; y: number }>>
-  >({});
-  const [, setJunctionTick] = useState(0);
-
+  
   // Drag state
-  const dragRef = useRef<{
-    id: DefaultTopicId;
-    pointerId: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  
+  // Junction animation RAF
+  const junctionRafRef = useRef<number | null>(null);
+  
+  // Recalc throttling
+  const recalcRafRef = useRef<number | null>(null);
+  const recalcPendingRef = useRef(false);
 
-  // Flatten all tasks and filter out tasks with valid default topics
+  // ---------------------------------------------------------------------------
+  // Derived data (memoized)
+  // ---------------------------------------------------------------------------
   const flatTasks = useMemo(
     () => Object.values(tasksByDay).flat().filter((t) => isDefaultTopicId(t.topicId)),
     [tasksByDay]
   );
 
-  // Count tasks per topic
   const topicCounts = useMemo(() => {
     const counts: Partial<Record<DefaultTopicId, number>> = {};
     for (const t of flatTasks) {
@@ -78,127 +114,13 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     return counts as Record<DefaultTopicId, number>;
   }, [flatTasks]);
 
-  // Active topics (with at least one task)
   const activeTopics = useMemo(() => {
     return TOPIC_IDS.filter((id) => topicCounts[id] > 0);
   }, [topicCounts]);
 
-  // Recalculate positions
-  const recalc = useCallback(() => {
-    const container = containerRef?.current;
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    
-    // Find the calendar aside
-    const aside = container.querySelector('aside');
-    const asideRect = aside?.getBoundingClientRect();
-    const rightW = asideRect ? asideRect.width : 0;
-    const asideLeft = asideRect ? asideRect.left - containerRect.left : containerRect.width;
-
-    setBoardSize({
-      w: Math.max(1, containerRect.width),
-      h: Math.max(1, containerRect.height),
-      rightW,
-    });
-
-    const centers: Record<string, TaskCenter> = {};
-
-    // Find all visible task pills in the DOM
-    const taskPills = container.querySelectorAll('[data-task-id]');
-    
-    taskPills.forEach((el) => {
-      const taskId = el.getAttribute('data-task-id');
-      if (!taskId) return;
-
-      const r = el.getBoundingClientRect();
-      
-      // Check if the element is actually visible (within the aside's visible area)
-      if (asideRect) {
-        const isVisible = 
-          r.top < asideRect.bottom && 
-          r.bottom > asideRect.top &&
-          r.left < asideRect.right &&
-          r.right > asideRect.left;
-        
-        if (!isVisible) return;
-      }
-      
-      // Calculate position - anchor point on the LEFT side of the task pill
-      const x = r.left - containerRect.left;
-      const y = r.top - containerRect.top + r.height / 2;
-
-      // Only include if within visible bounds
-      if (y > 0 && y < containerRect.height && x > 0) {
-        centers[taskId] = { x, y };
-      }
-    });
-
-    setTaskCenters(centers);
-  }, [containerRef]);
-
-  // Setup observers
-  useEffect(() => {
-    const container = containerRef?.current;
-    if (!container) return;
-
-    // Initial calculation with delay
-    const initialTimeout = setTimeout(recalc, 200);
-
-    // Resize observer
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(recalc);
-    });
-    ro.observe(container);
-
-    // Find scroll container in calendar and observe it
-    const aside = container.querySelector('aside');
-    if (aside) {
-      ro.observe(aside);
-      
-      // Find the scrollable element
-      const scrollEl = aside.querySelector('.overflow-y-auto') || aside;
-      scrollEl.addEventListener("scroll", recalc, { passive: true });
-      
-      // Cleanup function needs this reference
-      const cleanup = () => {
-        scrollEl.removeEventListener("scroll", recalc);
-      };
-      
-      // Window resize
-      window.addEventListener("resize", recalc);
-
-      // Mutation observer for DOM changes
-      const mo = new MutationObserver(() => {
-        setTimeout(recalc, 50);
-      });
-      mo.observe(container, { childList: true, subtree: true });
-
-      return () => {
-        clearTimeout(initialTimeout);
-        ro.disconnect();
-        mo.disconnect();
-        window.removeEventListener("resize", recalc);
-        cleanup();
-      };
-    }
-
-    window.addEventListener("resize", recalc);
-    return () => {
-      clearTimeout(initialTimeout);
-      ro.disconnect();
-      window.removeEventListener("resize", recalc);
-    };
-  }, [recalc, containerRef]);
-
-  // Recalculate when tasks change
-  useEffect(() => {
-    const timeout = setTimeout(recalc, 100);
-    return () => clearTimeout(timeout);
-  }, [tasksByDay, recalc]);
-
-  // Calculate topic node centers and radii
-  const topicCenters = useMemo((): Partial<Record<DefaultTopicId, TopicNodeCenter>> => {
+  // Base topic centers (from store positions + defaults)
+  // This is used for initial render and as base for drag
+  const baseTopicCenters = useMemo((): Partial<Record<DefaultTopicId, TopicNodeCenter>> => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     const margin = 40;
     const areaW = Math.max(1, leftW - margin * 2);
@@ -227,7 +149,136 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     return centers;
   }, [activeTopics, boardSize, topicCounts, topicPositions]);
 
-  // Helper functions for junction calculations
+  // ---------------------------------------------------------------------------
+  // Initialize/sync nodePosRef from baseTopicCenters
+  // ---------------------------------------------------------------------------
+  useLayoutEffect(() => {
+    for (const id of activeTopics) {
+      const base = baseTopicCenters[id];
+      if (base) {
+        // Only update if not currently dragging this node
+        if (!dragRef.current || dragRef.current.id !== id) {
+          nodePosRef.current[id] = { x: base.x, y: base.y, r: base.r };
+        }
+      }
+    }
+  }, [activeTopics, baseTopicCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Recalc with RAF throttling
+  // ---------------------------------------------------------------------------
+  const recalc = useCallback(() => {
+    const container = containerRef?.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const aside = container.querySelector('aside');
+    const asideRect = aside?.getBoundingClientRect();
+    const rightW = asideRect ? asideRect.width : 0;
+
+    setBoardSize({
+      w: Math.max(1, containerRect.width),
+      h: Math.max(1, containerRect.height),
+      rightW,
+    });
+
+    const centers: Record<string, TaskCenter> = {};
+    const taskPills = container.querySelectorAll('[data-task-id]');
+
+    taskPills.forEach((el) => {
+      const taskId = el.getAttribute('data-task-id');
+      if (!taskId) return;
+
+      const r = el.getBoundingClientRect();
+
+      if (asideRect) {
+        const isVisible =
+          r.top < asideRect.bottom &&
+          r.bottom > asideRect.top &&
+          r.left < asideRect.right &&
+          r.right > asideRect.left;
+        if (!isVisible) return;
+      }
+
+      const x = r.left - containerRect.left;
+      const y = r.top - containerRect.top + r.height / 2;
+
+      if (y > 0 && y < containerRect.height && x > 0) {
+        centers[taskId] = { x, y };
+      }
+    });
+
+    setTaskCenters(centers);
+  }, [containerRef]);
+
+  // Throttled recalc - max once per frame
+  const scheduleRecalc = useCallback(() => {
+    if (recalcPendingRef.current) return;
+    recalcPendingRef.current = true;
+    
+    recalcRafRef.current = requestAnimationFrame(() => {
+      recalcPendingRef.current = false;
+      recalc();
+    });
+  }, [recalc]);
+
+  // ---------------------------------------------------------------------------
+  // Setup observers with throttled recalc
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const container = containerRef?.current;
+    if (!container) return;
+
+    const initialTimeout = setTimeout(recalc, 200);
+
+    const ro = new ResizeObserver(() => {
+      scheduleRecalc();
+    });
+    ro.observe(container);
+
+    const aside = container.querySelector('aside');
+    if (aside) {
+      ro.observe(aside);
+
+      const scrollEl = aside.querySelector('.overflow-y-auto') || aside;
+      const handleScroll = () => scheduleRecalc();
+      scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+
+      const handleResize = () => scheduleRecalc();
+      window.addEventListener("resize", handleResize);
+
+      const mo = new MutationObserver(() => {
+        scheduleRecalc();
+      });
+      mo.observe(container, { childList: true, subtree: true });
+
+      return () => {
+        clearTimeout(initialTimeout);
+        if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
+        ro.disconnect();
+        mo.disconnect();
+        window.removeEventListener("resize", handleResize);
+        scrollEl.removeEventListener("scroll", handleScroll);
+      };
+    }
+
+    window.addEventListener("resize", scheduleRecalc);
+    return () => {
+      clearTimeout(initialTimeout);
+      if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
+      ro.disconnect();
+      window.removeEventListener("resize", scheduleRecalc);
+    };
+  }, [recalc, scheduleRecalc, containerRef]);
+
+  useEffect(() => {
+    const timeout = setTimeout(scheduleRecalc, 100);
+    return () => clearTimeout(timeout);
+  }, [tasksByDay, scheduleRecalc]);
+
+  // ---------------------------------------------------------------------------
+  // Get task Ys for a topic (for junction calculation)
+  // ---------------------------------------------------------------------------
   const getTaskYsForTopic = useCallback(
     (topicId: DefaultTopicId): number[] => {
       const ys: number[] = [];
@@ -244,103 +295,13 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     [tasksByDay, taskCenters]
   );
 
-  const collectJunctionPositions = useCallback(() => {
-    const positions: Partial<Record<DefaultTopicId, { x: number; y: number }>> = {};
+  // ---------------------------------------------------------------------------
+  // Update SVG paths imperatively
+  // This is called from the animation loop - no setState!
+  // ---------------------------------------------------------------------------
+  const updateWiresImperative = useCallback(() => {
     for (const id of activeTopics) {
-      const pos = junctionRef.current[id];
-      if (pos) positions[id] = { ...pos };
-    }
-    return positions;
-  }, [activeTopics]);
-
-  // Junction animation
-  useLayoutEffect(() => {
-    const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-    if (leftW <= 1 || boardSize.h <= 1) return;
-
-    // Update X positions
-    for (const id of activeTopics) {
-      const node = topicCenters[id];
-      if (!node) continue;
-
-      const xWanted = leftW - JUNCTION_PULL_LEFT;
-      const xMin = node.x + node.r + 24;
-      const xMax = leftW - 10;
-      const x = clamp(xWanted, xMin, xMax);
-
-      const existing = junctionRef.current[id];
-      if (existing) {
-        existing.x = x;
-      } else {
-        junctionRef.current[id] = { x, y: node.y };
-      }
-    }
-
-    // Update target Y positions
-    for (const id of activeTopics) {
-      const node = topicCenters[id];
-      if (!node) continue;
-
-      const ys = getTaskYsForTopic(id);
-      if (ys.length === 0) continue;
-
-      const medY = median(ys);
-      const targetY = clamp(
-        medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
-        20,
-        boardSize.h - 20
-      );
-      junctionTargetRef.current[id] = { y: targetY };
-    }
-
-    // Animation
-    let animationId: number;
-    const step = () => {
-      let changed = false;
-
-      for (const id of activeTopics) {
-        const cur = junctionRef.current[id];
-        const tar = junctionTargetRef.current[id];
-        if (!cur || !tar) continue;
-
-        const ny = cur.y + (tar.y - cur.y) * JUNCTION_FOLLOW;
-        if (Math.abs(ny - cur.y) > 0.05) {
-          cur.y = ny;
-          changed = true;
-        } else {
-          cur.y = tar.y;
-        }
-      }
-
-      if (changed) {
-        setJunctionPositions(collectJunctionPositions());
-        setJunctionTick((t) => t + 1);
-        animationId = requestAnimationFrame(step);
-      }
-    };
-
-    setJunctionPositions(collectJunctionPositions());
-    animationId = requestAnimationFrame(step);
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-    };
-  }, [
-    activeTopics,
-    boardSize,
-    taskCenters,
-    topicCenters,
-    getTaskYsForTopic,
-    collectJunctionPositions,
-  ]);
-
-  // Build wire bundles - only for visible tasks
-  const bundles = useMemo((): WireBundle[] => {
-    const out: WireBundle[] = [];
-
-    for (const id of activeTopics) {
-      const node = topicCenters[id];
-      const j = junctionPositions[id];
+      const node = nodePosRef.current[id];
       if (!node) continue;
 
       // Collect visible tasks for this topic
@@ -354,123 +315,342 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
         }
       }
 
-      // Skip if no visible tasks
       if (items.length === 0) continue;
 
       if (items.length === 1) {
+        // Single wire - direct from node to task
         const only = items[0];
-        out.push({
-          topicId: id,
-          color: TOPICS[id].color,
-          branches: [],
-          single: quadPath(node.x, node.y, only.x, only.y, -0.55),
-        });
-        continue;
+        const pathKey = `single-${id}`;
+        const pathEl = pathElRef.current[pathKey];
+        if (pathEl) {
+          pathEl.setAttribute("d", quadPath(node.x, node.y, only.x, only.y, -0.55));
+        }
+      } else {
+        // Multiple tasks - need junction
+        const j = junctionRef.current[id];
+        if (!j) continue;
+
+        // Update trunk
+        const trunkKey = `trunk-${id}`;
+        const trunkEl = pathElRef.current[trunkKey];
+        if (trunkEl) {
+          trunkEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
+        }
+        const trunkDashKey = `trunk-dash-${id}`;
+        const trunkDashEl = pathElRef.current[trunkDashKey];
+        if (trunkDashEl) {
+          trunkDashEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
+        }
+
+        // Update branches
+        for (const item of items) {
+          const branchKey = `branch-${id}-${item.id}`;
+          const branchEl = pathElRef.current[branchKey];
+          if (branchEl) {
+            branchEl.setAttribute("d", quadPath(j.x, j.y, item.x, item.y, +0.55));
+          }
+        }
+      }
+    }
+  }, [activeTopics, tasksByDay, taskCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Junction animation loop (runs independently, no setState per frame)
+  // ---------------------------------------------------------------------------
+  useLayoutEffect(() => {
+    const leftW = Math.max(0, boardSize.w - boardSize.rightW);
+    if (leftW <= 1 || boardSize.h <= 1) return;
+
+    // Initialize/update junction X positions and targets
+    for (const id of activeTopics) {
+      const node = nodePosRef.current[id] || baseTopicCenters[id];
+      if (!node) continue;
+
+      const xWanted = leftW - JUNCTION_PULL_LEFT;
+      const xMin = node.x + node.r + 24;
+      const xMax = leftW - 10;
+      const x = clamp(xWanted, xMin, xMax);
+
+      const existing = junctionRef.current[id];
+      if (existing) {
+        existing.x = x;
+      } else {
+        junctionRef.current[id] = { x, y: node.y };
       }
 
-      // Need junction for multiple tasks
-      if (!j) continue;
-
-      const trunk = quadPath(node.x, node.y, j.x, j.y, -0.7);
-      const branches: WireBranch[] = items.map((p) => ({
-        key: p.id,
-        d: quadPath(j.x, j.y, p.x, p.y, +0.55),
-      }));
-
-      out.push({ topicId: id, color: TOPICS[id].color, trunk, branches });
+      const ys = getTaskYsForTopic(id);
+      if (ys.length > 0) {
+        const medY = median(ys);
+        const targetY = clamp(
+          medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
+          20,
+          boardSize.h - 20
+        );
+        junctionTargetRef.current[id] = { y: targetY };
+      }
     }
 
-    return out;
-  }, [activeTopics, junctionPositions, topicCenters, tasksByDay, taskCenters]);
+    // Animation step - no setState, just update refs and DOM
+    const step = () => {
+      let needsMore = false;
 
-  // Drag handlers
-  const handlePointerDown =
+      for (const id of activeTopics) {
+        const cur = junctionRef.current[id];
+        const tar = junctionTargetRef.current[id];
+        if (!cur || !tar) continue;
+
+        const ny = cur.y + (tar.y - cur.y) * JUNCTION_FOLLOW;
+        if (Math.abs(ny - cur.y) > 0.05) {
+          cur.y = ny;
+          needsMore = true;
+        } else {
+          cur.y = tar.y;
+        }
+      }
+
+      // Update wires imperatively
+      updateWiresImperative();
+
+      if (needsMore) {
+        junctionRafRef.current = requestAnimationFrame(step);
+      } else {
+        junctionRafRef.current = null;
+      }
+    };
+
+    // Initial wire update
+    updateWiresImperative();
+    
+    // Start animation
+    if (junctionRafRef.current) cancelAnimationFrame(junctionRafRef.current);
+    junctionRafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (junctionRafRef.current) {
+        cancelAnimationFrame(junctionRafRef.current);
+        junctionRafRef.current = null;
+      }
+    };
+  }, [activeTopics, boardSize, baseTopicCenters, getTaskYsForTopic, updateWiresImperative]);
+
+  // ---------------------------------------------------------------------------
+  // Drag animation loop
+  // Uses transform for GPU acceleration, no setState during drag
+  // ---------------------------------------------------------------------------
+  const startDragLoop = useCallback(() => {
+    // This loop only updates the wires during drag
+    // The node position is updated directly in pointermove for zero-lag response
+    const loop = () => {
+      const drag = dragRef.current;
+      
+      if (!drag) {
+        dragRafRef.current = null;
+        return;
+      }
+
+      // Update wires to follow the dragging node (wires can lag slightly, node cannot)
+      updateWiresImperative();
+
+      // Continue loop while dragging
+      dragRafRef.current = requestAnimationFrame(loop);
+    };
+
+    if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
+    dragRafRef.current = requestAnimationFrame(loop);
+  }, [updateWiresImperative]);
+
+  const stopDragLoop = useCallback(() => {
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Pointer event handlers
+  // ---------------------------------------------------------------------------
+  const handlePointerDown = useCallback(
     (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const container = containerRef?.current;
-      const c = topicCenters[id];
-      if (!container || !c) return;
+      const node = nodePosRef.current[id];
+      if (!container || !node) return;
 
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
 
-      const rect = container.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
+      const containerRect = container.getBoundingClientRect();
+      const px = e.clientX - containerRect.left;
+      const py = e.clientY - containerRect.top;
 
+      const leftW = Math.max(0, boardSize.w - boardSize.rightW);
+      const minX = node.r + NODE_MARGIN;
+      const maxX = Math.max(minX, leftW - node.r - NODE_MARGIN);
+      const minY = node.r + NODE_MARGIN;
+      const maxY = Math.max(minY, boardSize.h - node.r - NODE_MARGIN);
+
+      // Store drag state
       dragRef.current = {
         id,
         pointerId: e.pointerId,
-        offsetX: px - c.x,
-        offsetY: py - c.y,
+        offsetX: px - node.x,
+        offsetY: py - node.y,
+        bounds: { minX, maxX, minY, maxY },
+        containerRect,
       };
 
-      const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const minX = c.r + NODE_MARGIN;
-      const maxX = Math.max(minX, leftW - c.r - NODE_MARGIN);
-      const minY = c.r + NODE_MARGIN;
-      const maxY = Math.max(minY, boardSize.h - c.r - NODE_MARGIN);
+      latestPointerRef.current = { x: px, y: py };
 
-      const nx = clamp(px - dragRef.current.offsetX, minX, maxX);
-      const ny = clamp(py - dragRef.current.offsetY, minY, maxY);
+      // Start the drag animation loop
+      startDragLoop();
+    },
+    [containerRef, boardSize, startDragLoop]
+  );
 
-      setTopicPosition(id, { x: nx, y: ny });
-    };
-
-  const handlePointerMove =
+  const handlePointerMove = useCallback(
     (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
-      const container = containerRef?.current;
-      const c = topicCenters[id];
       const drag = dragRef.current;
-
-      if (!container || !c || !drag) return;
-      if (drag.id !== id || drag.pointerId !== e.pointerId) return;
+      if (!drag || drag.id !== id || drag.pointerId !== e.pointerId) return;
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
 
-      const rect = container.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
+      // Calculate position IMMEDIATELY on each pointer event for instant response
+      // NO setState here! This is key for 60fps performance
+      const px = e.clientX - drag.containerRect.left;
+      const py = e.clientY - drag.containerRect.top;
+      
+      const { offsetX, offsetY, bounds } = drag;
+      const { minX, maxX, minY, maxY } = bounds;
+      
+      const nx = clamp(px - offsetX, minX, maxX);
+      const ny = clamp(py - offsetY, minY, maxY);
 
+      // Update ref (source of truth)
+      const currentNode = nodePosRef.current[id];
+      if (currentNode) {
+        currentNode.x = nx;
+        currentNode.y = ny;
+      }
+
+      // Update DOM IMMEDIATELY using left/top (simpler, no transform sync issues)
+      // This ensures the node follows the pointer with zero lag
+      const el = nodeElRef.current[id];
+      if (el && currentNode) {
+        el.style.left = `${nx - currentNode.r}px`;
+        el.style.top = `${ny - currentNode.r}px`;
+      }
+
+      // Update junction X to follow node immediately
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const minX = c.r + NODE_MARGIN;
-      const maxX = Math.max(minX, leftW - c.r - NODE_MARGIN);
-      const minY = c.r + NODE_MARGIN;
-      const maxY = Math.max(minY, boardSize.h - c.r - NODE_MARGIN);
+      const j = junctionRef.current[id];
+      if (j && currentNode) {
+        const xWanted = leftW - JUNCTION_PULL_LEFT;
+        const xMin = nx + currentNode.r + 24;
+        const xMax = leftW - 10;
+        j.x = clamp(xWanted, xMin, xMax);
+      }
 
-      const nx = clamp(px - drag.offsetX, minX, maxX);
-      const ny = clamp(py - drag.offsetY, minY, maxY);
+      // Store for rAF loop (wires update in rAF for performance)
+      latestPointerRef.current = { x: px, y: py };
+    },
+    [boardSize]
+  );
 
-      setTopicPosition(id, { x: nx, y: ny });
-    };
-
-  const handlePointerUp =
-    () => (e: React.PointerEvent<HTMLButtonElement>) => {
+  const handlePointerUp = useCallback(
+    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
-      if (drag && drag.pointerId === e.pointerId) dragRef.current = null;
+      
+      if (drag && drag.id === id && drag.pointerId === e.pointerId) {
+        // Stop the drag animation loop
+        stopDragLoop();
 
-      if (e.currentTarget.hasPointerCapture(e.pointerId))
+        // Commit final position to store
+        // The element already has the correct left/top from handlePointerMove
+        const finalPos = nodePosRef.current[id];
+        if (finalPos) {
+          setTopicPosition(id, { x: finalPos.x, y: finalPos.y });
+        }
+
+        dragRef.current = null;
+        latestPointerRef.current = null;
+      }
+
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
-    };
+      }
+    },
+    [setTopicPosition, stopDragLoop]
+  );
 
+  // ---------------------------------------------------------------------------
+  // Cleanup on unmount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    return () => {
+      if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
+      if (junctionRafRef.current) cancelAnimationFrame(junctionRafRef.current);
+      if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Build initial wire structure (keys are stable)
+  // Geometry (d attribute) will be updated imperatively
+  // ---------------------------------------------------------------------------
+  const wireStructure = useMemo(() => {
+    const structure: Array<{
+      topicId: DefaultTopicId;
+      color: string;
+      taskIds: string[];
+      isSingle: boolean;
+    }> = [];
+
+    for (const id of activeTopics) {
+      const items: string[] = [];
+      for (const tasks of Object.values(tasksByDay)) {
+        for (const t of tasks) {
+          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
+          if (taskCenters[t.id]) {
+            items.push(t.id);
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        structure.push({
+          topicId: id,
+          color: TOPICS[id].color,
+          taskIds: items,
+          isSingle: items.length === 1,
+        });
+      }
+    }
+
+    return structure;
+  }, [activeTopics, tasksByDay, taskCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 15 }}>
-      {/* SVG Wires */}
+      {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg
         className="absolute inset-0"
         width="100%"
         height="100%"
         style={{ overflow: 'visible' }}
       >
-        {bundles.map((b) => {
-          const dim = highlightedTopic && b.topicId !== highlightedTopic;
+        {wireStructure.map((wire) => {
+          const dim = highlightedTopic && wire.topicId !== highlightedTopic;
           const trunkOpacity = dim ? 0.08 : 0.25;
           const branchOpacity = dim ? 0.1 : 0.3;
 
-          if (b.single) {
+          if (wire.isSingle) {
             return (
-              <g key={b.topicId}>
+              <g key={wire.topicId}>
                 <path
-                  d={b.single}
-                  stroke={b.color}
+                  ref={(el) => { pathElRef.current[`single-${wire.topicId}`] = el; }}
+                  d="" // Will be set imperatively
+                  stroke={wire.color}
                   fill="none"
                   strokeLinecap="round"
                   strokeWidth={dim ? 1 : 2}
@@ -482,33 +662,35 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
           }
 
           return (
-            <g key={b.topicId}>
-              {b.trunk && (
-                <>
-                  <path
-                    d={b.trunk}
-                    stroke={b.color}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeWidth={dim ? 2 : 3}
-                    strokeOpacity={trunkOpacity}
-                  />
-                  <path
-                    d={b.trunk}
-                    stroke={b.color}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeWidth={dim ? 1 : 2}
-                    strokeOpacity={dim ? 0.05 : 0.12}
-                    strokeDasharray="4 8"
-                  />
-                </>
-              )}
-              {b.branches.map((br) => (
+            <g key={wire.topicId}>
+              {/* Trunk - solid */}
+              <path
+                ref={(el) => { pathElRef.current[`trunk-${wire.topicId}`] = el; }}
+                d="" // Will be set imperatively
+                stroke={wire.color}
+                fill="none"
+                strokeLinecap="round"
+                strokeWidth={dim ? 2 : 3}
+                strokeOpacity={trunkOpacity}
+              />
+              {/* Trunk - dashed overlay */}
+              <path
+                ref={(el) => { pathElRef.current[`trunk-dash-${wire.topicId}`] = el; }}
+                d="" // Will be set imperatively
+                stroke={wire.color}
+                fill="none"
+                strokeLinecap="round"
+                strokeWidth={dim ? 1 : 2}
+                strokeOpacity={dim ? 0.05 : 0.12}
+                strokeDasharray="4 8"
+              />
+              {/* Branches */}
+              {wire.taskIds.map((taskId) => (
                 <path
-                  key={br.key}
-                  d={br.d}
-                  stroke={b.color}
+                  key={taskId}
+                  ref={(el) => { pathElRef.current[`branch-${wire.topicId}-${taskId}`] = el; }}
+                  d="" // Will be set imperatively
+                  stroke={wire.color}
                   fill="none"
                   strokeLinecap="round"
                   strokeWidth={dim ? 1 : 1.5}
@@ -523,26 +705,35 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
       {/* Floating Topic Nodes */}
       {activeTopics.map((id) => {
-        const c = topicCenters[id];
-        if (!c) return null;
+        const base = baseTopicCenters[id];
+        if (!base) return null;
+
+        // Initialize nodePosRef if needed
+        if (!nodePosRef.current[id]) {
+          nodePosRef.current[id] = { x: base.x, y: base.y, r: base.r };
+        }
+
+        const node = nodePosRef.current[id];
 
         return (
           <button
             type="button"
             key={id}
+            ref={(el) => { nodeElRef.current[id] = el; }}
             aria-label={`Mover nodo de ${TOPICS[id].name}`}
             onMouseEnter={() => setHighlightedTopic(id)}
             onMouseLeave={() => setHighlightedTopic(null)}
             onPointerDown={handlePointerDown(id)}
             onPointerMove={handlePointerMove(id)}
-            onPointerUp={handlePointerUp()}
-            onPointerCancel={handlePointerUp()}
-            className="topic-node pointer-events-auto"
+            onPointerUp={handlePointerUp(id)}
+            onPointerCancel={handlePointerUp(id)}
+            className="topic-node pointer-events-auto absolute"
             style={{
-              left: c.x - c.r,
-              top: c.y - c.r,
-              width: c.r * 2,
-              height: c.r * 2,
+              // Position is controlled imperatively during drag via left/top
+              left: node.x - node.r,
+              top: node.y - node.r,
+              width: node.r * 2,
+              height: node.r * 2,
               background: TOPICS[id].color,
               touchAction: "none",
             }}
