@@ -1,9 +1,11 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { TasksContainer } from "./TasksContainer";
-import type { LegacyTask, TopicId } from "@/shared/types";
-import { DEFAULT_USER_ID } from "@/shared/store";
+import type { LegacyTask, TopicId } from "../../../shared/types";
+import { DEFAULT_USER_ID } from "../../../shared/store";
 
 // ============================================================================
 // Mock Data
@@ -19,6 +21,7 @@ const createMockTask = (
   topicId,
   completed,
   userId: DEFAULT_USER_ID,
+  createdAt: Date.now(),
 });
 
 // Tasks for day 15 (selected day)
@@ -49,7 +52,13 @@ const mockAddTask = vi.fn();
 const mockRemoveTask = vi.fn();
 const mockReorderTasks = vi.fn();
 
-const createMockState = (overrides = {}) => ({
+/**
+ * Creates a partial mock of AppState with only the properties needed for testing.
+ * Uses 'any' to allow partial state in tests without requiring full AppState.
+ * eslint-disable-next-line @typescript-eslint/no-explicit-any
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createMockState = (overrides: Record<string, any> = {}): any => ({
   selectedDay: 15,
   selectedDate: new Date("2024-01-15"),
   tasksByDay: mockTasksByDay,
@@ -68,7 +77,7 @@ vi.mock("@/shared/store", () => ({
 }));
 
 // Import for resetting mock
-import * as storeModule from "@/shared/store";
+import * as storeModule from "../../../shared/store";
 
 // ============================================================================
 // Tests
@@ -216,16 +225,18 @@ describe("TasksContainer", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Drag and Drop Reordering
+  // Drag and Drop Reordering (Framer Motion Reorder)
   // --------------------------------------------------------------------------
   describe("Drag and Drop", () => {
-    it("should have draggable task editor wrappers", () => {
+    it("should have drag handles with pointer events for dragging", () => {
       render(<TasksContainer />);
       
-      const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
-      wrappers.forEach((wrapper) => {
-        // Each wrapper should be draggable
-        expect(wrapper.getAttribute("draggable")).toBe("true");
+      const dragHandles = screen.getAllByTestId("drag-handle");
+      dragHandles.forEach((handle) => {
+        // Each drag handle should have touch-none for pointer events
+        expect(handle).toHaveClass("touch-none");
+        // Should have grab cursor
+        expect(handle).toHaveClass("cursor-grab");
       });
     });
 
@@ -240,61 +251,22 @@ describe("TasksContainer", () => {
       });
     });
 
-    it("should update visual order during drag", async () => {
+    it("should render tasks in a Reorder.Group (ul element)", () => {
       render(<TasksContainer />);
       
-      const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
-      const firstWrapper = wrappers[0];
-      
-      // Simulate drag start with dataTransfer mock
-      const dragStartEvent = new Event("dragstart", { bubbles: true });
-      Object.defineProperty(dragStartEvent, "dataTransfer", {
-        value: {
-          effectAllowed: "",
-          setData: vi.fn(),
-        },
-      });
-      
-      fireEvent(firstWrapper, dragStartEvent);
-      
-      // First wrapper should have dragging state
-      await waitFor(() => {
-        expect(firstWrapper).toHaveAttribute("aria-grabbed", "true");
-      });
+      const scrollContainer = screen.getByTestId("tasks-scroll-container");
+      // Framer Motion Reorder.Group renders as ul by default
+      expect(scrollContainer.tagName.toLowerCase()).toBe("ul");
     });
 
-    it("should call reorderTasks on drop", async () => {
+    it("should render each task as a Reorder.Item (li element)", () => {
       render(<TasksContainer />);
       
       const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
-      const firstWrapper = wrappers[0];
-      const lastWrapper = wrappers[2];
-      
-      // Create drag events with dataTransfer mock
-      const createDragEvent = (type: string) => {
-        const event = new Event(type, { bubbles: true, cancelable: true });
-        Object.defineProperty(event, "dataTransfer", {
-          value: {
-            effectAllowed: "",
-            dropEffect: "",
-            setData: vi.fn(),
-            getData: vi.fn(() => "task-1"),
-          },
-        });
-        return event;
-      };
-      
-      // Simulate drag and drop sequence
-      fireEvent(firstWrapper, createDragEvent("dragstart"));
-      fireEvent(lastWrapper, createDragEvent("dragover"));
-      fireEvent(lastWrapper, createDragEvent("drop"));
-      fireEvent(firstWrapper, createDragEvent("dragend"));
-      
-      // Should call reorderTasks with new order
-      expect(mockReorderTasks).toHaveBeenCalledWith(
-        15, // selected day
-        expect.any(Array) // new task order
-      );
+      wrappers.forEach((wrapper) => {
+        // Framer Motion Reorder.Item renders as li by default
+        expect(wrapper.tagName.toLowerCase()).toBe("li");
+      });
     });
 
     it("should only allow vertical reordering", () => {
@@ -365,13 +337,13 @@ describe("TasksContainer", () => {
       });
     });
 
-    it("should announce drag status to screen readers", () => {
+    it("should have accessible drag handles with aria-label", () => {
       render(<TasksContainer />);
       
-      const firstWrapper = screen.getByTestId("task-editor-wrapper-task-1");
-      
-      // Should have aria attributes for drag status
-      expect(firstWrapper).toHaveAttribute("aria-grabbed");
+      const dragHandles = screen.getAllByTestId("drag-handle");
+      dragHandles.forEach((handle) => {
+        expect(handle).toHaveAttribute("aria-label", "Drag to reorder");
+      });
     });
 
     it("should be navigable with keyboard", async () => {

@@ -211,7 +211,7 @@ export function TaskEditor({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       onClick={handleEditorClick}
-      className="task-editor glass-panel rounded-2xl p-5 w-full max-w-[55%] min-w-[320px]"
+      className="task-editor glass-panel rounded-2xl p-5 w-full"
     >
       {/* Top Row: Title + Topic Selector + Action Buttons */}
       <div className="flex items-center justify-between gap-4 mb-2">
