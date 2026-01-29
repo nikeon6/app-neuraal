@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 import { useStore } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
-import { TaskEditor } from "@/features/task-editor/components/TaskEditor";
+import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 
 export function Dashboard() {
@@ -46,9 +46,9 @@ export function Dashboard() {
           </motion.div>
         </header>
 
-        {/* Task Editor - below the header */}
-        <div className="relative flex-1 overflow-auto">
-          <TaskEditor />
+        {/* Tasks Container - shows TaskEditors for selected day */}
+        <div className="relative flex-1 overflow-hidden">
+          <TasksContainer />
         </div>
       </div>
 

@@ -53,6 +53,7 @@ interface AppState {
   addTask: (day: number, title: string, topicId: TopicId) => void;
   removeTask: (day: number, taskId: string) => void;
   toggleTaskComplete: (day: number, taskId: string) => void;
+  reorderTasks: (day: number, taskIds: string[]) => void;
 
   // Notes (organized by date string ISODate)
   // TODO: Migrate to Entry with entryType: "note"
@@ -142,6 +143,21 @@ const initialTasks: TasksByDay = {
   18: [
     { id: "t34", userId: DEFAULT_USER_ID, title: "Quedada con compañeros", topicId: "social", completed: false, createdAt: Date.now() },
   ],
+  // Days 27-29 for current date demo
+  27: [
+    { id: "t35", userId: DEFAULT_USER_ID, title: "Revisar proyecto TasksContainer", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t36", userId: DEFAULT_USER_ID, title: "Correr 5km", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t37", userId: DEFAULT_USER_ID, title: "Estudiar TypeScript avanzado", topicId: "learning", completed: false, createdAt: Date.now() },
+  ],
+  28: [
+    { id: "t38", userId: DEFAULT_USER_ID, title: "Reunión de planificación", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t39", userId: DEFAULT_USER_ID, title: "Llamar a mamá", topicId: "family", completed: false, createdAt: Date.now() },
+  ],
+  29: [
+    { id: "t40", userId: DEFAULT_USER_ID, title: "Ir al gimnasio", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t41", userId: DEFAULT_USER_ID, title: "Ver serie", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t42", userId: DEFAULT_USER_ID, title: "Cena con amigos", topicId: "social", completed: false, createdAt: Date.now() },
+  ],
 };
 
 export const useStore = create<AppState>()(
@@ -205,6 +221,22 @@ export const useStore = create<AppState>()(
               [day]: currentTasks.map((t) =>
                 t.id === taskId ? { ...t, completed: !t.completed } : t
               ),
+            },
+          };
+        }),
+      reorderTasks: (day, taskIds) =>
+        set((state) => {
+          const currentTasks = state.tasksByDay[day] || [];
+          // Create a map of tasks by id for quick lookup
+          const taskMap = new Map(currentTasks.map((t) => [t.id, t]));
+          // Reorder tasks based on the new order of IDs
+          const reorderedTasks = taskIds
+            .map((id) => taskMap.get(id))
+            .filter((t): t is LegacyTask => t !== undefined);
+          return {
+            tasksByDay: {
+              ...state.tasksByDay,
+              [day]: reorderedTasks,
             },
           };
         }),
