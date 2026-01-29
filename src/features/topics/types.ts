@@ -77,6 +77,49 @@ export interface JunctionPosition {
 }
 
 // ============================================================================
+// Wire Bundle Types (SVG rendering)
+// ============================================================================
+
+/**
+ * A single branch wire from junction to task.
+ */
+export interface WireBranch {
+  readonly key: string;
+  readonly d: string;
+}
+
+/**
+ * Complete wire bundle from topic node to tasks.
+ */
+export interface WireBundle {
+  readonly topicId: TopicId;
+  readonly color: string;
+  /** Main trunk path (from node to junction) */
+  readonly trunk?: string;
+  /** Branch paths (from junction to each task) */
+  readonly branches: WireBranch[];
+  /** Single direct path (when only one task) */
+  readonly single?: string;
+}
+
+/**
+ * Topic node center with radius for rendering.
+ */
+export interface TopicNodeCenter {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+}
+
+/**
+ * Task center position for wire endpoints.
+ */
+export interface TaskCenter {
+  readonly x: number;
+  readonly y: number;
+}
+
+// ============================================================================
 // Default Topic Configuration
 // ============================================================================
 

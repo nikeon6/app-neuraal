@@ -1,128 +1,160 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { format } from "date-fns";
-import {
-  type Task,
-  type Note,
-  type TasksByDay,
-  type NotesByDate,
-  type TopicId,
-  type TopicPosition,
+import type {
+  LegacyTask,
+  LegacyNote,
+  TasksByDay,
+  NotesByDate,
+  TopicId,
+  UserId,
+  ISODate,
 } from "@/shared/types";
+import type { TopicPosition, TopicPositions } from "@/features/topics/types";
 import { uid } from "@/shared/lib/utils";
 
+// ============================================================================
+// User Constants (mock for development)
+// ============================================================================
+
+/**
+ * Default user ID for development/demo mode.
+ * This will be replaced by actual user ID from auth provider when login is implemented.
+ */
+export const DEFAULT_USER_ID: UserId = "user_demo";
+
+/**
+ * Global application state.
+ * 
+ * NOTE: Currently uses legacy Task/Note types for backward compatibility.
+ * Future migration will use Entry type with entryType discriminator.
+ */
 interface AppState {
+  // User (multiuser preparation)
+  currentUserId: UserId | null;
+  setCurrentUserId: (userId: UserId | null) => void;
+
   // Authentication
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
 
   // Calendar / Date selection
+  // NOTE: Uses Date object for date-fns compatibility. 
+  // For API/storage, convert to ISODate string.
   selectedDate: Date;
   selectedDay: number;
   setSelectedDate: (date: Date) => void;
   setSelectedDay: (day: number) => void;
 
   // Tasks (organized by day number 1-31)
+  // TODO: Migrate to Record<ISODate, Entry[]> when Entry is fully implemented
   tasksByDay: TasksByDay;
   addTask: (day: number, title: string, topicId: TopicId) => void;
   removeTask: (day: number, taskId: string) => void;
   toggleTaskComplete: (day: number, taskId: string) => void;
 
-  // Notes (organized by date string)
+  // Notes (organized by date string ISODate)
+  // TODO: Migrate to Entry with entryType: "note"
   notes: NotesByDate;
   addNote: (date: Date, content: string) => void;
   deleteNote: (date: Date, noteId: string) => void;
 
-  // Topic positions (for draggable nodes)
-  topicPositions: Partial<Record<TopicId, TopicPosition>>;
+  // Topic positions (UI state for draggable bubble nodes)
+  topicPositions: TopicPositions;
   setTopicPosition: (topicId: TopicId, position: TopicPosition) => void;
 
-  // Highlighted topic (for visual feedback)
+  // Highlighted topic (UI state for visual feedback)
   highlightedTopic: TopicId | null;
   setHighlightedTopic: (topicId: TopicId | null) => void;
 }
 
 // Initial demo tasks - 6 floating topics
+// All tasks are associated with DEFAULT_USER_ID for demo purposes
 const initialTasks: TasksByDay = {
   1: [
-    { id: "t1", title: "Revisar emails", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t2", title: "Yoga matutino", topicId: "health", completed: false, createdAt: Date.now() },
-    { id: "t3", title: "Comprar regalo cumpleaños", topicId: "family", completed: false, createdAt: Date.now() },
+    { id: "t1", userId: DEFAULT_USER_ID, title: "Revisar emails", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t2", userId: DEFAULT_USER_ID, title: "Yoga matutino", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t3", userId: DEFAULT_USER_ID, title: "Comprar regalo cumpleaños", topicId: "family", completed: false, createdAt: Date.now() },
   ],
   2: [
-    { id: "t4", title: "Reunión de equipo", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t5", title: "Correr en el parque", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t4", userId: DEFAULT_USER_ID, title: "Reunión de equipo", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t5", userId: DEFAULT_USER_ID, title: "Correr en el parque", topicId: "health", completed: false, createdAt: Date.now() },
   ],
   3: [
-    { id: "t6", title: "Meditación", topicId: "health", completed: true, createdAt: Date.now() },
-    { id: "t7", title: "Ver película", topicId: "fun", completed: false, createdAt: Date.now() },
-    { id: "t8", title: "Curso de React avanzado", topicId: "learning", completed: false, createdAt: Date.now() },
+    { id: "t6", userId: DEFAULT_USER_ID, title: "Meditación", topicId: "health", completed: true, createdAt: Date.now() },
+    { id: "t7", userId: DEFAULT_USER_ID, title: "Ver película", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t8", userId: DEFAULT_USER_ID, title: "Curso de React avanzado", topicId: "learning", completed: false, createdAt: Date.now() },
   ],
   4: [
-    { id: "t9", title: "Preparar informe", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t9", userId: DEFAULT_USER_ID, title: "Preparar informe", topicId: "work", completed: false, createdAt: Date.now() },
   ],
   5: [
-    { id: "t10", title: "Reunión proyecto", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t11", title: "Natación", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t10", userId: DEFAULT_USER_ID, title: "Reunión proyecto", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t11", userId: DEFAULT_USER_ID, title: "Natación", topicId: "health", completed: false, createdAt: Date.now() },
   ],
   6: [
-    { id: "t12", title: "Leer libro", topicId: "fun", completed: false, createdAt: Date.now() },
-    { id: "t13", title: "Código refactoring", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t14", title: "Quedada con amigos", topicId: "social", completed: false, createdAt: Date.now() },
+    { id: "t12", userId: DEFAULT_USER_ID, title: "Leer libro", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t13", userId: DEFAULT_USER_ID, title: "Código refactoring", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t14", userId: DEFAULT_USER_ID, title: "Quedada con amigos", topicId: "social", completed: false, createdAt: Date.now() },
   ],
   7: [
-    { id: "t15", title: "Presentación", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t16", title: "Gimnasio", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t15", userId: DEFAULT_USER_ID, title: "Presentación", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t16", userId: DEFAULT_USER_ID, title: "Gimnasio", topicId: "health", completed: false, createdAt: Date.now() },
   ],
   8: [
-    { id: "t17", title: "Llamada con cliente", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t17", userId: DEFAULT_USER_ID, title: "Llamada con cliente", topicId: "work", completed: false, createdAt: Date.now() },
   ],
   9: [
-    { id: "t18", title: "Estiramientos", topicId: "health", completed: false, createdAt: Date.now() },
-    { id: "t19", title: "Ir al cine", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t18", userId: DEFAULT_USER_ID, title: "Estiramientos", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t19", userId: DEFAULT_USER_ID, title: "Ir al cine", topicId: "fun", completed: false, createdAt: Date.now() },
   ],
   10: [
-    { id: "t20", title: "Revisar código", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t21", title: "Caminata", topicId: "health", completed: false, createdAt: Date.now() },
-    { id: "t22", title: "Almuerzo con mamá", topicId: "family", completed: false, createdAt: Date.now() },
+    { id: "t20", userId: DEFAULT_USER_ID, title: "Revisar código", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t21", userId: DEFAULT_USER_ID, title: "Caminata", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t22", userId: DEFAULT_USER_ID, title: "Almuerzo con mamá", topicId: "family", completed: false, createdAt: Date.now() },
   ],
   11: [
-    { id: "t23", title: "Concierto", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t23", userId: DEFAULT_USER_ID, title: "Concierto", topicId: "fun", completed: false, createdAt: Date.now() },
   ],
   12: [
-    { id: "t24", title: "Planificar sprint", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t25", title: "Yoga", topicId: "health", completed: false, createdAt: Date.now() },
-    { id: "t26", title: "Aprender TypeScript", topicId: "learning", completed: false, createdAt: Date.now() },
+    { id: "t24", userId: DEFAULT_USER_ID, title: "Planificar sprint", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t25", userId: DEFAULT_USER_ID, title: "Yoga", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t26", userId: DEFAULT_USER_ID, title: "Aprender TypeScript", topicId: "learning", completed: false, createdAt: Date.now() },
   ],
   13: [
-    { id: "t27", title: "Cena con amigos", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t27", userId: DEFAULT_USER_ID, title: "Cena con amigos", topicId: "fun", completed: false, createdAt: Date.now() },
   ],
   14: [
-    { id: "t28", title: "Deploy producción", topicId: "work", completed: false, createdAt: Date.now() },
-    { id: "t29", title: "Pilates", topicId: "health", completed: false, createdAt: Date.now() },
+    { id: "t28", userId: DEFAULT_USER_ID, title: "Deploy producción", topicId: "work", completed: false, createdAt: Date.now() },
+    { id: "t29", userId: DEFAULT_USER_ID, title: "Pilates", topicId: "health", completed: false, createdAt: Date.now() },
   ],
   15: [
-    { id: "t30", title: "Pintar", topicId: "fun", completed: false, createdAt: Date.now() },
-    { id: "t31", title: "Fiesta de cumpleaños", topicId: "social", completed: false, createdAt: Date.now() },
+    { id: "t30", userId: DEFAULT_USER_ID, title: "Pintar", topicId: "fun", completed: false, createdAt: Date.now() },
+    { id: "t31", userId: DEFAULT_USER_ID, title: "Fiesta de cumpleaños", topicId: "social", completed: false, createdAt: Date.now() },
   ],
   16: [
-    { id: "t32", title: "Visita a abuela", topicId: "family", completed: false, createdAt: Date.now() },
+    { id: "t32", userId: DEFAULT_USER_ID, title: "Visita a abuela", topicId: "family", completed: false, createdAt: Date.now() },
   ],
   17: [
-    { id: "t33", title: "Leer documentación API", topicId: "learning", completed: false, createdAt: Date.now() },
+    { id: "t33", userId: DEFAULT_USER_ID, title: "Leer documentación API", topicId: "learning", completed: false, createdAt: Date.now() },
   ],
   18: [
-    { id: "t34", title: "Quedada con compañeros", topicId: "social", completed: false, createdAt: Date.now() },
+    { id: "t34", userId: DEFAULT_USER_ID, title: "Quedada con compañeros", topicId: "social", completed: false, createdAt: Date.now() },
   ],
 };
 
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
+      // User (multiuser preparation)
+      currentUserId: DEFAULT_USER_ID,
+      setCurrentUserId: (userId) => set({ currentUserId: userId }),
+
       // Authentication
       isAuthenticated: false,
       login: () => set({ isAuthenticated: true }),
+      // TODO: On real logout, clear user-specific state or switch persist key
       logout: () => set({ isAuthenticated: false }),
 
       // Calendar
@@ -136,8 +168,9 @@ export const useStore = create<AppState>()(
       tasksByDay: initialTasks,
       addTask: (day, title, topicId) =>
         set((state) => {
-          const newTask: Task = {
+          const newTask: LegacyTask = {
             id: uid(),
+            userId: state.currentUserId ?? DEFAULT_USER_ID,
             title: title.trim() || "Nueva tarea",
             topicId,
             completed: false,
@@ -180,10 +213,11 @@ export const useStore = create<AppState>()(
       notes: {},
       addNote: (date, content) =>
         set((state) => {
-          const key = format(date, "yyyy-MM-dd");
+          const key: ISODate = format(date, "yyyy-MM-dd");
           const currentNotes = state.notes[key] || [];
-          const newNote: Note = {
+          const newNote: LegacyNote = {
             id: uid(),
+            userId: state.currentUserId ?? DEFAULT_USER_ID,
             content,
             createdAt: Date.now(),
           };
@@ -196,7 +230,7 @@ export const useStore = create<AppState>()(
         }),
       deleteNote: (date, noteId) =>
         set((state) => {
-          const key = format(date, "yyyy-MM-dd");
+          const key: ISODate = format(date, "yyyy-MM-dd");
           const currentNotes = state.notes[key] || [];
           return {
             notes: {
@@ -221,12 +255,15 @@ export const useStore = create<AppState>()(
       setHighlightedTopic: (topicId) => set({ highlightedTopic: topicId }),
     }),
     {
-      name: "neuraal-storage",
+      // Storage key includes user ID for multiuser support
+      // TODO: When real auth is implemented, use dynamic key based on currentUserId
+      name: `neuraal-storage:${DEFAULT_USER_ID}`,
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         tasksByDay: state.tasksByDay,
         notes: state.notes,
         topicPositions: state.topicPositions,
+        // NOTE: currentUserId is NOT persisted - will come from auth session
       }),
     }
   )

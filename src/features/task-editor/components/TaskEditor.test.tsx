@@ -157,7 +157,7 @@ describe("TaskEditor", () => {
         removeTask: mockRemoveTask,
       });
       
-      render(<TaskEditor taskId="test-task-id" />);
+      render(<TaskEditor entryId="test-task-id" />);
       await expandEditor(user);
       
       const deleteButton = screen.getByRole("button", { name: /delete/i });
@@ -330,10 +330,14 @@ describe("TaskEditor", () => {
       const user = userEvent.setup();
       render(<TaskEditor />);
       
-      // Tab through interactive elements (Title is now first in DOM)
-      await user.tab(); // Title input (first in the row)
+      // Tab through interactive elements
+      await user.tab(); // Complete button (first for tasks)
+      expect(screen.getByRole("button", { name: /mark as complete/i })).toHaveFocus();
+      
+      await user.tab(); // Title input
       expect(screen.getByRole("textbox", { name: /title/i })).toHaveFocus();
       
+      await user.tab(); // Entry type toggle
       await user.tab(); // Topic button
       await user.tab(); // Subconscious button
       await user.tab(); // Brainstorming button

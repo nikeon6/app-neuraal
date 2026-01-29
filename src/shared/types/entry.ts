@@ -199,10 +199,7 @@ export type Attachment =
   | YouTubeAttachment
   | CodeAttachment;
 
-/**
- * Maximum total size for all attachments in an entry (20MB).
- */
-export const MAX_ATTACHMENTS_SIZE_BYTES = 20 * 1024 * 1024;
+// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants/attachments.ts
 
 // ============================================================================
 // Entry Entity
@@ -264,6 +261,7 @@ export interface Entry {
  */
 export interface LegacyTask {
   readonly id: string;
+  readonly userId: UserId;
   readonly title: string;
   readonly topicId: TopicId;
   readonly completed: boolean;
@@ -276,6 +274,7 @@ export interface LegacyTask {
  */
 export interface LegacyNote {
   readonly id: string;
+  readonly userId: UserId;
   readonly content: string;
   readonly createdAt: number;
 }
