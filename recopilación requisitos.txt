@@ -101,3 +101,31 @@ REGLAS DE CÓDIGO:
 - Nombres descriptivos en inglés
 
 ¿Entendido? Cuando confirmes, comenzamos con el primer paso.
+
+
+
+
+
+
+
+
+Componente tarea:
+
+perfecto, ahora siguiendo la metodologia TDD vamos a crear un nuevo componente, que va a ser las tareas (el nombre del componente debe de ir en inglés), los requisitos son que tendrá un titulo y un contenido (contenido será un espacio grande donde el usuario pueda escribir y guardar sus notas o archivos), tendrá un topic que podremos seleccionar de los disponibles (creados por el usuario anteriormente) o podremos marcar que se seleccione automaticamente (esta funcion de automatizacion se implementará despues aunque debe estar disponible para seleccionarla), abajo tendrá unos pequeños botones a la izquierda, uno de ellos será de contenido en el que se abrirá un desplegable bonito con opciones para que podamos añadir imagenes, snippet de codigo, videos de youtube( videos los cuales podran ser reproducibles desde el propio contenido) y para adjuntar archivos (pdfs,docx, rar, etc...) y que no podran superar los 20 mb totales con todos los archivos o imagenes que se hayan subido, (auqnue las imagenes y los videos tambien los podremos pegar directamente en el contenido y debería de reconocerlos e insertarlos) otro boton para poder cambiar el formato y tamaño del texto del contenido, luego arriba a la derecha tendrá dos botones, un boton llamado subsconciente (en inglés) para programar un aviso y un boton llamado brainstorming (cuya funcionalidad implementaremos mas adelante y nos hará un reorganizacion mediante IA) y por ultimo otro boton para borrar la tarea que estará abajo a la derecha. La tarea se creará en el día que tengamos seleccionado en calendario de la derecha. Con este componente nuevo ya no necesitariamos el de add new task que tenemos ahora, lo puedes ocultar por ahora. Lo que se vaya escribiendo en este componente de tarea se irá guardando automaticamente no hay boton para generar, añadir o guardar.
+deberás crear la ruta correcta siguiendo laas normas establecidas hasta ahora donde guardar este componente junto a sus tests.
+Por ahora necesito que crees los test y que fallen, cuando lo hagas avisame y continuaremos con la creacion del componente y te daré algunos detalles mas de su estilo y forma
+
+
+
+Perfecto, ahora vamos con la implementación, utilizando los test que fallan debes generar el componente, el cual debe ser un recuadro que irá en la aprte izquierda de la web y que irá debajo del titulo que muestra el dia actual, y de ancho solo debería ser un poquito mas ancho que la mitad del dashboard, puedes utilizar un estilo parecido al que tiene ahora mismo taskform, solo que este ocupará bastante mas en pantalla, será una tarjeta en la que ponga titulo en letras suaves y y contenido debajo peroq ue al poner el puntero estas letras se vayan apra poder escribir, las letras que pongan en titulo será mas grandes por defecto y no habrá elemntos que separen el titulo del contenido, la separacion será visual, muy parecido a como la hace google keep, te voy aponer una imagen de google keep para que lo veas, pero deberá ser adaptado al estilo de mi web y que encaje donde te he dicho.
+
+
+antes vamos a hacer unos pequeños cambios, el selector de topic debe ir arriba encima del titulo y quiero que el menu desplegable que se abra sea del mismo estilo que el que le has puesto al boton de añadir, la barra que pone el limite de 20 mb la quiero en vertical y a la izquierda, y no quiero que tenga barra de scroll en el contenido, quiero que cuando se pinche dentro de la tarea se expànda automaticamente hacia abajo hasta que se vea todo el contenido y si se pincha fuera que se vuelva a contraer, mas tarde implementaremos un contenedor de tareas por el que podremos hacer scroll si hay mas de una tarea en el mismo dia
+
+
+vamos a probar algunos canbios mas, el selector de opic mejor pegalo a los botones de arriba a la derecha, aunque el selector estara a la izqueirda de estos, y sube un poquito mas arriba donde se escribe el titulo, la linea de abajo que separa contenido y lso botones quiero que la quites, y la barra de los 20 mb prueba a colocarla en horizontal de nuevo pero debajo de los botones y el selector de arriba yq ue no se mas ancha que estos, que sea del mismo ancho que esos tres elementos juntos
+
+
+
+Creacion de tipos:
+Ok, ahora nececsito hacerte otra pregunta, ahora quiero crear los tipo de typescript y quiero que me des un prompt para crearlos, de primeras se me ocurre que deberia de haber un tipo para tareas, otro para topics y no se si otro para el calendario, pero no estoy seguro necesito que me ayudes y me digas que requisitos tendrian que tener para hacer un prompt que darselo a la IA para que los cree, supongo que estarian en el global scope estos tipos pues se usaran en toda la app, te voy a pasar una descripcion ademas del componente de tareas para que sepas que informacion llevará y así puedas decirme como deben ser los tipos.
