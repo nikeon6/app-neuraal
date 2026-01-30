@@ -308,7 +308,7 @@ export function TasksContainer() {
       <div
         data-testid="tasks-container"
         role="list"
-        className="flex flex-col h-full max-w-3xl pl-10"
+        className="flex flex-col h-full w-full pl-10"
       >
         <div
           ref={containerRef as React.RefObject<HTMLDivElement>}
@@ -349,7 +349,7 @@ export function TasksContainer() {
     <div
       data-testid="tasks-container"
       role="list"
-      className="flex flex-col h-full max-w-3xl"
+      className="flex flex-col h-full w-full"
     >
       {/* Scrollable TaskEditor List with Reorder */}
       <Reorder.Group

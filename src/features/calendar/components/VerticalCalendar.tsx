@@ -67,19 +67,25 @@ export function VerticalCalendar() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-black/20 backdrop-blur-md border-l border-white/10 w-48 min-w-[192px] relative overflow-hidden">
-      {/* Month Header */}
-      <div className="p-4 text-center border-b border-white/10">
-        <h2 className="text-lg font-bold text-white/80">
+    // Calendar responsive:
+    // - Mobile (<lg): compact, border-top
+    // - Desktop (lg+): vertical layout, narrow (180-200px from grid)
+    // - overflow-hidden to force content to respect container width
+    <div className="h-full flex flex-col bg-black/20 backdrop-blur-md 
+                    border-t lg:border-t-0 lg:border-l border-white/10 
+                    w-full min-w-0 relative overflow-hidden box-border">
+      {/* Month Header - compact on mobile */}
+      <div className="p-2 lg:p-4 text-center border-b border-white/10 flex-shrink-0">
+        <h2 className="text-base lg:text-lg font-bold text-white/80">
           {format(selectedDate, "MMM")}
         </h2>
         <p className="text-xs text-white/40">{format(selectedDate, "yyyy")}</p>
       </div>
 
-      {/* Days List with Tasks */}
+      {/* Days List with Tasks - horizontal scroll on mobile, vertical on desktop */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-hide py-4 space-y-2"
+        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-2 lg:py-4 space-y-1 lg:space-y-2"
       >
         {days.map((day, i) => {
           const dateKey: ISODate = format(day, "yyyy-MM-dd");

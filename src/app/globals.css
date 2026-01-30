@@ -175,12 +175,14 @@
 
 /* Task pills in sidebar */
 .task-pill {
-  @apply border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-2 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all;
+  @apply border border-white/10 rounded-full px-2 py-1 flex items-center gap-1.5 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all;
+  max-width: 100%;
+  min-width: 0; /* Critical for truncation in flex */
 }
 
 .task-pill .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 9999px;
   border: 2px solid rgba(255, 255, 255, 0.2);
   flex: 0 0 auto;
@@ -188,12 +190,14 @@
 
 .task-pill .task-text {
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: rgba(255, 255, 255, 0.85);
+  flex: 1 1 0;
+  min-width: 0; /* Critical for truncation */
 }
 
 .task-pill .remove-btn {
@@ -222,11 +226,11 @@
 
 /* Day rows in calendar */
 .day-row {
-  @apply cursor-pointer relative flex flex-col items-center justify-center py-3 mx-2 rounded-xl transition-all duration-300;
-  min-height: 70px;
+  @apply cursor-pointer relative flex flex-col items-center justify-center py-2 mx-1 rounded-xl transition-all duration-300 overflow-hidden;
+  min-height: 60px;
   border: none;
   background: transparent;
-  width: calc(100% - 16px);
+  width: calc(100% - 8px);
 }
 
 .day-row:hover {
@@ -247,7 +251,7 @@
 }
 
 .day-tasks {
-  @apply flex flex-col gap-1.5 w-full px-2 mt-2;
+  @apply flex flex-col gap-1 w-full px-1 mt-2 overflow-hidden;
 }
 
 .empty-day {

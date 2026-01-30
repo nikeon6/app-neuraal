@@ -20,7 +20,11 @@ import { clamp, median, quadPath, isDefaultTopicId } from "@/shared/lib";
 // ============================================================================
 // Configuration Constants
 // ============================================================================
+// JUNCTION_PULL_LEFT: How far left from the right edge the junction point is placed (no lane)
 const JUNCTION_PULL_LEFT = 120;
+// JUNCTION_LANE_OFFSET: How far left from the lane's right edge the junction is placed (with lane)
+// Higher value = junction further left from calendar, giving more space for branches
+const JUNCTION_LANE_OFFSET = 80;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
 const NODE_MARGIN = 8;
@@ -30,6 +34,7 @@ const NODE_MARGIN = 8;
 // ============================================================================
 interface FloatingTopicsProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
+  laneRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 interface DragState {
@@ -50,7 +55,7 @@ interface NodePosition {
 // ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
+export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   // ---------------------------------------------------------------------------
   // Store selectors (optimized - only subscribe to what we need)
   // ---------------------------------------------------------------------------
@@ -63,7 +68,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   // ---------------------------------------------------------------------------
   // State (minimal - only what triggers necessary re-renders)
   // ---------------------------------------------------------------------------
-  const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0 });
+  const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0, laneX: 0, laneW: 0 });
   const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>({});
 
   // ---------------------------------------------------------------------------
@@ -123,8 +128,13 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   const baseTopicCenters = useMemo((): Partial<Record<DefaultTopicId, TopicNodeCenter>> => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     const margin = 40;
-    const areaW = Math.max(1, leftW - margin * 2);
     const areaH = Math.max(1, boardSize.h - margin * 2);
+
+    // If lane is available, position bubbles within the lane
+    // Otherwise, use the entire left area (mobile fallback)
+    const hasLane = boardSize.laneW > 0;
+    const areaX = hasLane ? boardSize.laneX : margin;
+    const areaW = hasLane ? boardSize.laneW : Math.max(1, leftW - margin * 2);
 
     const centers: Partial<Record<DefaultTopicId, TopicNodeCenter>> = {};
 
@@ -133,13 +143,16 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       const r = Math.min(65, 20 + count * 8);
 
       const anchor = TOPICS[id].anchor;
-      const defX = margin + anchor.xPct * areaW;
+      const defX = areaX + anchor.xPct * areaW;
       const defY = margin + anchor.yPct * areaH;
 
       const pos = topicPositions[id] ?? { x: defX, y: defY };
 
-      const minX = r + NODE_MARGIN;
-      const maxX = Math.max(minX, leftW - r - NODE_MARGIN);
+      // Bounds depend on whether we have a lane
+      const minX = hasLane ? boardSize.laneX + r + NODE_MARGIN : r + NODE_MARGIN;
+      const maxX = hasLane
+        ? Math.max(minX, boardSize.laneX + boardSize.laneW - r - NODE_MARGIN)
+        : Math.max(minX, leftW - r - NODE_MARGIN);
       const minY = r + NODE_MARGIN;
       const maxY = Math.max(minY, boardSize.h - r - NODE_MARGIN);
 
@@ -150,7 +163,10 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
   }, [activeTopics, boardSize, topicCounts, topicPositions]);
 
   // ---------------------------------------------------------------------------
-  // Initialize/sync nodePosRef from baseTopicCenters
+  // Initialize/sync nodePosRef from baseTopicCenters AND update DOM
+  // This fixes the resize bug where bubbles didn't move because React
+  // rendered with stale nodePosRef values before useLayoutEffect ran.
+  // Now we imperatively update the DOM elements directly.
   // ---------------------------------------------------------------------------
   useLayoutEffect(() => {
     for (const id of activeTopics) {
@@ -159,6 +175,15 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
         // Only update if not currently dragging this node
         if (!dragRef.current || dragRef.current.id !== id) {
           nodePosRef.current[id] = { x: base.x, y: base.y, r: base.r };
+          
+          // CRITICAL: Update DOM directly so bubbles move on resize
+          const el = nodeElRef.current[id];
+          if (el) {
+            el.style.left = `${base.x - base.r}px`;
+            el.style.top = `${base.y - base.r}px`;
+            el.style.width = `${base.r * 2}px`;
+            el.style.height = `${base.r * 2}px`;
+          }
         }
       }
     }
@@ -176,10 +201,18 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     const asideRect = aside?.getBoundingClientRect();
     const rightW = asideRect ? asideRect.width : 0;
 
+    // Calculate lane dimensions if available
+    const lane = laneRef?.current;
+    const laneRect = lane?.getBoundingClientRect();
+    const laneX = laneRect ? laneRect.left - containerRect.left : 0;
+    const laneW = laneRect ? laneRect.width : 0;
+
     setBoardSize({
       w: Math.max(1, containerRect.width),
       h: Math.max(1, containerRect.height),
       rightW,
+      laneX,
+      laneW,
     });
 
     const centers: Record<string, TaskCenter> = {};
@@ -209,7 +242,7 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     });
 
     setTaskCenters(centers);
-  }, [containerRef]);
+  }, [containerRef, laneRef]);
 
   // Throttled recalc - max once per frame
   const scheduleRecalc = useCallback(() => {
@@ -224,52 +257,76 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
   // ---------------------------------------------------------------------------
   // Setup observers with throttled recalc
+  // FIX: Added observation of laneRef and improved resize handling
+  // The bug was that resize events weren't properly triggering recalc
+  // because the ResizeObserver wasn't observing all relevant elements.
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const container = containerRef?.current;
     if (!container) return;
 
-    const initialTimeout = setTimeout(recalc, 200);
+    // Initial calculation with slight delay for DOM to settle
+    const initialTimeout = setTimeout(recalc, 100);
+    // Second recalc for layout stabilization
+    const secondTimeout = setTimeout(recalc, 300);
 
     const ro = new ResizeObserver(() => {
       scheduleRecalc();
     });
+    
+    // Observe main container
     ro.observe(container);
+    
+    // Observe lane if available (critical for grid layout changes)
+    const lane = laneRef?.current;
+    if (lane) {
+      ro.observe(lane);
+    }
 
+    // Observe aside/calendar
     const aside = container.querySelector('aside');
     if (aside) {
       ro.observe(aside);
-
-      const scrollEl = aside.querySelector('.overflow-y-auto') || aside;
-      const handleScroll = () => scheduleRecalc();
-      scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-
-      const handleResize = () => scheduleRecalc();
-      window.addEventListener("resize", handleResize);
-
-      const mo = new MutationObserver(() => {
-        scheduleRecalc();
-      });
-      mo.observe(container, { childList: true, subtree: true });
-
-      return () => {
-        clearTimeout(initialTimeout);
-        if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
-        ro.disconnect();
-        mo.disconnect();
-        window.removeEventListener("resize", handleResize);
-        scrollEl.removeEventListener("scroll", handleScroll);
-      };
     }
 
-    window.addEventListener("resize", scheduleRecalc);
+    // Find tasks scroll container and observe it too
+    const tasksScrollEl = container.querySelector('.tasks-scrollbar');
+    if (tasksScrollEl) {
+      ro.observe(tasksScrollEl);
+      tasksScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    }
+
+    // Also observe scroll in calendar
+    const calendarScrollEl = aside?.querySelector('.overflow-y-auto') || aside;
+    if (calendarScrollEl) {
+      calendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    }
+
+    // Window resize as backup
+    const handleResize = () => scheduleRecalc();
+    window.addEventListener("resize", handleResize);
+
+    // Mutation observer for DOM changes (task add/remove)
+    const mo = new MutationObserver(() => {
+      scheduleRecalc();
+    });
+    mo.observe(container, { childList: true, subtree: true });
+
     return () => {
       clearTimeout(initialTimeout);
+      clearTimeout(secondTimeout);
       if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
       ro.disconnect();
-      window.removeEventListener("resize", scheduleRecalc);
+      mo.disconnect();
+      window.removeEventListener("resize", handleResize);
+      if (tasksScrollEl) {
+        tasksScrollEl.removeEventListener("scroll", scheduleRecalc);
+      }
+      if (calendarScrollEl) {
+        calendarScrollEl.removeEventListener("scroll", scheduleRecalc);
+      }
     };
-  }, [recalc, scheduleRecalc, containerRef]);
+  }, [recalc, scheduleRecalc, containerRef, laneRef]);
 
   useEffect(() => {
     const timeout = setTimeout(scheduleRecalc, 100);
@@ -361,14 +418,22 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     if (leftW <= 1 || boardSize.h <= 1) return;
 
+    const hasLane = boardSize.laneW > 0;
+
     // Initialize/update junction X positions and targets
     for (const id of activeTopics) {
       const node = nodePosRef.current[id] || baseTopicCenters[id];
       if (!node) continue;
 
-      const xWanted = leftW - JUNCTION_PULL_LEFT;
+      // Junction should be offset from right edge of lane (or left area)
+      // JUNCTION_LANE_OFFSET controls how far left the branches start from the calendar
+      const xWanted = hasLane
+        ? boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET
+        : leftW - JUNCTION_PULL_LEFT;
       const xMin = node.x + node.r + 24;
-      const xMax = leftW - 10;
+      const xMax = hasLane
+        ? boardSize.laneX + boardSize.laneW - 20
+        : leftW - 10;
       const x = clamp(xWanted, xMin, xMax);
 
       const existing = junctionRef.current[id];
@@ -483,8 +548,11 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
       const py = e.clientY - containerRect.top;
 
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const minX = node.r + NODE_MARGIN;
-      const maxX = Math.max(minX, leftW - node.r - NODE_MARGIN);
+      const hasLane = boardSize.laneW > 0;
+      const minX = hasLane ? boardSize.laneX + node.r + NODE_MARGIN : node.r + NODE_MARGIN;
+      const maxX = hasLane
+        ? Math.max(minX, boardSize.laneX + boardSize.laneW - node.r - NODE_MARGIN)
+        : Math.max(minX, leftW - node.r - NODE_MARGIN);
       const minY = node.r + NODE_MARGIN;
       const maxY = Math.max(minY, boardSize.h - node.r - NODE_MARGIN);
 
@@ -540,11 +608,16 @@ export function FloatingTopics({ containerRef }: FloatingTopicsProps) {
 
       // Update junction X to follow node immediately
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
+      const hasLane = boardSize.laneW > 0;
       const j = junctionRef.current[id];
       if (j && currentNode) {
-        const xWanted = leftW - JUNCTION_PULL_LEFT;
+        const xWanted = hasLane
+          ? boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET
+          : leftW - JUNCTION_PULL_LEFT;
         const xMin = nx + currentNode.r + 24;
-        const xMax = leftW - 10;
+        const xMax = hasLane
+          ? boardSize.laneX + boardSize.laneW - 20
+          : leftW - 10;
         j.x = clamp(xWanted, xMin, xMax);
       }
 
