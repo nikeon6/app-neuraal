@@ -378,22 +378,24 @@ export function TasksContainer() {
         })}
       </Reorder.Group>
 
-      {/* Add Task Button - Always at the bottom */}
-      <button
-        type="button"
-        data-testid="add-task-button"
-        onClick={handleAddTask}
-        aria-label="Add new task"
-        className="
-          flex items-center justify-center gap-2 p-4 mt-4 ml-10 mr-4
-          rounded-2xl border-2 border-dashed border-white/20
-          text-white/50 hover:text-white/80 hover:border-white/40
-          hover:bg-white/5 transition-all duration-200 flex-shrink-0
-        "
-      >
-        <Plus className="w-5 h-5" />
-        <span className="text-sm font-medium">Añadir tarea</span>
-      </button>
+      {/* Add Task Button - Centered circle with + */}
+      <div className="flex justify-center mt-4 mb-2 flex-shrink-0">
+        <button
+          type="button"
+          data-testid="add-task-button"
+          onClick={handleAddTask}
+          aria-label="Add new task"
+          className="
+            w-12 h-12 flex items-center justify-center
+            rounded-full border-2 border-dashed border-white/20
+            text-white/40 hover:text-white/80 hover:border-white/50
+            hover:bg-white/10 transition-all duration-200
+            hover:scale-110
+          "
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -19,12 +19,12 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
  * 
  * >= lg (1024px+): Grid 3 columnas
  *   - Tasks: minmax(280px, 1fr) - flexible, mínimo 280px
- *   - Lane: clamp(220px, 20vw, 360px) - MÁS ancho para bolitas
- *   - Calendar: clamp(200px, 14vw, 260px) - MÁS estrecho
+ *   - Lane: clamp(220px, 19vw, 340px) - espacio para bolitas
+ *   - Calendar: 180px fijo
  * 
  * >= xl (1280px+): Grid 3 columnas con más espacio
- *   - Lane aún más ancho: clamp(280px, 22vw, 420px)
- *   - Calendar estable: 240px fijo
+ *   - Lane: clamp(280px, 21vw, 400px)
+ *   - Calendar: 200px fijo
  */
 
 export function Dashboard() {
@@ -40,8 +40,8 @@ export function Dashboard() {
       ref={containerRef}
       className="h-full w-full relative overflow-hidden
                  flex flex-col
-                 lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(200px,18vw,320px)_180px]
-                 xl:grid-cols-[minmax(320px,1fr)_clamp(260px,20vw,380px)_200px]"
+                 lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px]
+                 xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
     >
       {/* Floating topics visualization - covers entire area */}
       <FloatingTopics containerRef={containerRef} laneRef={laneRef} />
