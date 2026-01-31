@@ -22,7 +22,6 @@ import {
 import { useStore } from "@/shared/store";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
 import type { EntryId, DefaultTopicId, TopicMode, EntryType } from "@/shared/types";
-import { MAX_ATTACHMENTS_SIZE_BYTES } from "@/shared/constants";
 import { cn, getDefaultTopic } from "@/shared/lib";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 
@@ -73,7 +72,7 @@ export function TaskEditor({
     isSaving: false,
     saveError: undefined,
   });
-  const [totalFileSize, setTotalFileSize] = useState<number>(0);
+  // Note: totalFileSize state removed - will be re-added when file attachments are implemented
 
   // Destructure UI state for convenience
   const { isExpanded, isContentMenuOpen, isTopicMenuOpen, isSaving } = uiState;
@@ -211,12 +210,16 @@ export function TaskEditor({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       onClick={handleEditorClick}
-      className="task-editor glass-panel rounded-2xl p-5 w-full"
+      className="task-editor glass-panel rounded-2xl p-5 w-full @container"
     >
-      {/* Top Row: Title + Topic Selector + Action Buttons */}
-      <div className="flex items-center justify-between gap-4 mb-2">
-        {/* Left side: Complete button (task only) + Title */}
-        <div className="flex items-center gap-3 flex-1">
+      {/* Top Row: Title + Action Buttons
+          Container Queries (@container): layout responds to TaskEditor width, not viewport.
+          Threshold: 640px - below this, stacks vertically (buttons top-right, title below full-width).
+          Validated: 320/360/390px no overlap, intermediate widths no overlap, long titles OK. */}
+      <div className="flex flex-col gap-3 mb-2 @[640px]:flex-row @[640px]:items-center @[640px]:justify-between @[640px]:gap-4">
+        {/* Left side: Complete button (task only) + Title
+            order-2 when stacked (below buttons), @[640px]:order-1 when wide (left side) */}
+        <div className="flex items-center gap-3 w-full min-w-0 order-2 @[640px]:order-1 @[640px]:flex-1 @[640px]:w-auto">
           {/* Complete/Uncomplete button - only for tasks */}
           {entryType === "task" && (
             <button
@@ -242,8 +245,8 @@ export function TaskEditor({
             </button>
           )}
 
-          {/* Title Input */}
-          <div className="flex-1">
+          {/* Title Input - min-w-0 prevents flex overflow */}
+          <div className="flex-1 min-w-0">
             <label htmlFor="task-title" className="sr-only">
               Title
             </label>
@@ -256,17 +259,18 @@ export function TaskEditor({
               onChange={handleTitleChange}
               placeholder={entryType === "task" ? "Task title" : "Note title"}
               className={cn(
-                "w-full bg-transparent border-none outline-none text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
+                "w-full bg-transparent border-none outline-none text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
                 isCompleted ? "text-white/50 line-through" : "text-white/90"
               )}
             />
           </div>
         </div>
 
-        {/* Right side: Buttons + File size */}
-        <div className="flex flex-col items-end gap-2">
-          {/* Buttons Row */}
-          <div className="flex items-center gap-2">
+        {/* Right side: Buttons ALWAYS aligned right (both stacked and wide modes)
+            order-1 when stacked (above title), @[640px]:order-2 when wide (right side) */}
+        <div className="flex flex-col items-end gap-2 w-full @[640px]:w-auto order-1 @[640px]:order-2">
+          {/* Buttons Row - flex-wrap prevents overlap, justify-end ALWAYS for right alignment */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Entry Type Toggle */}
             <button
               type="button"
@@ -397,22 +401,6 @@ export function TaskEditor({
             >
               <Brain className="w-5 h-5" />
             </button>
-          </div>
-
-          {/* File Size Indicator - horizontal, same width as buttons */}
-          <div
-            data-testid="file-size-indicator"
-            className="flex items-center gap-2 w-full"
-          >
-            <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary/60 transition-all rounded-full"
-                style={{ width: `${(totalFileSize / MAX_ATTACHMENTS_SIZE_BYTES) * 100}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-white/30 whitespace-nowrap">
-              {(totalFileSize / (1024 * 1024)).toFixed(0)}/{(MAX_ATTACHMENTS_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB
-            </span>
           </div>
         </div>
       </div>
