@@ -61,7 +61,7 @@ interface NodePosition {
 // ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
+export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopicsProps>) {
   // ---------------------------------------------------------------------------
   // Store selectors (optimized - only subscribe to what we need)
   // ---------------------------------------------------------------------------
@@ -187,7 +187,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
       const base = baseTopicCenters[id];
       if (base) {
         // Only update if not currently dragging this node
-        if (!dragRef.current || dragRef.current.id !== id) {
+        if (dragRef.current?.id !== id) {
           nodePosRef.current[id] = { x: base.x, y: base.y, r: base.r };
           
           // CRITICAL: Update DOM directly so bubbles move on resize
@@ -233,7 +233,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
     const taskPills = container.querySelectorAll('[data-task-id]');
 
     taskPills.forEach((el) => {
-      const taskId = el.getAttribute('data-task-id');
+      const taskId = (el as HTMLElement).dataset.taskId;
       if (!taskId) return;
 
       const r = el.getBoundingClientRect();
@@ -352,35 +352,26 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   // Keys are stable, geometry (d attribute) updated imperatively
   // ---------------------------------------------------------------------------
   const wireStructure = useMemo(() => {
-    const structure: Array<{
-      topicId: DefaultTopicId;
-      color: string;
-      taskIds: string[];
-      isSingle: boolean;
-    }> = [];
-
-    for (const id of activeTopics) {
-      const items: string[] = [];
-      for (const tasks of Object.values(tasksByDay)) {
-        for (const t of tasks) {
-          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
-          if (taskCenters[t.id]) {
-            items.push(t.id);
-          }
+    // Helper: collect visible task IDs for a topic
+    const getTaskIdsForTopic = (topicId: DefaultTopicId): string[] => {
+      const ids: string[] = [];
+      const allTasks = Object.values(tasksByDay).flat();
+      for (const t of allTasks) {
+        if (t.topicId === topicId && TOPICS[t.topicId] && taskCenters[t.id]) {
+          ids.push(t.id);
         }
       }
+      return ids;
+    };
 
-      if (items.length > 0) {
-        structure.push({
-          topicId: id,
-          color: TOPICS[id].color,
-          taskIds: items,
-          isSingle: items.length === 1,
-        });
-      }
-    }
-
-    return structure;
+    return activeTopics
+      .map((id) => {
+        const taskIds = getTaskIdsForTopic(id);
+        return taskIds.length > 0
+          ? { topicId: id, color: TOPICS[id].color, taskIds, isSingle: taskIds.length === 1 }
+          : null;
+      })
+      .filter((w): w is NonNullable<typeof w> => w !== null);
   }, [activeTopics, tasksByDay, taskCenters]);
 
   // ---------------------------------------------------------------------------
@@ -422,68 +413,60 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   // Update SVG paths for a SINGLE topic - used during drag for performance
   // Only updates paths for the specified topic, no iteration over all topics
   // ---------------------------------------------------------------------------
+  // Helper: update a single SVG path element
+  const setPathD = (key: string, d: string) => {
+    pathElRef.current[key]?.setAttribute("d", d);
+  };
+
+  // Helper: update junction dot circle attributes
+  const setCirclePos = (
+    el: SVGCircleElement | null | undefined,
+    x: number,
+    y: number,
+    r: number
+  ) => {
+    if (!el) return;
+    el.setAttribute("cx", String(x));
+    el.setAttribute("cy", String(y));
+    el.setAttribute("r", String(r));
+  };
+
   const updateWiresForTopic = useCallback((topicId: DefaultTopicId) => {
     const wire = wireStructure.find(w => w.topicId === topicId);
-    if (!wire) return;
-
     const node = nodePosRef.current[topicId];
-    if (!node) return;
+    if (!wire || !node) return;
 
-    // Build items from wire.taskIds + taskCenters (no tasksByDay scan)
-    const items: Array<{ id: string; x: number; y: number }> = [];
-    for (const taskId of wire.taskIds) {
-      const c = taskCenters[taskId];
-      if (c) {
-        items.push({ id: taskId, x: c.x, y: c.y });
-      }
-    }
+    // Build items from wire.taskIds + taskCenters
+    const items = wire.taskIds
+      .map((id) => (taskCenters[id] ? { id, ...taskCenters[id] } : null))
+      .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (items.length === 0) return;
 
+    // Single wire - direct from node to task
     if (items.length === 1) {
-      // Single wire - direct from node to task
-      const only = items[0];
-      const pathEl = pathElRef.current[`single-${topicId}`];
-      if (pathEl) {
-        pathEl.setAttribute("d", quadPath(node.x, node.y, only.x, only.y, -0.55));
-      }
-    } else {
-      // Multiple tasks - need junction
-      const j = junctionRef.current[topicId];
-      if (!j) return;
-
-      // Update trunk
-      const trunkEl = pathElRef.current[`trunk-${topicId}`];
-      if (trunkEl) {
-        trunkEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
-      }
-      const trunkDashEl = pathElRef.current[`trunk-dash-${topicId}`];
-      if (trunkDashEl) {
-        trunkDashEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
-      }
-
-      // Update branches
-      for (const item of items) {
-        const branchEl = pathElRef.current[`branch-${topicId}-${item.id}`];
-        if (branchEl) {
-          branchEl.setAttribute("d", quadPath(j.x, j.y, item.x, item.y, +0.55));
-        }
-      }
-
-      // Update junction dot (neuron point) position - follows junction in real-time
-      const haloEl = haloElRef.current[`halo-${topicId}`];
-      const dotEl = dotElRef.current[`dot-${topicId}`];
-      if (haloEl) {
-        haloEl.setAttribute("cx", String(j.x));
-        haloEl.setAttribute("cy", String(j.y));
-        haloEl.setAttribute("r", String(HALO_RADIUS_BASE));
-      }
-      if (dotEl) {
-        dotEl.setAttribute("cx", String(j.x));
-        dotEl.setAttribute("cy", String(j.y));
-        dotEl.setAttribute("r", String(DOT_RADIUS_BASE));
-      }
+      const { x, y } = items[0];
+      setPathD(`single-${topicId}`, quadPath(node.x, node.y, x, y, -0.55));
+      return;
     }
+
+    // Multiple tasks - need junction
+    const j = junctionRef.current[topicId];
+    if (!j) return;
+
+    // Update trunk paths
+    const trunkPath = quadPath(node.x, node.y, j.x, j.y, -0.7);
+    setPathD(`trunk-${topicId}`, trunkPath);
+    setPathD(`trunk-dash-${topicId}`, trunkPath);
+
+    // Update branch paths
+    items.forEach(({ id, x, y }) => {
+      setPathD(`branch-${topicId}-${id}`, quadPath(j.x, j.y, x, y, +0.55));
+    });
+
+    // Update junction dot position
+    setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, HALO_RADIUS_BASE);
+    setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, DOT_RADIUS_BASE);
   }, [wireStructure, taskCenters]);
 
   // ---------------------------------------------------------------------------
@@ -687,7 +670,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   const handlePointerMove = useCallback(
     (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
-      if (!drag || drag.id !== id || drag.pointerId !== e.pointerId) return;
+      if (drag?.id !== id || drag?.pointerId !== e.pointerId) return;
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
 
       // Calculate position IMMEDIATELY on each pointer event for instant response
@@ -742,7 +725,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
     (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       
-      if (drag && drag.id === id && drag.pointerId === e.pointerId) {
+      if (drag?.id === id && drag?.pointerId === e.pointerId) {
         // Stop the drag animation loop
         stopDragLoop();
 
@@ -789,8 +772,9 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
       >
         {wireStructure.map((wire) => {
           const dim = highlightedTopic && wire.topicId !== highlightedTopic;
-          const trunkOpacity = dim ? 0.08 : 0.25;
-          const branchOpacity = dim ? 0.1 : 0.3;
+          // When dimmed, make wires almost invisible (0.02-0.04) to focus on highlighted topic
+          const trunkOpacity = dim ? 0.03 : 0.25;
+          const branchOpacity = dim ? 0.04 : 0.3;
 
           if (wire.isSingle) {
             return (
@@ -802,7 +786,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
                   fill="none"
                   strokeLinecap="round"
                   strokeWidth={dim ? 1 : 2}
-                  strokeOpacity={dim ? 0.1 : 0.3}
+                  strokeOpacity={dim ? 0.04 : 0.3}
                   strokeDasharray="4 8"
                 />
               </g>
@@ -832,7 +816,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
                 fill="none"
                 strokeLinecap="round"
                 strokeWidth={dim ? 1 : 2}
-                strokeOpacity={dim ? 0.05 : 0.12}
+                strokeOpacity={dim ? 0.02 : 0.12}
                 strokeDasharray="4 8"
               />
               {/* Branches */}
@@ -855,7 +839,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
                 ref={(el) => { haloElRef.current[`halo-${wire.topicId}`] = el; }}
                 cx="0" cy="0" r="0" // Will be set imperatively
                 fill={wire.color}
-                fillOpacity={dim ? HALO_OPACITY * 0.4 : HALO_OPACITY}
+                fillOpacity={dim ? HALO_OPACITY * 0.15 : HALO_OPACITY}
                 className={isHot ? "junction-halo hot" : "junction-halo"}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
@@ -864,7 +848,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
                 ref={(el) => { dotElRef.current[`dot-${wire.topicId}`] = el; }}
                 cx="0" cy="0" r="0" // Will be set imperatively
                 fill={wire.color}
-                fillOpacity={dim ? DOT_OPACITY * 0.4 : DOT_OPACITY}
+                fillOpacity={dim ? DOT_OPACITY * 0.15 : DOT_OPACITY}
                 className={isHot ? "junction-dot hot" : "junction-dot"}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
