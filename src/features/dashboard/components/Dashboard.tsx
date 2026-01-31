@@ -86,10 +86,10 @@ export function Dashboard() {
       />
 
       {/* Column 3: Calendar sidebar
-          - Mobile: altura fija, NO ocupa toda la pantalla
-          - Desktop: altura completa, alineado a la derecha
+          - Mobile: compact horizontal calendar, minimal height
+          - Desktop: full vertical calendar with tasks
           - overflow-hidden para forzar que respete el ancho de la columna del grid */}
-      <aside className="h-48 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden">
+      <aside className="h-20 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden">
         <VerticalCalendar />
       </aside>
     </div>

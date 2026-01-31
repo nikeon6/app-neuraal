@@ -66,8 +66,11 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
   }, [onExpand]);
 
   // Handle pointer down on drag handle to initiate drag
+  // stopPropagation prevents the wrapper onClick (expand) from firing
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
       if (isDragDisabled) return;
       dragControls.start(e);
     },
@@ -76,24 +79,32 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
 
   return (
     <div ref={wrapperRef} className="relative" onClick={handleEditorClick}>
-      {/* Drag Handle - positioned on the left */}
-      <div
+      {/* Drag Handle - positioned on the left
+          Desktop: hidden by default, visible on hover
+          Mobile/touch: always visible (no hover on touch devices)
+          Uses @media(hover:none) and @media(pointer:coarse) for touch detection */}
+      <button
+        type="button"
         data-testid="drag-handle"
         aria-label="Drag to reorder"
+        title="Arrastrar para reordenar"
         onPointerDown={handlePointerDown}
         className="
-          absolute -left-8 top-4
-          opacity-0 group-hover:opacity-100
+          absolute -left-8 top-4 z-10
+          opacity-0 group-hover:opacity-100 group-focus-within:opacity-100
+          [@media(hover:none)]:opacity-60 [@media(pointer:coarse)]:opacity-60
+          active:opacity-100
           text-white/30 hover:text-white/60
           cursor-grab active:cursor-grabbing
           transition-opacity duration-200
-          p-1 z-10
-          touch-none
+          p-3 -m-2 rounded-lg
+          touch-none select-none
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30
         "
         style={{ touchAction: "none" }}
       >
         <GripVertical className="w-5 h-5" />
-      </div>
+      </button>
 
       {/* TaskEditor - props are stable, won't cause re-render */}
       <TaskEditor
