@@ -143,6 +143,46 @@
   transform: scale(0.98);
 }
 
+/* Junction dot (neuron point) - where branches split */
+.junction-dot,
+.junction-halo {
+  transition: fill-opacity 0.2s ease;
+  /* Critical: scale around the circle's own center, not SVG origin */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Pulse animation for junction dot when topic is highlighted */
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseHalo {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.14;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.28;
+  }
+}
+
+.junction-dot.hot {
+  animation: pulseDot 900ms ease-in-out infinite;
+}
+
+.junction-halo.hot {
+  animation: pulseHalo 900ms ease-in-out infinite;
+}
+
 .topic-label {
   text-align: center;
   padding: 8px;

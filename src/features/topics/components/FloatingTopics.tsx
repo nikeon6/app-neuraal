@@ -29,6 +29,12 @@ const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
 const NODE_MARGIN = 8;
 
+// Junction dot (neuron point) parameters
+const DOT_RADIUS_BASE = 4.5;
+const HALO_RADIUS_BASE = 9;
+const DOT_OPACITY = 0.95;
+const HALO_OPACITY = 0.14;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -84,6 +90,10 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   
   // SVG path refs for imperative "d" updates
   const pathElRef = useRef<Record<string, SVGPathElement | null>>({});
+  
+  // SVG circle refs for junction dots (neuron points)
+  const dotElRef = useRef<Record<string, SVGCircleElement | null>>({});
+  const haloElRef = useRef<Record<string, SVGCircleElement | null>>({});
   
   // Junction positions (current and target) - never triggers re-render
   const junctionRef = useRef<Partial<Record<DefaultTopicId, { x: number; y: number }>>>({});
@@ -459,6 +469,20 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
           branchEl.setAttribute("d", quadPath(j.x, j.y, item.x, item.y, +0.55));
         }
       }
+
+      // Update junction dot (neuron point) position - follows junction in real-time
+      const haloEl = haloElRef.current[`halo-${topicId}`];
+      const dotEl = dotElRef.current[`dot-${topicId}`];
+      if (haloEl) {
+        haloEl.setAttribute("cx", String(j.x));
+        haloEl.setAttribute("cy", String(j.y));
+        haloEl.setAttribute("r", String(HALO_RADIUS_BASE));
+      }
+      if (dotEl) {
+        dotEl.setAttribute("cx", String(j.x));
+        dotEl.setAttribute("cy", String(j.y));
+        dotEl.setAttribute("r", String(DOT_RADIUS_BASE));
+      }
     }
   }, [wireStructure, taskCenters]);
 
@@ -785,6 +809,9 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
             );
           }
 
+          // Check if this topic is highlighted for pulse animation
+          const isHot = highlightedTopic === wire.topicId;
+
           return (
             <g key={wire.topicId}>
               {/* Trunk - solid */}
@@ -822,6 +849,25 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
                   strokeDasharray="4 8"
                 />
               ))}
+              {/* Junction dot (neuron point) - rendered LAST to be on top */}
+              {/* Halo (glow effect - cheaper than filter) */}
+              <circle
+                ref={(el) => { haloElRef.current[`halo-${wire.topicId}`] = el; }}
+                cx="0" cy="0" r="0" // Will be set imperatively
+                fill={wire.color}
+                fillOpacity={dim ? HALO_OPACITY * 0.4 : HALO_OPACITY}
+                className={isHot ? "junction-halo hot" : "junction-halo"}
+                style={{ transformOrigin: "center", pointerEvents: "none" }}
+              />
+              {/* Dot (solid center) */}
+              <circle
+                ref={(el) => { dotElRef.current[`dot-${wire.topicId}`] = el; }}
+                cx="0" cy="0" r="0" // Will be set imperatively
+                fill={wire.color}
+                fillOpacity={dim ? DOT_OPACITY * 0.4 : DOT_OPACITY}
+                className={isHot ? "junction-dot hot" : "junction-dot"}
+                style={{ transformOrigin: "center", pointerEvents: "none" }}
+              />
             </g>
           );
         })}
