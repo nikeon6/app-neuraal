@@ -100,6 +100,10 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   // Recalc throttling
   const recalcRafRef = useRef<number | null>(null);
   const recalcPendingRef = useRef(false);
+  
+  // Cached median Y per topic - avoids expensive scans during drag
+  // Updated only when wireStructure/taskCenters change, NOT per frame
+  const topicMedianYRef = useRef<Partial<Record<DefaultTopicId, number>>>({});
 
   // ---------------------------------------------------------------------------
   // Derived data (memoized)
@@ -334,7 +338,59 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   }, [tasksByDay, scheduleRecalc]);
 
   // ---------------------------------------------------------------------------
-  // Get task Ys for a topic (for junction calculation)
+  // Build wire structure EARLY (needed by updateWiresImperative)
+  // Keys are stable, geometry (d attribute) updated imperatively
+  // ---------------------------------------------------------------------------
+  const wireStructure = useMemo(() => {
+    const structure: Array<{
+      topicId: DefaultTopicId;
+      color: string;
+      taskIds: string[];
+      isSingle: boolean;
+    }> = [];
+
+    for (const id of activeTopics) {
+      const items: string[] = [];
+      for (const tasks of Object.values(tasksByDay)) {
+        for (const t of tasks) {
+          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
+          if (taskCenters[t.id]) {
+            items.push(t.id);
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        structure.push({
+          topicId: id,
+          color: TOPICS[id].color,
+          taskIds: items,
+          isSingle: items.length === 1,
+        });
+      }
+    }
+
+    return structure;
+  }, [activeTopics, tasksByDay, taskCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Cache median Y per topic - updated when wireStructure/taskCenters change
+  // This avoids expensive scans during drag (NO per-frame computation)
+  // ---------------------------------------------------------------------------
+  useLayoutEffect(() => {
+    for (const wire of wireStructure) {
+      const ys = wire.taskIds
+        .map((taskId) => taskCenters[taskId]?.y)
+        .filter((y): y is number => y != null);
+      
+      if (ys.length > 0) {
+        topicMedianYRef.current[wire.topicId] = median(ys);
+      }
+    }
+  }, [wireStructure, taskCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Get task Ys for a topic (for junction calculation) - used in non-drag contexts
   // ---------------------------------------------------------------------------
   const getTaskYsForTopic = useCallback(
     (topicId: DefaultTopicId): number[] => {
@@ -353,63 +409,68 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
   );
 
   // ---------------------------------------------------------------------------
-  // Update SVG paths imperatively
-  // This is called from the animation loop - no setState!
+  // Update SVG paths for a SINGLE topic - used during drag for performance
+  // Only updates paths for the specified topic, no iteration over all topics
   // ---------------------------------------------------------------------------
-  const updateWiresImperative = useCallback(() => {
-    for (const id of activeTopics) {
-      const node = nodePosRef.current[id];
-      if (!node) continue;
+  const updateWiresForTopic = useCallback((topicId: DefaultTopicId) => {
+    const wire = wireStructure.find(w => w.topicId === topicId);
+    if (!wire) return;
 
-      // Collect visible tasks for this topic
-      const items: Array<{ id: string; x: number; y: number }> = [];
-      for (const tasks of Object.values(tasksByDay)) {
-        for (const t of tasks) {
-          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
-          const c = taskCenters[t.id];
-          if (!c) continue;
-          items.push({ id: t.id, x: c.x, y: c.y });
-        }
+    const node = nodePosRef.current[topicId];
+    if (!node) return;
+
+    // Build items from wire.taskIds + taskCenters (no tasksByDay scan)
+    const items: Array<{ id: string; x: number; y: number }> = [];
+    for (const taskId of wire.taskIds) {
+      const c = taskCenters[taskId];
+      if (c) {
+        items.push({ id: taskId, x: c.x, y: c.y });
+      }
+    }
+
+    if (items.length === 0) return;
+
+    if (items.length === 1) {
+      // Single wire - direct from node to task
+      const only = items[0];
+      const pathEl = pathElRef.current[`single-${topicId}`];
+      if (pathEl) {
+        pathEl.setAttribute("d", quadPath(node.x, node.y, only.x, only.y, -0.55));
+      }
+    } else {
+      // Multiple tasks - need junction
+      const j = junctionRef.current[topicId];
+      if (!j) return;
+
+      // Update trunk
+      const trunkEl = pathElRef.current[`trunk-${topicId}`];
+      if (trunkEl) {
+        trunkEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
+      }
+      const trunkDashEl = pathElRef.current[`trunk-dash-${topicId}`];
+      if (trunkDashEl) {
+        trunkDashEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
       }
 
-      if (items.length === 0) continue;
-
-      if (items.length === 1) {
-        // Single wire - direct from node to task
-        const only = items[0];
-        const pathKey = `single-${id}`;
-        const pathEl = pathElRef.current[pathKey];
-        if (pathEl) {
-          pathEl.setAttribute("d", quadPath(node.x, node.y, only.x, only.y, -0.55));
-        }
-      } else {
-        // Multiple tasks - need junction
-        const j = junctionRef.current[id];
-        if (!j) continue;
-
-        // Update trunk
-        const trunkKey = `trunk-${id}`;
-        const trunkEl = pathElRef.current[trunkKey];
-        if (trunkEl) {
-          trunkEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
-        }
-        const trunkDashKey = `trunk-dash-${id}`;
-        const trunkDashEl = pathElRef.current[trunkDashKey];
-        if (trunkDashEl) {
-          trunkDashEl.setAttribute("d", quadPath(node.x, node.y, j.x, j.y, -0.7));
-        }
-
-        // Update branches
-        for (const item of items) {
-          const branchKey = `branch-${id}-${item.id}`;
-          const branchEl = pathElRef.current[branchKey];
-          if (branchEl) {
-            branchEl.setAttribute("d", quadPath(j.x, j.y, item.x, item.y, +0.55));
-          }
+      // Update branches
+      for (const item of items) {
+        const branchEl = pathElRef.current[`branch-${topicId}-${item.id}`];
+        if (branchEl) {
+          branchEl.setAttribute("d", quadPath(j.x, j.y, item.x, item.y, +0.55));
         }
       }
     }
-  }, [activeTopics, tasksByDay, taskCenters]);
+  }, [wireStructure, taskCenters]);
+
+  // ---------------------------------------------------------------------------
+  // Update ALL SVG paths - used for global updates (mount, layout changes)
+  // Calls updateWiresForTopic for each topic
+  // ---------------------------------------------------------------------------
+  const updateWiresImperative = useCallback(() => {
+    for (const wire of wireStructure) {
+      updateWiresForTopic(wire.topicId);
+    }
+  }, [wireStructure, updateWiresForTopic]);
 
   // ---------------------------------------------------------------------------
   // Junction animation loop (runs independently, no setState per frame)
@@ -456,10 +517,15 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
     }
 
     // Animation step - no setState, just update refs and DOM
+    // SKIP topic being dragged to avoid conflict with drag loop
     const step = () => {
       let needsMore = false;
+      const draggingId = dragRef.current?.id;
 
       for (const id of activeTopics) {
+        // Skip the topic being dragged - drag loop handles it
+        if (draggingId === id) continue;
+
         const cur = junctionRef.current[id];
         const tar = junctionTargetRef.current[id];
         if (!cur || !tar) continue;
@@ -471,10 +537,10 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
         } else {
           cur.y = tar.y;
         }
-      }
 
-      // Update wires imperatively
-      updateWiresImperative();
+        // Update wires for this topic only
+        updateWiresForTopic(id);
+      }
 
       if (needsMore) {
         junctionRafRef.current = requestAnimationFrame(step);
@@ -483,7 +549,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
       }
     };
 
-    // Initial wire update
+    // Initial wire update for all topics
     updateWiresImperative();
     
     // Start animation
@@ -496,15 +562,15 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
         junctionRafRef.current = null;
       }
     };
-  }, [activeTopics, boardSize, baseTopicCenters, getTaskYsForTopic, updateWiresImperative]);
+  }, [activeTopics, boardSize, baseTopicCenters, getTaskYsForTopic, updateWiresImperative, updateWiresForTopic]);
 
   // ---------------------------------------------------------------------------
-  // Drag animation loop
-  // Uses transform for GPU acceleration, no setState during drag
+  // Drag animation loop - updates ONLY the dragged topic
+  // Junction.y is updated HERE (not in pointermove) for stable timing
   // ---------------------------------------------------------------------------
+  const DRAG_JUNCTION_FOLLOW = 0.35; // Faster easing during drag for responsiveness
+
   const startDragLoop = useCallback(() => {
-    // This loop only updates the wires during drag
-    // The node position is updated directly in pointermove for zero-lag response
     const loop = () => {
       const drag = dragRef.current;
       
@@ -513,8 +579,28 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
         return;
       }
 
-      // Update wires to follow the dragging node (wires can lag slightly, node cannot)
-      updateWiresImperative();
+      const topicId = drag.id;
+      const node = nodePosRef.current[topicId];
+      const j = junctionRef.current[topicId];
+
+      // Update junction.Y in rAF for stable timing (moved from pointermove)
+      if (node && j) {
+        const medY = topicMedianYRef.current[topicId];
+        if (medY != null) {
+          const desiredY = clamp(
+            medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
+            20,
+            boardSize.h - 20
+          );
+          // Smooth interpolation for natural feel
+          j.y = j.y + (desiredY - j.y) * DRAG_JUNCTION_FOLLOW;
+          // Keep target in sync for when drag ends
+          junctionTargetRef.current[topicId] = { y: desiredY };
+        }
+      }
+
+      // Update wires for ONLY the dragged topic (not all topics)
+      updateWiresForTopic(topicId);
 
       // Continue loop while dragging
       dragRafRef.current = requestAnimationFrame(loop);
@@ -522,7 +608,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
 
     if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
     dragRafRef.current = requestAnimationFrame(loop);
-  }, [updateWiresImperative]);
+  }, [boardSize.h, updateWiresForTopic]);
 
   const stopDragLoop = useCallback(() => {
     if (dragRafRef.current) {
@@ -606,7 +692,7 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
         el.style.top = `${ny - currentNode.r}px`;
       }
 
-      // Update junction X to follow node immediately
+      // Update junction X only (Y is updated in rAF loop for stable timing)
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
       const hasLane = boardSize.laneW > 0;
       const j = junctionRef.current[id];
@@ -619,9 +705,10 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
           ? boardSize.laneX + boardSize.laneW - 20
           : leftW - 10;
         j.x = clamp(xWanted, xMin, xMax);
+        // NOTE: junction.y is updated in startDragLoop rAF for stable timing
       }
 
-      // Store for rAF loop (wires update in rAF for performance)
+      // Store pointer position (used for debugging if needed)
       latestPointerRef.current = { x: px, y: py };
     },
     [boardSize]
@@ -663,42 +750,6 @@ export function FloatingTopics({ containerRef, laneRef }: FloatingTopicsProps) {
       if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
     };
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Build initial wire structure (keys are stable)
-  // Geometry (d attribute) will be updated imperatively
-  // ---------------------------------------------------------------------------
-  const wireStructure = useMemo(() => {
-    const structure: Array<{
-      topicId: DefaultTopicId;
-      color: string;
-      taskIds: string[];
-      isSingle: boolean;
-    }> = [];
-
-    for (const id of activeTopics) {
-      const items: string[] = [];
-      for (const tasks of Object.values(tasksByDay)) {
-        for (const t of tasks) {
-          if (t.topicId !== id || !TOPICS[t.topicId]) continue;
-          if (taskCenters[t.id]) {
-            items.push(t.id);
-          }
-        }
-      }
-
-      if (items.length > 0) {
-        structure.push({
-          topicId: id,
-          color: TOPICS[id].color,
-          taskIds: items,
-          isSingle: items.length === 1,
-        });
-      }
-    }
-
-    return structure;
-  }, [activeTopics, tasksByDay, taskCenters]);
 
   // ---------------------------------------------------------------------------
   // Render
