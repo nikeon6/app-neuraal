@@ -279,18 +279,7 @@ describe("TaskEditor", () => {
     });
   });
 
-  describe("File Size Limit", () => {
-    it("should display file size limit information", () => {
-      render(<TaskEditor />);
-      // Should show 20MB limit somewhere in the UI
-      expect(screen.getByText(/20\s*mb/i)).toBeInTheDocument();
-    });
-
-    it("should show current usage of file storage", () => {
-      render(<TaskEditor />);
-      expect(screen.getByTestId("file-size-indicator")).toBeInTheDocument();
-    });
-  });
+  // NOTE: File Size Limit tests removed - feature was removed from TaskEditor
 
   describe("Expand/Collapse Behavior", () => {
     it("should expand when clicking inside the editor", async () => {

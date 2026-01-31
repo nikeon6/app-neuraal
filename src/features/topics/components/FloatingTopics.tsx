@@ -15,7 +15,7 @@ import type {
   TaskCenter,
 } from "@/features/topics/types";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
-import { clamp, median, quadPath, isDefaultTopicId } from "@/shared/lib";
+import { clamp, median, quadPath, isDefaultTopicId, cn } from "@/shared/lib";
 
 // ============================================================================
 // Configuration Constants
@@ -50,6 +50,9 @@ interface DragState {
   offsetY: number;
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   containerRect: DOMRect;
+  startX: number;
+  startY: number;
+  hasMoved: boolean; // Track if user actually dragged vs just clicked
 }
 
 interface NodePosition {
@@ -70,12 +73,16 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   const setTopicPosition = useStore((s) => s.setTopicPosition);
   const highlightedTopic = useStore((s) => s.highlightedTopic);
   const setHighlightedTopic = useStore((s) => s.setHighlightedTopic);
+  const expandedTopicId = useStore((s) => s.expandedTopicId);
+  const toggleExpandedTopic = useStore((s) => s.toggleExpandedTopic);
 
   // ---------------------------------------------------------------------------
   // State (minimal - only what triggers necessary re-renders)
   // ---------------------------------------------------------------------------
   const [boardSize, setBoardSize] = useState({ w: 1, h: 1, rightW: 0, laneX: 0, laneW: 0 });
   const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>({});
+  // Day centers for "collapsed mode" wires (wire to day anchor instead of individual tasks)
+  const [dayCenters, setDayCenters] = useState<Record<string, { x: number; y: number; dayNumber: number }>>({});
 
   // ---------------------------------------------------------------------------
   // Refs for imperative updates (no re-renders during drag/animation)
@@ -229,7 +236,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       laneW,
     });
 
-    const centers: Record<string, TaskCenter> = {};
+    // Measure task pills (for expanded mode - wire to tasks)
+    const taskCenterMap: Record<string, TaskCenter> = {};
     const taskPills = container.querySelectorAll('[data-task-id]');
 
     taskPills.forEach((el) => {
@@ -251,11 +259,41 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       const y = r.top - containerRect.top + r.height / 2;
 
       if (y > 0 && y < containerRect.height && x > 0) {
-        centers[taskId] = { x, y };
+        taskCenterMap[taskId] = { x, y };
       }
     });
 
-    setTaskCenters(centers);
+    setTaskCenters(taskCenterMap);
+
+    // Measure day anchors (for collapsed mode - wire to days)
+    const dayCenterMap: Record<string, { x: number; y: number; dayNumber: number }> = {};
+    const dayAnchors = aside?.querySelectorAll('[data-day-anchor="true"]');
+
+    dayAnchors?.forEach((el) => {
+      const dateKey = (el as HTMLElement).dataset.dateKey;
+      const dayNumberStr = (el as HTMLElement).dataset.dayNumber;
+      if (!dateKey || !dayNumberStr) return;
+
+      const r = el.getBoundingClientRect();
+
+      // Check visibility within aside
+      if (asideRect) {
+        const isVisible =
+          r.top < asideRect.bottom &&
+          r.bottom > asideRect.top;
+        if (!isVisible) return;
+      }
+
+      // Anchor point: left edge of day row, vertically centered
+      const x = r.left - containerRect.left;
+      const y = r.top - containerRect.top + r.height / 2;
+
+      if (y > 0 && y < containerRect.height && x > 0) {
+        dayCenterMap[dateKey] = { x, y, dayNumber: Number.parseInt(dayNumberStr, 10) };
+      }
+    });
+
+    setDayCenters(dayCenterMap);
   }, [containerRef, laneRef]);
 
   // Throttled recalc - max once per frame
@@ -347,12 +385,22 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     return () => clearTimeout(timeout);
   }, [tasksByDay, scheduleRecalc]);
 
+  // Recalc when expandedTopicId changes (task pills appear/disappear)
+  useEffect(() => {
+    // Small delay to let DOM update with new task pills
+    const timeout = setTimeout(scheduleRecalc, 50);
+    return () => clearTimeout(timeout);
+  }, [expandedTopicId, scheduleRecalc]);
+
   // ---------------------------------------------------------------------------
   // Build wire structure EARLY (needed by updateWiresImperative)
   // Keys are stable, geometry (d attribute) updated imperatively
+  // 
+  // MODE: Collapsed (default) - wires connect to days (1 wire per day with tasks)
+  // MODE: Expanded - only the expanded topic uses wires to individual tasks
   // ---------------------------------------------------------------------------
   const wireStructure = useMemo(() => {
-    // Helper: collect visible task IDs for a topic
+    // Helper: collect visible task IDs for a topic (for expanded mode)
     const getTaskIdsForTopic = (topicId: DefaultTopicId): string[] => {
       const ids: string[] = [];
       const allTasks = Object.values(tasksByDay).flat();
@@ -364,49 +412,118 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       return ids;
     };
 
+    // Helper: collect visible day keys for a topic (for collapsed mode)
+    const getDayKeysForTopic = (topicId: DefaultTopicId): string[] => {
+      const dayKeys: string[] = [];
+      const seenDays = new Set<number>();
+      
+      for (const [dayStr, tasks] of Object.entries(tasksByDay)) {
+        const dayNumber = Number.parseInt(dayStr, 10);
+        if (seenDays.has(dayNumber)) continue;
+        
+        // Check if this day has tasks for this topic
+        const hasTopicTask = tasks.some((t) => t.topicId === topicId);
+        if (!hasTopicTask) continue;
+
+        // Find the dateKey for this dayNumber in dayCenters
+        for (const [dateKey, center] of Object.entries(dayCenters)) {
+          if (center.dayNumber === dayNumber) {
+            dayKeys.push(dateKey);
+            seenDays.add(dayNumber);
+            break;
+          }
+        }
+      }
+      return dayKeys;
+    };
+
     return activeTopics
       .map((id) => {
-        const taskIds = getTaskIdsForTopic(id);
-        return taskIds.length > 0
-          ? { topicId: id, color: TOPICS[id].color, taskIds, isSingle: taskIds.length === 1 }
-          : null;
+        const isExpanded = id === expandedTopicId;
+        
+        if (isExpanded) {
+          // Expanded mode: wire to individual tasks
+          const taskIds = getTaskIdsForTopic(id);
+          return taskIds.length > 0
+            ? { 
+                topicId: id, 
+                color: TOPICS[id].color, 
+                taskIds, 
+                dayKeys: null,
+                mode: 'tasks' as const,
+                isSingle: taskIds.length === 1 
+              }
+            : null;
+        } else {
+          // Collapsed mode: wire to days
+          const dayKeys = getDayKeysForTopic(id);
+          return dayKeys.length > 0
+            ? { 
+                topicId: id, 
+                color: TOPICS[id].color, 
+                taskIds: null, 
+                dayKeys,
+                mode: 'days' as const,
+                isSingle: dayKeys.length === 1 
+              }
+            : null;
+        }
       })
       .filter((w): w is NonNullable<typeof w> => w !== null);
-  }, [activeTopics, tasksByDay, taskCenters]);
+  }, [activeTopics, tasksByDay, taskCenters, dayCenters, expandedTopicId]);
 
   // ---------------------------------------------------------------------------
-  // Cache median Y per topic - updated when wireStructure/taskCenters change
+  // Cache median Y per topic - updated when wireStructure/taskCenters/dayCenters change
   // This avoids expensive scans during drag (NO per-frame computation)
   // ---------------------------------------------------------------------------
   useLayoutEffect(() => {
     for (const wire of wireStructure) {
-      const ys = wire.taskIds
-        .map((taskId) => taskCenters[taskId]?.y)
-        .filter((y): y is number => y != null);
+      let ys: number[];
+      
+      if (wire.mode === 'tasks' && wire.taskIds) {
+        ys = wire.taskIds
+          .map((taskId) => taskCenters[taskId]?.y)
+          .filter((y): y is number => y != null);
+      } else if (wire.mode === 'days' && wire.dayKeys) {
+        ys = wire.dayKeys
+          .map((dateKey) => dayCenters[dateKey]?.y)
+          .filter((y): y is number => y != null);
+      } else {
+        continue;
+      }
       
       if (ys.length > 0) {
         topicMedianYRef.current[wire.topicId] = median(ys);
       }
     }
-  }, [wireStructure, taskCenters]);
+  }, [wireStructure, taskCenters, dayCenters]);
 
   // ---------------------------------------------------------------------------
-  // Get task Ys for a topic (for junction calculation) - used in non-drag contexts
+  // Get target Ys for a topic (for junction calculation) - used in non-drag contexts
+  // Returns task Ys for expanded topic, day Ys for collapsed topics
   // ---------------------------------------------------------------------------
-  const getTaskYsForTopic = useCallback(
+  const getTargetYsForTopic = useCallback(
     (topicId: DefaultTopicId): number[] => {
+      const wire = wireStructure.find(w => w.topicId === topicId);
+      if (!wire) return [];
+
       const ys: number[] = [];
-      for (const tasks of Object.values(tasksByDay)) {
-        for (const t of tasks) {
-          if (t.topicId !== topicId || !isDefaultTopicId(t.topicId)) continue;
-          const c = taskCenters[t.id];
-          if (!c) continue;
-          ys.push(c.y);
+      
+      if (wire.mode === 'tasks' && wire.taskIds) {
+        for (const taskId of wire.taskIds) {
+          const c = taskCenters[taskId];
+          if (c) ys.push(c.y);
+        }
+      } else if (wire.mode === 'days' && wire.dayKeys) {
+        for (const dateKey of wire.dayKeys) {
+          const c = dayCenters[dateKey];
+          if (c) ys.push(c.y);
         }
       }
+      
       return ys;
     },
-    [tasksByDay, taskCenters]
+    [wireStructure, taskCenters, dayCenters]
   );
 
   // ---------------------------------------------------------------------------
@@ -436,21 +553,33 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     const node = nodePosRef.current[topicId];
     if (!wire || !node) return;
 
-    // Build items from wire.taskIds + taskCenters
-    const items = wire.taskIds
-      .map((id) => (taskCenters[id] ? { id, ...taskCenters[id] } : null))
-      .filter((item): item is NonNullable<typeof item> => item !== null);
+    // Build items based on mode (tasks or days)
+    let items: { id: string; x: number; y: number }[];
+    
+    if (wire.mode === 'tasks' && wire.taskIds) {
+      // Expanded mode: connect to individual tasks
+      items = wire.taskIds
+        .map((id) => (taskCenters[id] ? { id, ...taskCenters[id] } : null))
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+    } else if (wire.mode === 'days' && wire.dayKeys) {
+      // Collapsed mode: connect to days
+      items = wire.dayKeys
+        .map((dateKey) => (dayCenters[dateKey] ? { id: dateKey, ...dayCenters[dateKey] } : null))
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+    } else {
+      return;
+    }
 
     if (items.length === 0) return;
 
-    // Single wire - direct from node to task
+    // Single wire - direct from node to target
     if (items.length === 1) {
       const { x, y } = items[0];
       setPathD(`single-${topicId}`, quadPath(node.x, node.y, x, y, -0.55));
       return;
     }
 
-    // Multiple tasks - need junction
+    // Multiple targets - need junction
     const j = junctionRef.current[topicId];
     if (!j) return;
 
@@ -467,7 +596,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     // Update junction dot position
     setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, HALO_RADIUS_BASE);
     setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, DOT_RADIUS_BASE);
-  }, [wireStructure, taskCenters]);
+  }, [wireStructure, taskCenters, dayCenters]);
 
   // ---------------------------------------------------------------------------
   // Update ALL SVG paths - used for global updates (mount, layout changes)
@@ -511,7 +640,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         junctionRef.current[id] = { x, y: node.y };
       }
 
-      const ys = getTaskYsForTopic(id);
+      const ys = getTargetYsForTopic(id);
       if (ys.length > 0) {
         const medY = median(ys);
         const targetY = clamp(
@@ -569,7 +698,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         junctionRafRef.current = null;
       }
     };
-  }, [activeTopics, boardSize, baseTopicCenters, getTaskYsForTopic, updateWiresImperative, updateWiresForTopic]);
+  }, [activeTopics, boardSize, baseTopicCenters, getTargetYsForTopic, updateWiresImperative, updateWiresForTopic]);
 
   // ---------------------------------------------------------------------------
   // Drag animation loop - updates ONLY the dragged topic
@@ -657,6 +786,9 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         offsetY: py - node.y,
         bounds: { minX, maxX, minY, maxY },
         containerRect,
+        startX: px,
+        startY: py,
+        hasMoved: false,
       };
 
       latestPointerRef.current = { x: px, y: py };
@@ -677,6 +809,13 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       // NO setState here! This is key for 60fps performance
       const px = e.clientX - drag.containerRect.left;
       const py = e.clientY - drag.containerRect.top;
+
+      // Check if user has moved enough to be considered a drag (5px threshold)
+      const dx = Math.abs(px - drag.startX);
+      const dy = Math.abs(py - drag.startY);
+      if (dx > 5 || dy > 5) {
+        drag.hasMoved = true;
+      }
       
       const { offsetX, offsetY, bounds } = drag;
       const { minX, maxX, minY, maxY } = bounds;
@@ -729,11 +868,17 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         // Stop the drag animation loop
         stopDragLoop();
 
-        // Commit final position to store
-        // The element already has the correct left/top from handlePointerMove
-        const finalPos = nodePosRef.current[id];
-        if (finalPos) {
-          setTopicPosition(id, { x: finalPos.x, y: finalPos.y });
+        // If user actually dragged, commit position; otherwise toggle expanded state
+        if (drag.hasMoved) {
+          // Commit final position to store
+          // The element already has the correct left/top from handlePointerMove
+          const finalPos = nodePosRef.current[id];
+          if (finalPos) {
+            setTopicPosition(id, { x: finalPos.x, y: finalPos.y });
+          }
+        } else {
+          // User just clicked (no movement), toggle expanded state
+          toggleExpandedTopic(id);
         }
 
         dragRef.current = null;
@@ -744,7 +889,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     },
-    [setTopicPosition, stopDragLoop]
+    [setTopicPosition, stopDragLoop, toggleExpandedTopic]
   );
 
   // ---------------------------------------------------------------------------
@@ -775,6 +920,9 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
           // When dimmed, make wires almost invisible (0.02-0.04) to focus on highlighted topic
           const trunkOpacity = dim ? 0.03 : 0.25;
           const branchOpacity = dim ? 0.04 : 0.3;
+          
+          // Get the branch IDs based on mode
+          const branchIds = wire.mode === 'tasks' ? (wire.taskIds || []) : (wire.dayKeys || []);
 
           if (wire.isSingle) {
             return (
@@ -793,8 +941,9 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             );
           }
 
-          // Check if this topic is highlighted for pulse animation
+          // Check if this topic is highlighted/expanded for visual feedback
           const isHot = highlightedTopic === wire.topicId;
+          const isExpanded = expandedTopicId === wire.topicId;
 
           return (
             <g key={wire.topicId}>
@@ -819,11 +968,11 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
                 strokeOpacity={dim ? 0.02 : 0.12}
                 strokeDasharray="4 8"
               />
-              {/* Branches */}
-              {wire.taskIds.map((taskId) => (
+              {/* Branches - to tasks or days depending on mode */}
+              {branchIds.map((branchId) => (
                 <path
-                  key={taskId}
-                  ref={(el) => { pathElRef.current[`branch-${wire.topicId}-${taskId}`] = el; }}
+                  key={branchId}
+                  ref={(el) => { pathElRef.current[`branch-${wire.topicId}-${branchId}`] = el; }}
                   d="" // Will be set imperatively
                   stroke={wire.color}
                   fill="none"
@@ -840,7 +989,11 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
                 cx="0" cy="0" r="0" // Will be set imperatively
                 fill={wire.color}
                 fillOpacity={dim ? HALO_OPACITY * 0.15 : HALO_OPACITY}
-                className={isHot ? "junction-halo hot" : "junction-halo"}
+                className={cn(
+                  "junction-halo",
+                  isHot && "hot",
+                  isExpanded && "expanded"
+                )}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
               {/* Dot (solid center) */}
@@ -849,7 +1002,11 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
                 cx="0" cy="0" r="0" // Will be set imperatively
                 fill={wire.color}
                 fillOpacity={dim ? DOT_OPACITY * 0.15 : DOT_OPACITY}
-                className={isHot ? "junction-dot hot" : "junction-dot"}
+                className={cn(
+                  "junction-dot",
+                  isHot && "hot",
+                  isExpanded && "expanded"
+                )}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
             </g>
@@ -869,19 +1026,25 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
 
         const node = nodePosRef.current[id];
 
+        const isExpanded = expandedTopicId === id;
+
         return (
           <button
             type="button"
             key={id}
             ref={(el) => { nodeElRef.current[id] = el; }}
-            aria-label={`Mover nodo de ${TOPICS[id].name}`}
+            aria-label={`${isExpanded ? 'Colapsar' : 'Expandir'} nodo de ${TOPICS[id].name}`}
+            aria-pressed={isExpanded}
             onMouseEnter={() => setHighlightedTopic(id)}
             onMouseLeave={() => setHighlightedTopic(null)}
             onPointerDown={handlePointerDown(id)}
             onPointerMove={handlePointerMove(id)}
             onPointerUp={handlePointerUp(id)}
             onPointerCancel={handlePointerUp(id)}
-            className="topic-node pointer-events-auto absolute"
+            className={cn(
+              "topic-node pointer-events-auto absolute",
+              isExpanded && "ring-2 ring-white/40 ring-offset-2 ring-offset-transparent"
+            )}
             style={{
               // Position is controlled imperatively during drag via left/top
               left: node.x - node.r,
@@ -891,7 +1054,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
               background: TOPICS[id].color,
               touchAction: "none",
             }}
-            title={`${TOPICS[id].name} (${topicCounts[id]} tareas)`}
+            title={`${TOPICS[id].name} (${topicCounts[id]} tareas) - Click para ${isExpanded ? 'colapsar' : 'expandir'}`}
           >
             <div className="topic-label">
               <div className="topic-name">{TOPICS[id].name}</div>

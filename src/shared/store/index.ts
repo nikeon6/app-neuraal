@@ -9,6 +9,7 @@ import type {
   TopicId,
   UserId,
   ISODate,
+  DefaultTopicId,
 } from "@/shared/types";
 import type { TopicPosition, TopicPositions } from "@/features/topics/types";
 import { uid } from "@/shared/lib/utils";
@@ -68,6 +69,13 @@ interface AppState {
   // Highlighted topic (UI state for visual feedback)
   highlightedTopic: TopicId | null;
   setHighlightedTopic: (topicId: TopicId | null) => void;
+
+  // Expanded topic (for wire-to-day vs wire-to-task mode)
+  // When null: wires connect to days (collapsed mode)
+  // When set: that topic shows wires to individual tasks (expanded mode)
+  expandedTopicId: DefaultTopicId | null;
+  toggleExpandedTopic: (topicId: DefaultTopicId) => void;
+  setExpandedTopicId: (topicId: DefaultTopicId | null) => void;
 }
 
 // Initial demo tasks - 6 floating topics
@@ -285,6 +293,14 @@ export const useStore = create<AppState>()(
       // Highlighted topic
       highlightedTopic: null,
       setHighlightedTopic: (topicId) => set({ highlightedTopic: topicId }),
+
+      // Expanded topic
+      expandedTopicId: null,
+      toggleExpandedTopic: (topicId) =>
+        set((state) => ({
+          expandedTopicId: state.expandedTopicId === topicId ? null : topicId,
+        })),
+      setExpandedTopicId: (topicId) => set({ expandedTopicId: topicId }),
     }),
     {
       // Storage key includes user ID for multiuser support

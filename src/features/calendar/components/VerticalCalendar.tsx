@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
@@ -16,10 +16,10 @@ import type { LegacyTask, ISODate } from "@/shared/types";
  *   - No task list visible
  *   - Max height limited
  * 
- * DESKTOP (lg+): Full mode
- *   - Vertical scrollable list
- *   - Shows day info + full task list with pills
- *   - Allows task removal
+ * DESKTOP (lg+): Collapsed/Expanded mode
+ *   - Collapsed (default): Only day info, no task pills
+ *   - Expanded: When a topic is expanded, shows tasks for visible days of that topic
+ *   - Wires connect to day anchors (collapsed) or task pills (expanded)
  */
 export function VerticalCalendar() {
   const {
@@ -28,9 +28,16 @@ export function VerticalCalendar() {
     setSelectedDate,
     tasksByDay,
     removeTask,
+    expandedTopicId,
   } = useStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Track visible days for lazy rendering of task pills (performance optimization)
+  const [visibleDays, setVisibleDays] = useState<Set<string>>(new Set());
+  const visibleDaysRef = useRef<Set<string>>(new Set());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   // Generate days for the current month
   const monthStart = startOfMonth(selectedDate);
@@ -57,22 +64,65 @@ export function VerticalCalendar() {
     });
   }, [selectedDate]);
 
+  // IntersectionObserver to track which days are visible in the scroll viewport
+  // This enables lazy rendering of task pills only for visible days
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    // Throttled update function - batches visibility changes
+    const scheduleUpdate = () => {
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        // Only trigger re-render if the set actually changed
+        const newSet = new Set(visibleDaysRef.current);
+        setVisibleDays(newSet);
+      });
+    };
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        let changed = false;
+        for (const entry of entries) {
+          const dateKey = (entry.target as HTMLElement).dataset.dateKey;
+          if (!dateKey) continue;
+
+          if (entry.isIntersecting && !visibleDaysRef.current.has(dateKey)) {
+            visibleDaysRef.current.add(dateKey);
+            changed = true;
+          } else if (!entry.isIntersecting && visibleDaysRef.current.has(dateKey)) {
+            visibleDaysRef.current.delete(dateKey);
+            changed = true;
+          }
+        }
+        if (changed) {
+          scheduleUpdate();
+        }
+      },
+      {
+        root: container,
+        rootMargin: "100px 0px", // Pre-load slightly outside viewport
+        threshold: 0,
+      }
+    );
+
+    // Observe all day rows
+    const dayRows = container.querySelectorAll('[data-day-anchor="true"]');
+    dayRows.forEach((row) => observerRef.current?.observe(row));
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      observerRef.current?.disconnect();
+    };
+  }, [days.length]); // Re-setup when month changes
+
   const handleRemoveTask = useCallback(
     (e: React.MouseEvent | React.KeyboardEvent, day: number, taskId: string) => {
       e.stopPropagation();
       removeTask(day, taskId);
     },
     [removeTask]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, day: number, taskId: string) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleRemoveTask(e, day, taskId);
-      }
-    },
-    [handleRemoveTask]
   );
 
   const handleDayClick = (day: Date) => {
@@ -135,7 +185,7 @@ export function VerticalCalendar() {
         })}
       </div>
 
-      {/* DESKTOP: Vertical full calendar with tasks */}
+      {/* DESKTOP: Vertical calendar with collapsible tasks */}
       <div
         ref={scrollRef}
         className="hidden lg:block flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-4 space-y-2"
@@ -148,10 +198,27 @@ export function VerticalCalendar() {
           const isCurrentDay: boolean = isToday(day);
           const hasTasks: boolean = tasks.length > 0;
 
+          // Determine if tasks should be shown:
+          // Only when: topic expanded + day visible + has tasks for that topic
+          const isDayVisible = visibleDays.has(dateKey);
+          const expandedTasks = expandedTopicId
+            ? tasks.filter((t) => t.topicId === expandedTopicId)
+            : [];
+          const shouldShowTasks = expandedTopicId && isDayVisible && expandedTasks.length > 0;
+
+          // Check if this day has tasks for the expanded topic (for visual indicator)
+          const hasExpandedTopicTasks = expandedTopicId
+            ? tasks.some((t) => t.topicId === expandedTopicId)
+            : false;
+
           return (
             <motion.div
               key={dateKey}
               id={`day-${dateKey}`}
+              // Data attributes for FloatingTopics wire connections
+              data-day-anchor="true"
+              data-day-number={dayNumber}
+              data-date-key={dateKey}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.02 }}
@@ -159,22 +226,24 @@ export function VerticalCalendar() {
               className={cn(
                 "day-row",
                 isSelected && "active",
-                isCurrentDay && !isSelected && "border border-primary/50"
+                isCurrentDay && !isSelected && "border border-primary/50",
+                // Highlight days with tasks for expanded topic
+                hasExpandedTopicTasks && !isSelected && "ring-1 ring-white/20"
               )}
             >
               {/* Day info */}
               <span className="day-weekday">{format(day, "EEE")}</span>
               <span className="day-number">{format(day, "d")}</span>
 
-              {/* Note/Task indicator */}
+              {/* Task indicator dot (always visible if day has tasks) */}
               {hasTasks && !isSelected && (
                 <div className="absolute right-2 top-2 w-2 h-2 rounded-full bg-primary" />
               )}
 
-              {/* Tasks for this day - DESKTOP ONLY */}
-              {hasTasks && (
+              {/* Tasks - ONLY shown when topic is expanded AND day is visible */}
+              {shouldShowTasks && (
                 <div className="day-tasks">
-                  {tasks.map((task) => {
+                  {expandedTasks.map((task) => {
                     const topic = getDefaultTopic(task.topicId);
                     const color = topic?.color || "#6b7280";
                     
@@ -196,16 +265,14 @@ export function VerticalCalendar() {
                         >
                           {task.title}
                         </span>
-                        <span
+                        <button
+                          type="button"
                           className="remove-btn"
-                          role="button"
-                          tabIndex={0}
                           onClick={(e) => handleRemoveTask(e, dayNumber, task.id)}
-                          onKeyDown={(e) => handleKeyDown(e, dayNumber, task.id)}
                           aria-label={`Eliminar tarea ${task.title}`}
                         >
                           ×
-                        </span>
+                        </button>
                       </div>
                     );
                   })}
