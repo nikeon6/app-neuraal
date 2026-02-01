@@ -279,6 +279,17 @@ export function VerticalCalendar() {
               <span className="day-weekday">{format(day, "EEE")}</span>
               <span className="day-number">{format(day, "d")}</span>
 
+              {/* Expanded day indicator (chevron) - only shows when manually expanded */}
+              {isExpandedDay && (
+                <span
+                  className="absolute left-1 top-0.5 text-sm text-white/70 font-bold pointer-events-none select-none"
+                  aria-hidden="true"
+                  title="Día expandido"
+                >
+                  ›
+                </span>
+              )}
+
               {/* Task indicator dot (always visible if day has tasks and no tasks expanded) */}
               {hasTasks && !isSelected && !shouldShowTasks && (
                 <div className="absolute right-2 top-2 w-2 h-2 rounded-full bg-primary" />
