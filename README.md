@@ -21,12 +21,54 @@ Users can:
 
 - **Frontend**: React 19 + Next.js 16 + TypeScript (App Router)
 - **Styling**: Tailwind CSS
+- **State Management**: Zustand (with persist middleware)
+- **Animations**: Framer Motion (motion, AnimatePresence, Reorder)
+- **Date Handling**: date-fns
+- **Icons**: Lucide React
 - **Backend**: Postgres + pgvector + S3-compatible storage
 - **Async jobs**: BullMQ + Redis + Worker
 - **Testing**: Vitest + Testing Library + Playwright
 - **Quality**: ESLint + SonarJS + jsx-a11y + Prettier
 - **Observability**: Sentry
 - **Package manager**: **pnpm only**
+
+---
+
+## Current UI Features
+
+### Dashboard Layout (Responsive 3-Column Grid)
+The main dashboard uses a responsive grid layout:
+
+| Breakpoint | Layout |
+|------------|--------|
+| `< lg` (< 1024px) | Vertical stack: Tasks (flex-1) → Calendar (h-20) |
+| `≥ lg` (1024px+) | 3-column grid: Tasks \| Bubbles Lane \| Calendar |
+| `≥ xl` (1280px+) | Wider bubbles lane and calendar |
+
+Grid columns (desktop):
+- **Tasks**: `minmax(280px, 1fr)` — flexible, minimum 280px
+- **Lane**: `clamp(260px, 22vw, 400px)` — space for floating topic bubbles
+- **Calendar**: `180px` fixed (200px on xl)
+
+### Floating Topics (Bubbles)
+Interactive visualization of topics as draggable bubbles:
+- Bubbles float in the dedicated lane (Column 2)
+- Each bubble represents a topic with associated color
+- Highlights when hovering over related tasks
+- Uses Framer Motion for smooth animations
+
+### Vertical Calendar
+Responsive calendar sidebar:
+- **Mobile**: Horizontal scrollable row of days with dot indicators
+- **Desktop**: Vertical list with expandable task pills per day
+
+### Task Editor
+Rich task/note editor with container queries for responsive layout:
+- Stacks vertically on narrow widths (< 640px)
+- Horizontal layout on wider containers
+- Entry type toggle (Task/Note)
+- Topic selector with color indicators
+- Auto-save functionality
 
 ---
 

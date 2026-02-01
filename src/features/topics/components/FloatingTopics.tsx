@@ -28,6 +28,10 @@ const JUNCTION_LANE_OFFSET = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
 const JUNCTION_TO_NODE_BLEND_X_STACK = 0.70; // Blend for X in mobile stack mode (how much junction X follows node)
+// Min-trunk hysteresis: prevent junction from snapping to lane center when anchor is close to node
+const MIN_TRUNK = 32;
+const DIR_HYSTERESIS = 10;
+const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
 const NODE_SCALE_STACK = 0.82; // Scale factor for topic nodes in mobile stack mode
 
@@ -36,6 +40,32 @@ const DOT_RADIUS_BASE = 4.5;
 const HALO_RADIUS_BASE = 9;
 const DOT_OPACITY = 0.95;
 const HALO_OPACITY = 0.14;
+
+/** Applies min-trunk hysteresis so junction does not snap to lane center when desiredX is close to nodeX. */
+function applyMinTrunkHysteresis(
+  desiredX: number,
+  nodeX: number,
+  xMin: number,
+  xMax: number,
+  pushDirRef: { current: Partial<Record<DefaultTopicId, 1 | -1>> },
+  topicId: DefaultTopicId
+): number {
+  const dist = Math.abs(desiredX - nodeX);
+  if (dist >= MIN_TRUNK) return clamp(desiredX, xMin, xMax);
+  const dx = desiredX - nodeX;
+  const prevDir = pushDirRef.current[topicId];
+  let dir: 1 | -1;
+  if (prevDir != null && Math.abs(dx) < DIR_HYSTERESIS) {
+    dir = prevDir;
+  } else if (Math.abs(dx) > 1) {
+    dir = dx >= 0 ? 1 : -1;
+    pushDirRef.current[topicId] = dir;
+  } else {
+    dir = prevDir ?? 1;
+  }
+  const overlap = MIN_TRUNK - dist;
+  return clamp(desiredX + dir * overlap * MIN_TRUNK_PUSH_FACTOR, xMin, xMax);
+}
 
 // ============================================================================
 // Types
@@ -781,32 +811,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
           xMinLane,
           xMaxLane
         );
-        
-        // Soft min trunk with continuous direction (no snap at center)
-        const minTrunk = 32;
-        const DIR_HYSTERESIS = 10;
-        const dist = Math.abs(desiredX - node.x);
-        
-        if (dist < minTrunk) {
-          // Calculate direction based on dx with hysteresis to prevent flip at center
-          const dx = desiredX - node.x;
-          const prevDir = pushDirRef.current[id];
-          let dir: 1 | -1;
-          
-          if (prevDir != null && Math.abs(dx) < DIR_HYSTERESIS) {
-            dir = prevDir; // Keep stable direction near neutral point
-          } else if (Math.abs(dx) > 1) {
-            dir = dx >= 0 ? 1 : -1;
-            pushDirRef.current[id] = dir;
-          } else {
-            dir = prevDir ?? 1;
-          }
-          
-          // Smooth push instead of hard clamp (overlap determines push amount)
-          const overlap = minTrunk - dist;
-          desiredX = clamp(desiredX + dir * overlap * 0.85, xMinLane, xMaxLane);
-        }
-        
+        desiredX = applyMinTrunkHysteresis(desiredX, node.x, xMinLane, xMaxLane, pushDirRef, id);
+
         junctionTargetXRef.current[id] = { x: desiredX };
         
         // Calculate target Y
@@ -985,32 +991,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             xMin,
             xMax
           );
-          
-          // Soft min trunk with continuous direction (no snap at center)
-          const minTrunk = 32;
-          const DIR_HYSTERESIS = 10;
-          const dist = Math.abs(desiredX - node.x);
-          
-          if (dist < minTrunk) {
-            // Calculate direction based on dx with hysteresis to prevent flip at center
-            const dx = desiredX - node.x;
-            const prevDir = pushDirRef.current[topicId];
-            let dir: 1 | -1;
-            
-            if (prevDir != null && Math.abs(dx) < DIR_HYSTERESIS) {
-              dir = prevDir; // Keep stable direction near neutral point
-            } else if (Math.abs(dx) > 1) {
-              dir = dx >= 0 ? 1 : -1;
-              pushDirRef.current[topicId] = dir;
-            } else {
-              dir = prevDir ?? 1;
-            }
-            
-            // Smooth push instead of hard clamp (overlap determines push amount)
-            const overlap = minTrunk - dist;
-            desiredX = clamp(desiredX + dir * overlap * 0.85, xMin, xMax);
-          }
-          
+          desiredX = applyMinTrunkHysteresis(desiredX, node.x, xMin, xMax, pushDirRef, topicId);
+
           // Smooth interpolation for X
           j.x = j.x + (desiredX - j.x) * DRAG_JUNCTION_FOLLOW;
           
@@ -1084,13 +1066,18 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       const py = e.clientY - containerRect.top;
 
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
-      const hasLane = boardSize.laneW > 0;
+      const hasLane = boardSize.laneW > 0 && boardSize.laneH > 0;
       const minX = hasLane ? boardSize.laneX + node.r + NODE_MARGIN : node.r + NODE_MARGIN;
       const maxX = hasLane
         ? Math.max(minX, boardSize.laneX + boardSize.laneW - node.r - NODE_MARGIN)
         : Math.max(minX, leftW - node.r - NODE_MARGIN);
-      const minY = node.r + NODE_MARGIN;
-      const maxY = Math.max(minY, boardSize.h - node.r - NODE_MARGIN);
+      // Y bounds: use lane bounds when available (matches baseTopicCenters; critical for mobile horizontal strip)
+      const minY = hasLane
+        ? boardSize.laneTop + node.r + NODE_MARGIN
+        : node.r + NODE_MARGIN;
+      const maxY = hasLane
+        ? Math.max(minY, boardSize.laneTop + boardSize.laneH - node.r - NODE_MARGIN)
+        : Math.max(minY, boardSize.h - node.r - NODE_MARGIN);
 
       // Store drag state
       dragRef.current = {

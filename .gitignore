@@ -48,3 +48,6 @@ coverage
 
 # Specstory
 .specstory/
+
+# Submodule (ignored)
+proyectos-base-ejemplo-mvps/planner-demo

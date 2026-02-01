@@ -127,35 +127,47 @@ docs/
 
 ---
 
-## 6. Domain Model (Conceptual)
+## 6. Domain Model (Conceptual + Current Implementation)
 
 ### 6.1 Core concepts
 
 #### Topic
-Represents a candidate theme/idea the user can work on.
+Represents a category/theme for organizing tasks.
 
-Typical attributes (conceptual):
-- `id`
-- `title`
-- `description`
-- `status` (e.g., draft/shortlist/selected)
-- `tags` (optional)
-- `createdAt`, `updatedAt`
+Current implementation (`src/shared/constants/topics.ts`):
+- `id`: DefaultTopicId (e.g., "work", "health", "family", "fun", "learning", "social")
+- `name`: Display name
+- `color`: Hex color for visual identification
+
+#### Task (LegacyTask)
+Current implementation (`src/shared/types/index.ts`):
+- `id`: string (unique identifier)
+- `userId`: UserId (owner)
+- `title`: string
+- `topicId`: TopicId (category)
+- `completed`: boolean
+- `createdAt`: number (timestamp)
+
+#### Note (LegacyNote)
+Current implementation:
+- `id`: string
+- `userId`: UserId
+- `content`: string
+- `createdAt`: number
+
+#### Data Organization
+- `TasksByDay`: `Record<number, LegacyTask[]>` — tasks indexed by day number (1-31)
+- `NotesByDate`: `Record<ISODate, LegacyNote[]>` — notes indexed by ISO date string
 
 #### Topic UI Concepts
-These are presentation-layer concepts and should live in `src/features/topics/types.ts`:
-- `TopicAnchor`
-- `TopicPosition`
-- `TopicBubbleState`
-- `JunctionPosition`
-- `DefaultTopicConfig`
+These are presentation-layer concepts in `src/features/topics/types.ts`:
+- `TopicPosition`: `{ x: number; y: number }` — position for floating bubbles
+- `TopicPositions`: `Record<TopicId, TopicPosition>`
 
 #### Calendar UI Concepts
-These are presentation-layer concepts and should live in `src/features/calendar/types.ts`:
-- `CalendarViewState`
-- `CalendarDayUI`
-- `CalendarMonthUI`
-- `TopicBubbleUI`
+These are presentation-layer concepts in `src/features/calendar/types.ts`:
+- Calendar derives display values from `selectedDate` (single source of truth)
+- Day selection managed via `selectedDay` (1-31) in global store
 
 ### 6.2 Example: Topic lifecycle (simplified state machine)
 
@@ -168,6 +180,62 @@ stateDiagram-v2
   Shortlisted --> Archived: discarded
   Draft --> Archived: discarded
 ```
+
+### 6.3 Floating Topics (Bubbles) Visualization
+
+The FloatingTopics feature displays topic categories as interactive bubbles:
+- Bubbles float in a dedicated lane (Column 2 of the dashboard grid)
+- Each bubble shows the topic color and can be dragged
+- Bubbles highlight when hovering over tasks with matching topicId
+- Positions are persisted in the global store (`topicPositions`)
+
+---
+
+## 6.4 Responsive Layout Strategy
+
+### Dashboard Grid (3-column)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  DESKTOP (≥1024px)                                          │
+├──────────────────┬────────────────────┬────────────────────┤
+│   Tasks Area     │   Bubbles Lane     │   Calendar         │
+│   (flex, min     │   (clamp width)    │   (fixed width)    │
+│    280px)        │                    │                    │
+│                  │    ○ work          │   Jan              │
+│   ┌──────────┐   │        ○ health    │   ├─ 1 ●           │
+│   │ Task 1   │   │    ○ family        │   ├─ 2             │
+│   └──────────┘   │        ○ fun       │   ├─ 3 ●           │
+│   ┌──────────┐   │                    │   └─ ...           │
+│   │ Task 2   │   │                    │                    │
+│   └──────────┘   │                    │                    │
+└──────────────────┴────────────────────┴────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  MOBILE (<1024px)                                           │
+├─────────────────────────────────────────────────────────────┤
+│   Tasks Area (flex-1)                                       │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ Task 1                                              │   │
+│   └─────────────────────────────────────────────────────┘   │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ Task 2                                              │   │
+│   └─────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│   Calendar (h-20, horizontal scroll)                        │
+│   [ 1 ][ 2 ][ 3●][ 4 ][ 5●][ 6 ][ 7 ]...                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Breakpoints
+- `< lg` (< 1024px): Vertical stack, bubbles lane hidden
+- `≥ lg` (1024px+): 3-column grid
+- `≥ xl` (1280px+): Wider lane and calendar
+
+### Container Queries
+TaskEditor uses container queries (`@container`) for component-level responsiveness:
+- `< 640px`: Stacked layout (buttons above title)
+- `≥ 640px`: Horizontal layout (title left, buttons right)
 
 ---
 
@@ -291,14 +359,17 @@ Use Sentry for:
 
 ## 12. Architecture Decision Records (ADRs)
 
-Create short ADRs for major decisions (1 file per decision in `docs/adr/`).
+Short ADRs for major decisions are stored in `docs/adr/`.
 
-Suggested initial ADRs:
-- ADR-001: Next.js App Router + project structure
-- ADR-002: State management approach (TBD)
-- ADR-003: Testing stack (Vitest/Testing Library/Playwright)
-- ADR-004: Auth strategy (JWT + httpOnly cookies + refresh rotation)
-- ADR-005: Observability (Sentry)
+### Current ADRs:
+- **ADR-001**: Next.js App Router + feature-first project structure
+- **ADR-002**: State management (feature-scoped first, Zustand for global)
+- **ADR-003**: Testing stack (Vitest + Testing Library + Playwright)
+- **ADR-004**: Auth strategy (access/refresh tokens + httpOnly cookies)
+- **ADR-005**: Observability (Sentry)
+- **ADR-006**: Auth OAuth + Auth.js + Postgres sessions
+- **ADR-007**: Hybrid persistence (Postgres + S3-compatible storage)
+- **ADR-008**: Automation (n8n orchestrated async jobs)
 
 ---
 
@@ -313,17 +384,24 @@ Suggested initial ADRs:
 
 ## 14. Open Questions (to resolve)
 
-1. Persistence for v1: local-first vs DB-backed?
-2. AI integration details (provider, prompting strategy, cost controls)?
-3. Target auth provider: custom email/password vs OAuth?
-4. Deployment target: Vercel vs self-hosted?
-5. State management: Context + hooks vs Zustand vs other?
+### Resolved:
+- ✅ **Persistence**: Hybrid approach — Postgres + S3-compatible (ADR-007). Currently using local-first with Zustand persist for MVP.
+- ✅ **State management**: Zustand with persist middleware (ADR-002).
+- ✅ **Auth provider**: OAuth with Auth.js + Postgres sessions (ADR-006).
+
+### Pending:
+1. AI integration details (provider, prompting strategy, cost controls)?
+2. Deployment target: Vercel vs self-hosted Docker?
+3. Mobile app strategy: PWA vs native wrapper?
 
 ---
 
 ## 15. Glossary
 
-- **AuthN**: Authentication — who the user can do.
+- **AuthN**: Authentication — who the user is.
 - **AuthZ**: Authorization — what the user can do.
 - **ADR**: Architecture Decision Record.
 - **RUM**: Real User Monitoring.
+- **ISODate**: Date string in ISO format (e.g., "2026-01-31").
+- **TopicId**: Identifier for a topic/category (e.g., "work", "health").
+- **Container Query**: CSS feature for component-level responsive design (`@container`).
