@@ -133,10 +133,38 @@ src/
   - Mobile layout must be defined (not an afterthought).
   - The right sidebar day-list must adapt to mobile (e.g., collapsible, drawer, below content).
 
+### Container Queries
+- Use `@container` for component-level responsiveness (TaskEditor, cards).
+- Container queries respond to the component's width, not the viewport.
+- Breakpoint pattern: `@[640px]:flex-row` for stacked → row layouts.
+- Add `@container` class to the parent element that defines the query context.
+
+### Animations (Framer Motion)
+- Use Framer Motion for complex animations and transitions.
+- Patterns:
+  - `motion.div` with `initial`, `animate`, `exit` for enter/exit animations.
+  - `AnimatePresence` for conditional rendering with exit animations.
+  - `Reorder` components for drag-and-drop lists.
+- Keep animations subtle and performant (< 300ms for micro-interactions).
+- Use `transition={{ duration: 0.2 }}` as a sensible default.
+- Avoid animating layout properties that trigger reflows (prefer `transform`, `opacity`).
+
 ### State & data
 - Keep business rules out of UI components where possible.
 - Define shared types for tasks/notes/reminders (and avoid duplicating shapes).
 - Avoid prop drilling for large trees; prefer feature-level composition.
+
+### Zustand Store (Global State)
+- Global state lives in `src/shared/store/index.ts`.
+- Store is persisted via `zustand/middleware/persist`.
+- Current state includes:
+  - `selectedDate`, `selectedDay` — calendar selection
+  - `tasksByDay` — tasks organized by day number (1-31)
+  - `notes` — notes organized by ISODate
+  - `topicPositions` — UI positions for floating topic bubbles
+  - `highlightedTopic` — currently highlighted topic for visual feedback
+- Keep actions inside the store (e.g., `addTask`, `removeTask`, `reorderTasks`).
+- Use selectors for derived state when possible.
 
 ---
 
