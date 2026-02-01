@@ -4,8 +4,8 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
-import { cn, getDefaultTopic } from "@/shared/lib";
-import type { LegacyTask, ISODate } from "@/shared/types";
+import { cn, isDefaultTopicId, getDefaultTopic } from "@/shared/lib";
+import type { LegacyTask, ISODate, DefaultTopicId } from "@/shared/types";
 
 /**
  * VerticalCalendar - Responsive calendar sidebar
@@ -14,11 +14,10 @@ import type { LegacyTask, ISODate } from "@/shared/types";
  *   - Horizontal scrollable row of days
  *   - Only shows day number + dot indicator if has tasks
  *   - No task list visible
- *   - Max height limited
  * 
  * DESKTOP (lg+): Collapsed/Expanded mode
  *   - Collapsed (default): Only day info, no task pills
- *   - Expanded: When a topic is expanded, shows tasks for visible days of that topic
+ *   - Expanded: When topics are selected, shows task pills for visible days
  *   - Wires connect to day anchors (collapsed) or task pills (expanded)
  */
 export function VerticalCalendar() {
@@ -28,7 +27,10 @@ export function VerticalCalendar() {
     setSelectedDate,
     tasksByDay,
     removeTask,
-    expandedTopicId,
+    selectedTopicIds,
+    expandedDayKeys,
+    expandDay,
+    collapseDay,
   } = useStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,18 +119,52 @@ export function VerticalCalendar() {
     };
   }, [days.length]); // Re-setup when month changes
 
+  // Handle task removal
   const handleRemoveTask = useCallback(
-    (e: React.MouseEvent | React.KeyboardEvent, day: number, taskId: string) => {
+    (e: React.MouseEvent, day: number, taskId: string) => {
       e.stopPropagation();
       removeTask(day, taskId);
     },
     [removeTask]
   );
 
-  const handleDayClick = (day: Date) => {
-    setSelectedDate(day);
-    setSelectedDay(day.getDate());
-  };
+  // Handle day click: expand/collapse with new toggle logic
+  // - If NOT expanded: expand and select
+  // - If expanded but NOT selected: just select (don't collapse)
+  // - If expanded AND selected: collapse
+  const handleDayClick = useCallback(
+    (day: Date, dayNumber: number) => {
+      const dateKey: ISODate = format(day, "yyyy-MM-dd");
+      const isExpanded = expandedDayKeys.includes(dateKey);
+      const isSelected = isSameDay(day, selectedDate);
+
+      if (isExpanded) {
+        if (isSelected) {
+          // Second click on same expanded day: collapse it
+          collapseDay(dateKey);
+        } else {
+          // Expanded but not selected: just select it (don't collapse)
+          setSelectedDate(day);
+          setSelectedDay(dayNumber);
+        }
+      } else {
+        // Not expanded: expand it and select it
+        expandDay(dateKey);
+        setSelectedDate(day);
+        setSelectedDay(dayNumber);
+      }
+    },
+    [expandedDayKeys, selectedDate, setSelectedDate, setSelectedDay, expandDay, collapseDay]
+  );
+
+  // Simple click for mobile (no panel, just date selection)
+  const handleMobileDayClick = useCallback(
+    (day: Date) => {
+      setSelectedDate(day);
+      setSelectedDay(day.getDate());
+    },
+    [setSelectedDate, setSelectedDay]
+  );
 
   return (
     <div className="h-full flex flex-col bg-black/20 backdrop-blur-md 
@@ -158,7 +194,7 @@ export function VerticalCalendar() {
             <button
               key={dateKey}
               type="button"
-              onClick={() => handleDayClick(day)}
+              onClick={() => handleMobileDayClick(day)}
               className={cn(
                 "flex-shrink-0 flex flex-col items-center justify-center",
                 "w-12 h-14 rounded-xl transition-all duration-200",
@@ -185,7 +221,7 @@ export function VerticalCalendar() {
         })}
       </div>
 
-      {/* DESKTOP: Vertical calendar with collapsible tasks */}
+      {/* DESKTOP: Vertical calendar with expandable tasks */}
       <div
         ref={scrollRef}
         className="hidden lg:block flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-4 space-y-2"
@@ -199,17 +235,26 @@ export function VerticalCalendar() {
           const hasTasks: boolean = tasks.length > 0;
 
           // Determine if tasks should be shown:
-          // Only when: topic expanded + day visible + has tasks for that topic
+          const hasSelection = selectedTopicIds.length > 0;
           const isDayVisible = visibleDays.has(dateKey);
-          const expandedTasks = expandedTopicId
-            ? tasks.filter((t) => t.topicId === expandedTopicId)
-            : [];
-          const shouldShowTasks = expandedTopicId && isDayVisible && expandedTasks.length > 0;
+          const isExpandedDay = expandedDayKeys.includes(dateKey);
+          
+          // Filter tasks by selected topics
+          const selectedDayTasks = tasks.filter(
+            (t) => isDefaultTopicId(t.topicId) && selectedTopicIds.includes(t.topicId)
+          );
 
-          // Check if this day has tasks for the expanded topic (for visual indicator)
-          const hasExpandedTopicTasks = expandedTopicId
-            ? tasks.some((t) => t.topicId === expandedTopicId)
-            : false;
+          // Decide what tasks to render:
+          // - If day is expanded (by click), show ALL tasks
+          // - Else if there's a topic selection and day is visible, show selected topics' tasks
+          // - Else show nothing
+          let tasksToRender: LegacyTask[] = [];
+          if (isDayVisible && isExpandedDay && hasTasks) {
+            tasksToRender = tasks;
+          } else if (isDayVisible && hasSelection && selectedDayTasks.length > 0) {
+            tasksToRender = selectedDayTasks;
+          }
+          const shouldShowTasks = tasksToRender.length > 0;
 
           return (
             <motion.div
@@ -222,28 +267,27 @@ export function VerticalCalendar() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.02 }}
-              onClick={() => handleDayClick(day)}
+              onClick={() => handleDayClick(day, dayNumber)}
               className={cn(
-                "day-row",
+                "day-row cursor-pointer",
                 isSelected && "active",
-                isCurrentDay && !isSelected && "border border-primary/50",
-                // Highlight days with tasks for expanded topic
-                hasExpandedTopicTasks && !isSelected && "ring-1 ring-white/20"
+                isCurrentDay && !isSelected && "border border-primary/50"
+                // NO extra highlight for topic selection - removed UX1
               )}
             >
               {/* Day info */}
               <span className="day-weekday">{format(day, "EEE")}</span>
               <span className="day-number">{format(day, "d")}</span>
 
-              {/* Task indicator dot (always visible if day has tasks) */}
-              {hasTasks && !isSelected && (
+              {/* Task indicator dot (always visible if day has tasks and no tasks expanded) */}
+              {hasTasks && !isSelected && !shouldShowTasks && (
                 <div className="absolute right-2 top-2 w-2 h-2 rounded-full bg-primary" />
               )}
 
-              {/* Tasks - ONLY shown when topic is expanded AND day is visible */}
+              {/* Task pills - rendered inside day row when expanded */}
               {shouldShowTasks && (
                 <div className="day-tasks">
-                  {expandedTasks.map((task) => {
+                  {tasksToRender.map((task) => {
                     const topic = getDefaultTopic(task.topicId);
                     const color = topic?.color || "#6b7280";
                     

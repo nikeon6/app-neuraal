@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
@@ -28,12 +28,29 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
  */
 
 export function Dashboard() {
-  const { selectedDate, selectedDay } = useStore();
+  const { selectedDate, selectedDay, clearSelection, selectedTopicIds, expandedDayKeys } = useStore();
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Ref for the bubbles lane (used by FloatingTopics)
   const laneRef = useRef<HTMLDivElement | null>(null);
+
+  // Handle click on the lane (bubbles board) - clearSelection when clicking empty space
+  const handleLaneClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Only trigger if clicking directly on the lane (not on topic nodes)
+      const target = e.target as HTMLElement;
+      
+      // Don't clear if clicking on a topic node
+      if (target.closest('.topic-node')) return;
+      
+      // Clear selection if there's any active selection or expanded days
+      if (selectedTopicIds.length > 0 || expandedDayKeys.length > 0) {
+        clearSelection();
+      }
+    },
+    [selectedTopicIds, expandedDayKeys, clearSelection]
+  );
 
   return (
     <div
@@ -79,10 +96,12 @@ export function Dashboard() {
       </div>
 
       {/* Column 2: Bubbles lane - hidden in mobile, visible in lg+ */}
+      {/* Click on empty space clears selection */}
       <div
         ref={laneRef}
         className="hidden lg:block relative min-w-0"
         aria-hidden="true"
+        onClick={handleLaneClick}
       />
 
       {/* Column 3: Calendar sidebar

@@ -57,6 +57,8 @@ const mockTasksByDay: Record<number, LegacyTask[]> = {
 const mockSetSelectedDay = vi.fn();
 const mockSetSelectedDate = vi.fn();
 const mockRemoveTask = vi.fn();
+const mockExpandDay = vi.fn();
+const mockCollapseDay = vi.fn();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const createMockState = (overrides: Record<string, any> = {}): any => ({
@@ -66,7 +68,10 @@ const createMockState = (overrides: Record<string, any> = {}): any => ({
   setSelectedDate: mockSetSelectedDate,
   tasksByDay: mockTasksByDay,
   removeTask: mockRemoveTask,
-  expandedTopicId: null,
+  selectedTopicIds: [],
+  expandedDayKeys: [],
+  expandDay: mockExpandDay,
+  collapseDay: mockCollapseDay,
   ...overrides,
 });
 
@@ -184,10 +189,10 @@ describe("VerticalCalendar", () => {
   // Task Display Tests
   // --------------------------------------------------------------------------
   describe("Task Display", () => {
-    it("does NOT display task pills by default (collapsed mode)", () => {
+    it("does NOT display task pills by default (no selection)", () => {
       render(<VerticalCalendar />);
       
-      // In collapsed mode (expandedTopicId = null), tasks should NOT be visible
+      // Without selection, tasks are not visible
       expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
       expect(screen.queryByText("Morning yoga session")).not.toBeInTheDocument();
     });
@@ -216,14 +221,13 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Task Removal Tests (require expanded mode)
-  // NOTE: Tasks are only visible when a topic is expanded
+  // Task Removal Tests (when tasks are visible via selection)
   // --------------------------------------------------------------------------
   describe("Task Removal", () => {
-    it("does not render remove buttons in collapsed mode (default)", () => {
+    it("does not render remove buttons without selection", () => {
       render(<VerticalCalendar />);
       
-      // In collapsed mode, no task pills are visible, so no remove buttons
+      // Without selection, no task pills or remove buttons
       const removeButtons = screen.queryAllByRole("button", { name: /eliminar tarea/i });
       expect(removeButtons.length).toBe(0);
     });
@@ -250,24 +254,24 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Completed Task Tests (require expanded mode)
-  // NOTE: Tasks are only visible when a topic is expanded
+  // Task pills render when topics are selected or days expanded
   // --------------------------------------------------------------------------
-  describe("Completed Tasks", () => {
-    it("does not display task pills in collapsed mode", () => {
+  describe("Task Pills with Selection", () => {
+    it("does not display task pills without selection or expansion", () => {
       const completedTask = createMockTask("task-completed", "work", "Completed task", true);
       
       vi.mocked(storeModule.useStore).mockImplementation((selector) => {
         const state = createMockState({ 
           tasksByDay: { 15: [completedTask] },
-          expandedTopicId: null, // Collapsed mode
+          selectedTopicIds: [], // No selection
+          expandedDayKeys: [], // No expanded days
         });
         return typeof selector === "function" ? selector(state) : state;
       });
       
       render(<VerticalCalendar />);
       
-      // Task text should not be visible in collapsed mode
+      // Task text should not be visible without selection or expansion
       expect(screen.queryByText("Completed task")).not.toBeInTheDocument();
     });
   });

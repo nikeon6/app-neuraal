@@ -77,7 +77,8 @@ const emptyTasksByDay: Record<number, LegacyTask[]> = {};
 // ============================================================================
 const mockSetTopicPosition = vi.fn();
 const mockSetHighlightedTopic = vi.fn();
-const mockToggleExpandedTopic = vi.fn();
+const mockToggleTopicSelection = vi.fn();
+const mockClearSelection = vi.fn();
 
 const createMockState = (overrides = {}) => ({
   tasksByDay: mockTasksByDay,
@@ -85,8 +86,9 @@ const createMockState = (overrides = {}) => ({
   setTopicPosition: mockSetTopicPosition,
   highlightedTopic: null,
   setHighlightedTopic: mockSetHighlightedTopic,
-  expandedTopicId: null,
-  toggleExpandedTopic: mockToggleExpandedTopic,
+  selectedTopicIds: [],
+  toggleTopicSelection: mockToggleTopicSelection,
+  clearSelection: mockClearSelection,
   ...overrides,
 });
 
@@ -249,7 +251,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         expect(workNode).toBeInTheDocument();
       });
     });
@@ -258,7 +260,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         // jsdom doesn't fully serialize touch-action, check inline style directly
         expect(workNode.style.touchAction).toBe("none");
       });
@@ -268,7 +270,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         expect(workNode).toHaveClass("absolute");
       });
     });
@@ -283,7 +285,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(async () => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         await user.hover(workNode);
         expect(mockSetHighlightedTopic).toHaveBeenCalledWith("work");
       });
@@ -294,7 +296,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(async () => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         await user.hover(workNode);
         await user.unhover(workNode);
         expect(mockSetHighlightedTopic).toHaveBeenCalledWith(null);
@@ -310,7 +312,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
         
         // Simulate pointer down
         fireEvent.pointerDown(workNode, {
@@ -329,7 +331,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
 
         // Mock setPointerCapture and hasPointerCapture
         workNode.setPointerCapture = vi.fn();
@@ -360,7 +362,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
 
         // Mock pointer capture methods
         workNode.setPointerCapture = vi.fn();
@@ -395,7 +397,7 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        const workNode = screen.getByLabelText(/nodo de trabajo/i);
+        const workNode = screen.getByLabelText(/topic trabajo/i);
 
         workNode.setPointerCapture = vi.fn();
         workNode.releasePointerCapture = vi.fn();
@@ -480,10 +482,10 @@ describe("FloatingTopics", () => {
 
       // Wait for initial render with timeout
       await waitFor(() => {
-        expect(screen.getByLabelText(/nodo de trabajo/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/topic trabajo/i)).toBeInTheDocument();
       });
       
-      const workNode = screen.getByLabelText(/nodo de trabajo/i);
+      const workNode = screen.getByLabelText(/topic trabajo/i);
 
       // Rapid drag sequence
       for (let i = 0; i < 5; i++) {
@@ -508,7 +510,7 @@ describe("FloatingTopics", () => {
   // Performance Optimizations
   // --------------------------------------------------------------------------
   describe("Performance Optimizations", () => {
-    it("should use pointer-events-none on container to optimize hit testing", () => {
+    it("should use pointer-events-none on container for passthrough", () => {
       render(<FloatingTopics containerRef={containerRef} />);
       const container = document.querySelector(".pointer-events-none");
       expect(container).toBeInTheDocument();
@@ -518,10 +520,10 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/nodo de trabajo/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/topic trabajo/i)).toBeInTheDocument();
       });
       
-      const workNode = screen.getByLabelText(/nodo de trabajo/i);
+      const workNode = screen.getByLabelText(/topic trabajo/i);
       expect(workNode).toHaveClass("pointer-events-auto");
     });
 
@@ -529,10 +531,10 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/nodo de trabajo/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/topic trabajo/i)).toBeInTheDocument();
       });
       
-      const workNode = screen.getByLabelText(/nodo de trabajo/i);
+      const workNode = screen.getByLabelText(/topic trabajo/i);
 
       // Start drag
       fireEvent.pointerDown(workNode, {
@@ -566,11 +568,11 @@ describe("FloatingTopics", () => {
       render(<FloatingTopics containerRef={containerRef} />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/nodo de trabajo/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/topic trabajo/i)).toBeInTheDocument();
       });
       
-      const workNode = screen.getByLabelText(/nodo de trabajo/i);
-      const healthNode = screen.getByLabelText(/nodo de salud/i);
+      const workNode = screen.getByLabelText(/topic trabajo/i);
+      const healthNode = screen.getByLabelText(/topic salud/i);
 
       // Work has 2 tasks, Health has 1 task
       // Work should be larger (r = 20 + count * 8)

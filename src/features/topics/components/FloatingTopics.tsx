@@ -24,7 +24,7 @@ import { clamp, median, quadPath, isDefaultTopicId, cn } from "@/shared/lib";
 const JUNCTION_PULL_LEFT = 120;
 // JUNCTION_LANE_OFFSET: How far left from the lane's right edge the junction is placed (with lane)
 // Higher value = junction further left from calendar, giving more space for branches
-const JUNCTION_LANE_OFFSET = 80;
+const JUNCTION_LANE_OFFSET = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
 const NODE_MARGIN = 8;
@@ -73,8 +73,10 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   const setTopicPosition = useStore((s) => s.setTopicPosition);
   const highlightedTopic = useStore((s) => s.highlightedTopic);
   const setHighlightedTopic = useStore((s) => s.setHighlightedTopic);
-  const expandedTopicId = useStore((s) => s.expandedTopicId);
-  const toggleExpandedTopic = useStore((s) => s.toggleExpandedTopic);
+  // Multi-selection support
+  const selectedTopicIds = useStore((s) => s.selectedTopicIds);
+  const toggleTopicSelection = useStore((s) => s.toggleTopicSelection);
+  const clearSelection = useStore((s) => s.clearSelection);
 
   // ---------------------------------------------------------------------------
   // State (minimal - only what triggers necessary re-renders)
@@ -236,7 +238,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       laneW,
     });
 
-    // Measure task pills (for expanded mode - wire to tasks)
+    // Measure task pills from VerticalCalendar (inside aside)
     const taskCenterMap: Record<string, TaskCenter> = {};
     const taskPills = container.querySelectorAll('[data-task-id]');
 
@@ -385,22 +387,22 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     return () => clearTimeout(timeout);
   }, [tasksByDay, scheduleRecalc]);
 
-  // Recalc when expandedTopicId changes (task pills appear/disappear)
+  // Recalc when selection changes (task pills appear/disappear in panel)
   useEffect(() => {
     // Small delay to let DOM update with new task pills
     const timeout = setTimeout(scheduleRecalc, 50);
     return () => clearTimeout(timeout);
-  }, [expandedTopicId, scheduleRecalc]);
+  }, [selectedTopicIds, scheduleRecalc]);
 
   // ---------------------------------------------------------------------------
   // Build wire structure EARLY (needed by updateWiresImperative)
   // Keys are stable, geometry (d attribute) updated imperatively
   // 
   // MODE: Collapsed (default) - wires connect to days (1 wire per day with tasks)
-  // MODE: Expanded - only the expanded topic uses wires to individual tasks
+  // MODE: Selected (multi-select) - selected topics use wires to individual tasks in panel
   // ---------------------------------------------------------------------------
   const wireStructure = useMemo(() => {
-    // Helper: collect visible task IDs for a topic (for expanded mode)
+    // Helper: collect visible task IDs for a topic (for selected mode - tasks in panel)
     const getTaskIdsForTopic = (topicId: DefaultTopicId): string[] => {
       const ids: string[] = [];
       const allTasks = Object.values(tasksByDay).flat();
@@ -439,19 +441,32 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
 
     return activeTopics
       .map((id) => {
-        const isExpanded = id === expandedTopicId;
+        // Multi-selection: topic is "selected" if in selectedTopicIds array
+        const isSelected = selectedTopicIds.includes(id);
         
-        if (isExpanded) {
-          // Expanded mode: wire to individual tasks
+        if (isSelected) {
+          // Selected mode: try wire to individual tasks first
           const taskIds = getTaskIdsForTopic(id);
-          return taskIds.length > 0
+          if (taskIds.length > 0) {
+            return { 
+              topicId: id, 
+              color: TOPICS[id].color, 
+              taskIds, 
+              dayKeys: null,
+              mode: 'tasks' as const,
+              isSingle: taskIds.length === 1 
+            };
+          }
+          // Fallback to days mode if no visible tasks yet (before render)
+          const dayKeys = getDayKeysForTopic(id);
+          return dayKeys.length > 0
             ? { 
                 topicId: id, 
                 color: TOPICS[id].color, 
-                taskIds, 
-                dayKeys: null,
-                mode: 'tasks' as const,
-                isSingle: taskIds.length === 1 
+                taskIds: null, 
+                dayKeys,
+                mode: 'days' as const,
+                isSingle: dayKeys.length === 1 
               }
             : null;
         } else {
@@ -470,7 +485,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         }
       })
       .filter((w): w is NonNullable<typeof w> => w !== null);
-  }, [activeTopics, tasksByDay, taskCenters, dayCenters, expandedTopicId]);
+  }, [activeTopics, tasksByDay, taskCenters, dayCenters, selectedTopicIds]);
 
   // ---------------------------------------------------------------------------
   // Cache median Y per topic - updated when wireStructure/taskCenters/dayCenters change
@@ -607,6 +622,14 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
       updateWiresForTopic(wire.topicId);
     }
   }, [wireStructure, updateWiresForTopic]);
+
+  // ---------------------------------------------------------------------------
+  // Update wires when taskCenters or dayCenters change (scroll, resize, etc.)
+  // This ensures wires follow the calendar scroll
+  // ---------------------------------------------------------------------------
+  useLayoutEffect(() => {
+    updateWiresImperative();
+  }, [taskCenters, dayCenters, updateWiresImperative]);
 
   // ---------------------------------------------------------------------------
   // Junction animation loop (runs independently, no setState per frame)
@@ -877,8 +900,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             setTopicPosition(id, { x: finalPos.x, y: finalPos.y });
           }
         } else {
-          // User just clicked (no movement), toggle expanded state
-          toggleExpandedTopic(id);
+          // User just clicked (no movement), toggle selection (multi-select)
+          toggleTopicSelection(id);
         }
 
         dragRef.current = null;
@@ -889,7 +912,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     },
-    [setTopicPosition, stopDragLoop, toggleExpandedTopic]
+    [setTopicPosition, stopDragLoop, toggleTopicSelection]
   );
 
   // ---------------------------------------------------------------------------
@@ -907,17 +930,28 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 15 }}>
+    <div 
+      className="absolute inset-0 pointer-events-none" 
+      style={{ zIndex: 15 }}
+    >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg
-        className="absolute inset-0"
+        className="absolute inset-0 pointer-events-none"
         width="100%"
         height="100%"
         style={{ overflow: 'visible' }}
       >
         {wireStructure.map((wire) => {
-          const dim = highlightedTopic && wire.topicId !== highlightedTopic;
-          // When dimmed, make wires almost invisible (0.02-0.04) to focus on highlighted topic
+          // Dimming logic:
+          // - If there's a selection, dim topics NOT in selection
+          // - If no selection but hover, dim topics NOT being hovered
+          const hasSelection = selectedTopicIds.length > 0;
+          const isSelected = selectedTopicIds.includes(wire.topicId);
+          const dim = hasSelection
+            ? !isSelected
+            : (highlightedTopic && wire.topicId !== highlightedTopic);
+          
+          // When dimmed, make wires almost invisible (0.02-0.04) to focus on highlighted/selected topic
           const trunkOpacity = dim ? 0.03 : 0.25;
           const branchOpacity = dim ? 0.04 : 0.3;
           
@@ -941,9 +975,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             );
           }
 
-          // Check if this topic is highlighted/expanded for visual feedback
+          // Check if this topic is highlighted/selected for visual feedback
           const isHot = highlightedTopic === wire.topicId;
-          const isExpanded = expandedTopicId === wire.topicId;
 
           return (
             <g key={wire.topicId}>
@@ -992,7 +1025,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
                 className={cn(
                   "junction-halo",
                   isHot && "hot",
-                  isExpanded && "expanded"
+                  isSelected && "selected"
                 )}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
@@ -1005,7 +1038,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
                 className={cn(
                   "junction-dot",
                   isHot && "hot",
-                  isExpanded && "expanded"
+                  isSelected && "selected"
                 )}
                 style={{ transformOrigin: "center", pointerEvents: "none" }}
               />
@@ -1026,15 +1059,15 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
 
         const node = nodePosRef.current[id];
 
-        const isExpanded = expandedTopicId === id;
+        const isSelected = selectedTopicIds.includes(id);
 
         return (
           <button
             type="button"
             key={id}
             ref={(el) => { nodeElRef.current[id] = el; }}
-            aria-label={`${isExpanded ? 'Colapsar' : 'Expandir'} nodo de ${TOPICS[id].name}`}
-            aria-pressed={isExpanded}
+            aria-label={`${isSelected ? 'Deseleccionar' : 'Seleccionar'} topic ${TOPICS[id].name}`}
+            aria-pressed={isSelected}
             onMouseEnter={() => setHighlightedTopic(id)}
             onMouseLeave={() => setHighlightedTopic(null)}
             onPointerDown={handlePointerDown(id)}
@@ -1043,7 +1076,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             onPointerCancel={handlePointerUp(id)}
             className={cn(
               "topic-node pointer-events-auto absolute",
-              isExpanded && "ring-2 ring-white/40 ring-offset-2 ring-offset-transparent"
+              isSelected && "ring-2 ring-white/50 ring-offset-2 ring-offset-transparent"
             )}
             style={{
               // Position is controlled imperatively during drag via left/top
@@ -1054,7 +1087,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
               background: TOPICS[id].color,
               touchAction: "none",
             }}
-            title={`${TOPICS[id].name} (${topicCounts[id]} tareas) - Click para ${isExpanded ? 'colapsar' : 'expandir'}`}
+            title={`${TOPICS[id].name} (${topicCounts[id]} tareas) - Click para ${isSelected ? 'deseleccionar' : 'seleccionar'}`}
           >
             <div className="topic-label">
               <div className="topic-name">{TOPICS[id].name}</div>

@@ -20,7 +20,7 @@ interface UseAutoScrollOnDragOptions {
 
 interface UseAutoScrollOnDragReturn {
   /** Ref to attach to the scrollable container */
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
   /** Call when drag starts */
   startAutoScroll: () => void;
   /** Call when drag ends */

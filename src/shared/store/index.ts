@@ -66,16 +66,51 @@ interface AppState {
   topicPositions: TopicPositions;
   setTopicPosition: (topicId: TopicId, position: TopicPosition) => void;
 
-  // Highlighted topic (UI state for visual feedback)
+  // Highlighted topic (UI state for visual feedback on hover)
   highlightedTopic: TopicId | null;
   setHighlightedTopic: (topicId: TopicId | null) => void;
 
-  // Expanded topic (for wire-to-day vs wire-to-task mode)
-  // When null: wires connect to days (collapsed mode)
-  // When set: that topic shows wires to individual tasks (expanded mode)
-  expandedTopicId: DefaultTopicId | null;
-  toggleExpandedTopic: (topicId: DefaultTopicId) => void;
-  setExpandedTopicId: (topicId: DefaultTopicId | null) => void;
+  // Multi-selection of topics (for wire-to-day vs wire-to-task mode)
+  // - selectedTopicIds: final selection = manual + from expanded days
+  // - selectedTopicIdsManual: topics selected by clicking bubbles
+  // - expandedDayKeys: days manually expanded (multi-day toggle)
+  // When no selection: wires connect to days (collapsed mode)
+  // When selected: those topics show wires to individual tasks
+  selectedTopicIds: DefaultTopicId[];
+  selectedTopicIdsManual: DefaultTopicId[];
+  expandedDayKeys: ISODate[];
+  toggleTopicSelection: (topicId: DefaultTopicId) => void;
+  setSelectedTopics: (topicIds: DefaultTopicId[]) => void;
+  expandDay: (dateKey: ISODate) => void;
+  collapseDay: (dateKey: ISODate) => void;
+  clearExpandedDays: () => void;
+  clearSelection: () => void;
+}
+
+// ============================================================================
+// Helper: Get unique topics from expanded days
+// ============================================================================
+function getTopicsFromExpandedDays(
+  expandedDayKeys: ISODate[],
+  tasksByDay: TasksByDay
+): DefaultTopicId[] {
+  const topics = new Set<DefaultTopicId>();
+  
+  for (const dateKey of expandedDayKeys) {
+    // Extract day number from dateKey (yyyy-MM-dd)
+    const dayNumber = Number.parseInt(dateKey.split("-")[2], 10);
+    const dayTasks = tasksByDay[dayNumber] || [];
+    
+    for (const task of dayTasks) {
+      if (task.topicId === "work" || task.topicId === "health" || 
+          task.topicId === "family" || task.topicId === "fun" || 
+          task.topicId === "learning" || task.topicId === "social") {
+        topics.add(task.topicId as DefaultTopicId);
+      }
+    }
+  }
+  
+  return Array.from(topics);
 }
 
 // Initial demo tasks - 6 floating topics
@@ -294,13 +329,78 @@ export const useStore = create<AppState>()(
       highlightedTopic: null,
       setHighlightedTopic: (topicId) => set({ highlightedTopic: topicId }),
 
-      // Expanded topic
-      expandedTopicId: null,
-      toggleExpandedTopic: (topicId) =>
-        set((state) => ({
-          expandedTopicId: state.expandedTopicId === topicId ? null : topicId,
-        })),
-      setExpandedTopicId: (topicId) => set({ expandedTopicId: topicId }),
+      // Multi-selection of topics (EXCLUSIVE MODES)
+      // Mode A (Manual): click on bubble -> clears expanded days
+      // Mode B (Days): click on day -> clears manual selection
+      selectedTopicIds: [],
+      selectedTopicIdsManual: [],
+      expandedDayKeys: [],
+      
+      // Toggle topic selection (ENTERS MANUAL MODE)
+      // Clears all expanded days first, then toggles the topic
+      toggleTopicSelection: (topicId) =>
+        set((state) => {
+          // EXCLUSIVE MODE: Clear expanded days when entering manual mode
+          const isManuallySelected = state.selectedTopicIdsManual.includes(topicId);
+          const newManual = isManuallySelected
+            ? state.selectedTopicIdsManual.filter((id) => id !== topicId)
+            : [...state.selectedTopicIdsManual, topicId];
+          
+          // selectedTopicIds = manual only (expanded days are cleared)
+          return {
+            selectedTopicIdsManual: newManual,
+            selectedTopicIds: newManual,
+            expandedDayKeys: [], // CLEAR expanded days
+          };
+        }),
+      
+      setSelectedTopics: (topicIds) =>
+        set({ selectedTopicIds: topicIds }),
+      
+      // Expand a day (ENTERS DAYS MODE)
+      // Clears manual selection first, then expands the day
+      expandDay: (dateKey) =>
+        set((state) => {
+          if (state.expandedDayKeys.includes(dateKey)) return state;
+          
+          const newExpandedDays = [...state.expandedDayKeys, dateKey];
+          
+          // EXCLUSIVE MODE: Clear manual selection when entering days mode
+          // selectedTopicIds = topics from expanded days only
+          const topicsFromDays = getTopicsFromExpandedDays(newExpandedDays, state.tasksByDay);
+          
+          return {
+            selectedTopicIdsManual: [], // CLEAR manual selection
+            expandedDayKeys: newExpandedDays,
+            selectedTopicIds: topicsFromDays,
+          };
+        }),
+      
+      // Collapse a day (stays in days mode if other days remain expanded)
+      collapseDay: (dateKey) =>
+        set((state) => {
+          if (!state.expandedDayKeys.includes(dateKey)) return state;
+          
+          const newExpandedDays = state.expandedDayKeys.filter((k) => k !== dateKey);
+          
+          // Recalculate topics from remaining expanded days only
+          // (manual selection should be empty in days mode)
+          const topicsFromDays = getTopicsFromExpandedDays(newExpandedDays, state.tasksByDay);
+          
+          return {
+            expandedDayKeys: newExpandedDays,
+            selectedTopicIds: topicsFromDays,
+          };
+        }),
+      
+      clearExpandedDays: () =>
+        set({
+          expandedDayKeys: [],
+          selectedTopicIds: [],
+        }),
+      
+      clearSelection: () =>
+        set({ selectedTopicIds: [], selectedTopicIdsManual: [], expandedDayKeys: [] }),
     }),
     {
       // Storage key includes user ID for multiuser support
