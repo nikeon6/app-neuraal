@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
@@ -12,19 +12,25 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
  * 
- * < lg (< 1024px): Stack vertical
- *   - Tasks ocupa espacio principal (flex-1)
- *   - Calendar abajo con altura fija (no tapa tasks)
- *   - Lane oculto
+ * < lg (< 1024px): Stack vertical (flex-col)
+ *   - Tasks ocupa espacio principal (flex-1 min-h-0) con scroll interno
+ *   - Lane VISIBLE como franja horizontal (h-[200px] - h-[240px])
+ *   - Calendar abajo con altura fija (h-20) + safe-area
  * 
  * >= lg (1024px+): Grid 3 columnas
  *   - Tasks: minmax(280px, 1fr) - flexible, mínimo 280px
- *   - Lane: clamp(220px, 19vw, 340px) - espacio para bolitas
+ *   - Lane: clamp(220px, 19vw, 340px) - espacio vertical para bolitas
  *   - Calendar: 180px fijo
  * 
  * >= xl (1280px+): Grid 3 columnas con más espacio
  *   - Lane: clamp(280px, 21vw, 400px)
  *   - Calendar: 200px fijo
+ * 
+ * FIX ANDROID: visualViewport API + CSS variable --app-height
+ * - 100vh en Android incluye la barra del navegador, causando scroll fantasma
+ * - visualViewport.height nos da el viewport REAL visible
+ * - Seteamos --app-height dinámicamente cuando cambia el viewport
+ * - overflow-hidden en root + min-h-0 en flex children evita que el contenido empuje
  */
 
 export function Dashboard() {
@@ -34,6 +40,44 @@ export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Ref for the bubbles lane (used by FloatingTopics)
   const laneRef = useRef<HTMLDivElement | null>(null);
+
+  // Dynamic viewport height for Android fix
+  const [appHeight, setAppHeight] = useState<string>("100dvh");
+
+  // FIX ANDROID: Use visualViewport to get real viewport height
+  // This handles the browser bar showing/hiding correctly
+  useEffect(() => {
+    const updateHeight = () => {
+      // Use visualViewport if available (better for mobile browsers)
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      setAppHeight(`${vh}px`);
+      // Also set CSS variable for any children that need it
+      document.documentElement.style.setProperty("--app-height", `${vh}px`);
+    };
+
+    // Initial update
+    updateHeight();
+
+    // Listen to visualViewport changes (Android browser bar)
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", updateHeight);
+      vv.addEventListener("scroll", updateHeight);
+    }
+
+    // Fallback listeners
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", updateHeight);
+        vv.removeEventListener("scroll", updateHeight);
+      }
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, []);
 
   // Handle click on the lane (bubbles board) - clearSelection when clicking empty space
   const handleLaneClick = useCallback(
@@ -55,7 +99,8 @@ export function Dashboard() {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full relative overflow-hidden
+      style={{ height: appHeight, minHeight: appHeight }}
+      className="w-full relative overflow-hidden
                  flex flex-col
                  lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px]
                  xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
@@ -64,7 +109,7 @@ export function Dashboard() {
       <FloatingTopics containerRef={containerRef} laneRef={laneRef} />
 
       {/* Column 1: Tasks area - flex-1 en mobile para que ocupe espacio principal */}
-      <div className="relative flex flex-col z-10 min-w-0 overflow-hidden flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2">
+      <div className="relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none">
         {/* Header with date */}
         <header className="relative mb-4 lg:mb-6">
           <motion.div
@@ -95,20 +140,24 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Column 2: Bubbles lane - hidden in mobile, visible in lg+ */}
+      {/* Column 2: Bubbles lane - horizontal strip in mobile, vertical column in lg+ */}
+      {/* Mobile: taller lane for better bubble space (h-[200px] - h-[240px]) */}
       {/* Click on empty space clears selection */}
       <div
         ref={laneRef}
-        className="hidden lg:block relative min-w-0"
+        className="relative min-w-0 flex-shrink-0
+                   order-2 lg:order-none
+                   h-[200px] sm:h-[220px] md:h-[240px] lg:h-auto"
         aria-hidden="true"
         onClick={handleLaneClick}
       />
 
       {/* Column 3: Calendar sidebar
-          - Mobile: compact horizontal calendar, minimal height
+          - Mobile: compact horizontal calendar, minimal height + safe-area padding
           - Desktop: full vertical calendar with tasks
-          - overflow-hidden para forzar que respete el ancho de la columna del grid */}
-      <aside className="h-20 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden">
+          - overflow-hidden para forzar que respete el ancho de la columna del grid
+          - pb-[env(safe-area-inset-bottom)] para dispositivos con notch/gesture bar */}
+      <aside className="h-20 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden order-3 lg:order-none pb-[env(safe-area-inset-bottom)]">
         <VerticalCalendar />
       </aside>
     </div>

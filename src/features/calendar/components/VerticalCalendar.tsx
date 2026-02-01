@@ -194,6 +194,10 @@ export function VerticalCalendar() {
             <button
               key={dateKey}
               type="button"
+              // Data attributes for FloatingTopics wire connections (mobile)
+              data-day-anchor="true"
+              data-date-key={dateKey}
+              data-day-number={dayNumber}
               onClick={() => handleMobileDayClick(day)}
               className={cn(
                 "flex-shrink-0 flex flex-col items-center justify-center",
