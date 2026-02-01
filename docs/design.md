@@ -181,7 +181,7 @@ stateDiagram-v2
   Draft --> Archived: discarded
 ```
 
-### 6.2 Floating Topics (Bubbles) Visualization
+### 6.3 Floating Topics (Bubbles) Visualization
 
 The FloatingTopics feature displays topic categories as interactive bubbles:
 - Bubbles float in a dedicated lane (Column 2 of the dashboard grid)
@@ -191,7 +191,7 @@ The FloatingTopics feature displays topic categories as interactive bubbles:
 
 ---
 
-## 6.3 Responsive Layout Strategy
+## 6.4 Responsive Layout Strategy
 
 ### Dashboard Grid (3-column)
 
