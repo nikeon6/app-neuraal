@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Calendar, Bell, LayoutGrid, StickyNote, Users, Settings } from "lucide-react";
 import { useStore, type DashboardSection } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
+import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { cn } from "@/shared/lib/utils";
@@ -155,7 +156,7 @@ export function Dashboard() {
       case "stickies":
         return <SectionPlaceholder title="Stickies" />;
       case "topics":
-        return <SectionPlaceholder title="Topics" />;
+        return <TopicsSection />;
       case "settings":
         return <SectionPlaceholder title="Settings" />;
       default:

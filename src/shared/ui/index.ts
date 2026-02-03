@@ -7,6 +7,10 @@
  * Add components here as the application grows.
  */
 
+// Dialogs
+export { ConfirmDialog } from "./ConfirmDialog";
+export type { ConfirmDialogProps } from "./ConfirmDialog";
+
 // Export components as they are added
 // export { Button } from "./Button";
 // export { Modal } from "./Modal";
