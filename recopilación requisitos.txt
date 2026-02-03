@@ -7,7 +7,7 @@ Todo el código se debe escribir y comentar en inglés aunque el usuario de inst
 
 
 -Arquitectura
-La arquitectura será clean architecture, el sistema de carpetas y organización de componentes se debe desarrollar teniendo siempre en cuenta que debe seguir esta arquitectura en todo momento. Aunque si la complejidad del proyecto noe s muy grande se puede usar una clean architecture "light" lo dejo a tu elección pero me gustaría prepararlo con esta arquitectura para poder escalarlo en un futuro.
+La arquitectura será clean architecture, el sistema de carpetas y organización de componentes se debe desarrollar teniendo siempre en cuenta que debe seguir esta arquitectura en todo momento. Aunque si la complejidad del proyecto no es muy grande se puede usar una clean architecture "light" lo dejo a tu elección pero me gustaría prepararlo con esta arquitectura para poder escalarlo en un futuro.
 
 ## 
 - **Frontend**: React 19 + Next.js 16 + TypeScript 
@@ -129,3 +129,27 @@ vamos a probar algunos canbios mas, el selector de opic mejor pegalo a los boton
 
 Creacion de tipos:
 Ok, ahora nececsito hacerte otra pregunta, ahora quiero crear los tipo de typescript y quiero que me des un prompt para crearlos, de primeras se me ocurre que deberia de haber un tipo para tareas, otro para topics y no se si otro para el calendario, pero no estoy seguro necesito que me ayudes y me digas que requisitos tendrian que tener para hacer un prompt que darselo a la IA para que los cree, supongo que estarian en el global scope estos tipos pues se usaran en toda la app, te voy a pasar una descripcion ademas del componente de tareas para que sepas que informacion llevará y así puedas decirme como deben ser los tipos.
+
+
+
+Creacion content task:
+Vamos a crearlo usando metodologia TDD así que primero deberas crear los test, esperar que fallen y luego te seguiré dnado instrucciones para crear el componente. Los requisitos de este componente es que es un contenedor de tareas, y aparecerá siempre, en cada dia que pulsemos del calendario pues dentro de él se mostraran las tareas de ese dia por lo que renderizara un taskform por cada tarea de ese dia. Se podrá hacer scroll para ir veindo las tareas, debe tener drag&drop para reordenar las tareas (solo en vertical), el ancho deberá ser para que solo haya una columna de taskform, también debe hacer un boton + debajo del ultimo task form para poder añadir nueva tarea. Tendrás que crear algunas tareas de prueba para poder probarlo. Debes crearlo en la ruta correspondiente siguiendo la misma estructura que hemos seguido hasta ahroa para los demas componentes
+
+
+
+
+
+
+API/peticiones/persistencia:
+Por favor hazme un documento .md con todo lo que hemos decidido (te confirmo que n8n se utilizará), para que pueda pasarselo a la IA que estoy utilizando para construir el proyecto, te paso el documento de diseño para que tengas mas contexto y sepas que quiero utilizar una arquitectura clean architecture. 
+Además te voy a explicar un poco la estructura y funcionamiento del proyecto a ver si puedes afinar un poco mas como tiene que estar estructurado todo porque yo mismo hay cosas que no tengo claro como gestionar a la hora de la persistencia y las peticiones a IA o n8n.
+lo primero es que habrá un login, en el que cada usuario tendra que poner su cuenta y contraseña, y he decidido que para hacer peticiones a api para login o para lo que sea se usaran JWT tokens uno acces token corto y uno refresh lago.
+Cuando el usuario acceda se le mostrará el dashboard donde tendrá un calendario y donde podrá ver y guardar tareas y notas en el dia que vaya seleccionando.
+En el dashboard se muestran tareas y notas (2 tipos aunque basicamente son los mismo) segun el dia seleccionado en el calendario, estas tareas tiene un titulo y un contenido, si es de tipo tarea ademas se puede marcar como completada, ademas a cada tarea o nota tienen asociado un topic, el cual se crea a parte y tiene una tematica decidida por el usuario y un color (cada usuario creará sus propios topics) ademas se debe generar un embedding del topic para mas tarde poder clasificar si se marca la opcion poder autoclasificar la tarea en el topic de mayor similitud. Ahora llega lo complejo y que no se bien como hacer para guardar, dentro del contenido de la tarea o nota, se deben poder embeber imagenes videos de youtube o snippet de codigo, también se puede modificar el tamaño, estilo y color de texto, y la verdad es que no se como se debe almacenar toda esta información del contenido para que mantenga la estructura ni se que tipo de contenedor utilizar para ello, a parte a la nota o tarea se le pueden adjuntar archivos directamente como pdfs, docx, rar, etc... hasta un máximo de 20MB en total, y un 1GB maximo por cada usuario entre todas las notas y tareas. también comentarte que el contenido se debe autoguardar conforme lo va generando el usuario y tampoco se muy bien como gestionar esto. A parte estas tareas tienen un botón que debe hacer una llamada a n8n para generar un resumen del contenido y que modifique la tarea con el nuevo resumen generado y esto a su vez debe generar una notificación en el dashboard cuando el proceso haya terminado. Tambien en el selector de topic hay una opcion que es auto que cunado se termine de editar la tarea si está en auto debe de hacer una llamada a un endpoint para generar un embedding del contenido y titulo y compararlo con los embeddings de los topics para poder autoclasificarlo con el topic con mas similitud. También las tareas tendrán un botón para poder programar un aviso a una fecha y hora que el usuario especifique, y se tendrá que encargar un worker o algo así de dar la señal de envío para poder gestionarlo con n8n y desde ahí enviar un mensaje al usuario. Necesito hacer la API para gestionar todo esto y que se integre con mi dashboard, el cual ya está practicamente terminado lo que es la interfaz, te paso el documento de poroject_context para que entiendas un poco mejor lo que hay ahora.
+Y ahora necesito generar la api, la capa de dominio, casos de uso, etc... lo cual lo quiero hacer mediante TDD, pero necesito saber por donde empezar y como organizar todo esto que te estoy diciendo y como empezar a crear las cosas en orden.  Dejando claro primero que tecnologia se va a utilizar y como se va a implementar con lo que tengo hasta ahora y con los usos que te he explicado que va a tener. antes de darme instrucciones o generarme nada, si necesitas preguntarme cualquier cosa o necesita que te pase cualquier tipo de informacion o documento dimelo.
+
+
+
+
+
+

@@ -1,0 +1,93 @@
+// Neuraal Prisma Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// Topics
+// ============================================================================
+
+/// User-defined topic/category for organizing tasks.
+model Topic {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String
+  color     String   @db.VarChar(7) // #RRGGBB format
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Ensure unique topic names per user (case-insensitive handled in app layer)
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("topics")
+}
+
+// ============================================================================
+// Entries (Tasks + Notes)
+// ============================================================================
+
+/// Calendar entry - can be a task or a note.
+model Entry {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  date      String   @db.VarChar(10) // YYYY-MM-DD format
+  type      String   @db.VarChar(10) // "task" | "note"
+  title     String   @db.VarChar(120)
+  content   Json     @default("{}")
+  topicId   String?  @map("topic_id")
+  completed Boolean? // null for notes, true/false for tasks
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Optional: reference to Topic (not enforced by FK yet since user model doesn't exist)
+  // topic     Topic?   @relation(fields: [topicId], references: [id])
+
+  @@index([userId, date])
+  @@map("entries")
+}
+
+// ============================================================================
+// Attachments
+// ============================================================================
+
+/// File attachment associated with an entry.
+model Attachment {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  entryId    String   @map("entry_id")
+  storageKey String   @map("storage_key") @db.VarChar(1024)
+  filename   String   @db.VarChar(255)
+  mimeType   String   @map("mime_type") @db.VarChar(100)
+  sizeBytes  Int      @map("size_bytes")
+  kind       String   @db.VarChar(10) // "inline" | "file"
+  status     String   @db.VarChar(10) // "pending" | "ready" | "deleted"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([entryId])
+  @@map("attachments")
+}
+
+// ============================================================================
+// Future tables (placeholders for reference)
+// ============================================================================
+
+// TODO: Add User model when auth is implemented
+// model User {
+//   id          String       @id @default(uuid())
+//   email       String       @unique
+//   name        String?
+//   createdAt   DateTime     @default(now()) @map("created_at")
+//   topics      Topic[]
+//   entries     Entry[]
+//   attachments Attachment[]
+//   @@map("users")
+// }
