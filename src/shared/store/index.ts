@@ -10,9 +10,22 @@ import type {
   UserId,
   ISODate,
   DefaultTopicId,
+  UserTopic,
 } from "@/shared/types";
 import type { TopicPosition, TopicPositions } from "@/features/topics/types";
 import { uid } from "@/shared/lib/utils";
+
+// ============================================================================
+// User Topics Type (for store)
+// ============================================================================
+
+/**
+ * Input for creating a new topic.
+ */
+export interface CreateTopicInput {
+  name: string;
+  color: string;
+}
 
 // ============================================================================
 // User Constants (mock for development)
@@ -85,7 +98,19 @@ interface AppState {
   collapseDay: (dateKey: ISODate) => void;
   clearExpandedDays: () => void;
   clearSelection: () => void;
+
+  // User topics management
+  topics: UserTopic[];
+  addTopic: (input: CreateTopicInput) => UserTopic | null;
+  removeTopic: (topicId: string) => void;
+
+  // Dashboard navigation
+  dashboardSection: DashboardSection;
+  setDashboardSection: (section: DashboardSection) => void;
 }
+
+// Dashboard sections type
+export type DashboardSection = "daily" | "weeklyRecap" | "stickies" | "topics" | "settings";
 
 // ============================================================================
 // Helper: Get unique topics from expanded days
@@ -401,6 +426,57 @@ export const useStore = create<AppState>()(
       
       clearSelection: () =>
         set({ selectedTopicIds: [], selectedTopicIdsManual: [], expandedDayKeys: [] }),
+
+      // User topics management
+      topics: [],
+      addTopic: (input) => {
+        const trimmedName = input.name.trim();
+        
+        // Validation: empty name
+        if (!trimmedName) {
+          return null;
+        }
+        
+        // Get current state to check for duplicates
+        const state = useStore.getState();
+        const normalizedName = trimmedName.toLowerCase();
+        const isDuplicate = state.topics.some(
+          (t) => t.name.trim().toLowerCase() === normalizedName
+        );
+        
+        if (isDuplicate) {
+          return null;
+        }
+        
+        const now = new Date().toISOString();
+        const newTopic: UserTopic = {
+          id: uid(),
+          name: trimmedName,
+          color: input.color,
+          userId: state.currentUserId ?? DEFAULT_USER_ID,
+          meta: {
+            createdAt: now,
+            updatedAt: now,
+            version: 1,
+          },
+        };
+        
+        // TODO: when backend is ready: request embedding generation for this topic
+        
+        set((s) => ({
+          topics: [...s.topics, newTopic],
+        }));
+        
+        return newTopic;
+      },
+      removeTopic: (topicId) =>
+        set((state) => ({
+          topics: state.topics.filter((t) => t.id !== topicId),
+        })),
+
+      // Dashboard navigation
+      dashboardSection: "daily" as DashboardSection,
+      setDashboardSection: (section) => set({ dashboardSection: section }),
     }),
     {
       // Storage key includes user ID for multiuser support
@@ -411,6 +487,7 @@ export const useStore = create<AppState>()(
         tasksByDay: state.tasksByDay,
         notes: state.notes,
         topicPositions: state.topicPositions,
+        topics: state.topics,
         // NOTE: currentUserId is NOT persisted - will come from auth session
       }),
     }
