@@ -1,0 +1,127 @@
+# Neuraal - Local Development Environment
+# Postgres (pgvector) + Redis (BullMQ) + MinIO (S3) + n8n (Automation)
+
+services:
+  # ==========================================================================
+  # PostgreSQL with pgvector extension
+  # ==========================================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: neuraal-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: neuraal
+      POSTGRES_USER: neuraal
+      POSTGRES_PASSWORD: neuraal_password
+    volumes:
+      - neuraal_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuraal -d neuraal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Redis for BullMQ job queues
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: neuraal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - neuraal_redisdata:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # MinIO - S3-compatible object storage for attachments
+  # Console: http://localhost:9001 (minioadmin / minioadmin_password)
+  # S3 API:  http://localhost:9000
+  # ==========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: neuraal-minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin_password
+    command: server /data --console-address ":9001"
+    volumes:
+      - neuraal_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # MinIO Init - One-shot container to create the bucket automatically
+  # ==========================================================================
+  minio-init:
+    image: minio/mc:latest
+    container_name: neuraal-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin_password;
+      mc mb local/neuraal --ignore-existing;
+      mc anonymous set none local/neuraal;
+      echo 'Bucket neuraal created successfully';
+      exit 0;
+      "
+
+  # ==========================================================================
+  # n8n - Workflow automation platform
+  # UI: http://localhost:5678 (neuraal / neuraal_password via basic auth)
+  # Uses SQLite for simplicity in local development
+  # ==========================================================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: neuraal-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      # Host configuration
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      # Security (change these in production!)
+      N8N_ENCRYPTION_KEY: dev_encryption_key_change_me_32chars!
+      N8N_USER_MANAGEMENT_JWT_SECRET: dev_jwt_secret_change_me_in_prod!
+      # Basic auth for local dev
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: neuraal
+      N8N_BASIC_AUTH_PASSWORD: neuraal_password
+      # Timezone
+      GENERIC_TIMEZONE: Europe/Madrid
+      TZ: Europe/Madrid
+      # Disable telemetry for local dev
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - neuraal_n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ==========================================================================
+# Named volumes for data persistence
+# ==========================================================================
+volumes:
+  neuraal_pgdata:
+  neuraal_redisdata:
+  neuraal_minio_data:
+  neuraal_n8n_data:
