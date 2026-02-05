@@ -46,6 +46,11 @@ model Entry {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // AI-generated summary fields
+  summary          String?   @db.Text
+  summaryFormat    String?   @map("summary_format") @db.VarChar(10) // "markdown" | "plain"
+  summaryUpdatedAt DateTime? @map("summary_updated_at")
+
   // Optional: reference to Topic (not enforced by FK yet since user model doesn't exist)
   // topic     Topic?   @relation(fields: [topicId], references: [id])
 
@@ -74,6 +79,67 @@ model Attachment {
   @@index([userId])
   @@index([entryId])
   @@map("attachments")
+}
+
+// ============================================================================
+// Reminders
+// ============================================================================
+
+/// Scheduled reminder for an entry.
+model Reminder {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  entryId     String   @map("entry_id")
+  scheduledAt DateTime @map("scheduled_at") @db.Timestamptz
+  channel     String   @db.VarChar(20) // "whatsapp" | "email" | "push" | "sms"
+  message     String?  @db.VarChar(500)
+  status      String   @db.VarChar(10) // "pending" | "sent" | "canceled" | "failed"
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([entryId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("reminders")
+}
+
+// ============================================================================
+// Notifications
+// ============================================================================
+
+/// In-app notification for users.
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   @db.VarChar(30) // "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED"
+  title     String   @db.VarChar(100)
+  message   String   @db.VarChar(500)
+  status    String   @db.VarChar(10) // "unread" | "read"
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// Entry Summary Requests
+// ============================================================================
+
+/// Tracks async summary generation requests.
+model EntrySummaryRequest {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  entryId   String   @map("entry_id")
+  status    String   @db.VarChar(10) // "pending" | "submitted" | "done" | "failed"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([entryId])
+  @@index([status])
+  @@map("entry_summary_requests")
 }
 
 // ============================================================================

@@ -1,4 +1,5 @@
 import type { Entry } from "@/domain/entities/Entry";
+import type { SummaryFormat } from "@/domain/value-objects/SummaryText";
 
 /**
  * Port (interface) for Entry persistence.
@@ -29,4 +30,14 @@ export interface EntryRepository {
    * Deletes an entry by id.
    */
   delete(entryId: string): Promise<void>;
+
+  /**
+   * Updates the summary of an entry.
+   * Used by the summary callback handler.
+   */
+  updateSummary(
+    entryId: string,
+    summary: string,
+    format: SummaryFormat
+  ): Promise<void>;
 }

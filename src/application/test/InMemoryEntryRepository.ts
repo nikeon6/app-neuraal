@@ -1,5 +1,15 @@
 import type { Entry } from "@/domain/entities/Entry";
 import type { EntryRepository } from "../ports/EntryRepository";
+import type { SummaryFormat } from "@/domain/value-objects/SummaryText";
+
+/**
+ * Summary data stored alongside entries in tests.
+ */
+interface EntrySummaryData {
+  summary: string;
+  format: SummaryFormat;
+  updatedAt: Date;
+}
 
 /**
  * In-memory implementation of EntryRepository for testing.
@@ -7,6 +17,7 @@ import type { EntryRepository } from "../ports/EntryRepository";
  */
 export class InMemoryEntryRepository implements EntryRepository {
   private entries: Entry[] = [];
+  private summaries: Map<string, EntrySummaryData> = new Map();
 
   async findById(entryId: string): Promise<Entry | null> {
     return this.entries.find((e) => e.id === entryId) ?? null;
@@ -31,6 +42,19 @@ export class InMemoryEntryRepository implements EntryRepository {
 
   async delete(entryId: string): Promise<void> {
     this.entries = this.entries.filter((e) => e.id !== entryId);
+    this.summaries.delete(entryId);
+  }
+
+  async updateSummary(
+    entryId: string,
+    summary: string,
+    format: SummaryFormat
+  ): Promise<void> {
+    this.summaries.set(entryId, {
+      summary,
+      format,
+      updatedAt: new Date(),
+    });
   }
 
   /**
@@ -38,6 +62,7 @@ export class InMemoryEntryRepository implements EntryRepository {
    */
   clear(): void {
     this.entries = [];
+    this.summaries.clear();
   }
 
   /**
@@ -45,5 +70,12 @@ export class InMemoryEntryRepository implements EntryRepository {
    */
   getAll(): Entry[] {
     return [...this.entries];
+  }
+
+  /**
+   * Helper for tests: get summary for an entry.
+   */
+  getSummary(entryId: string): EntrySummaryData | undefined {
+    return this.summaries.get(entryId);
   }
 }

@@ -108,6 +108,12 @@ services:
       TZ: Europe/Madrid
       # Disable telemetry for local dev
       N8N_DIAGNOSTICS_ENABLED: "false"
+      # LangSmith (LangChain) - preparado
+      LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+      LANGCHAIN_TRACING_V2: "true"
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-neuraal-dev}
+      LANGCHAIN_CALLBACKS_BACKGROUND: "true"
     volumes:
       - neuraal_n8n_data:/home/node/.n8n
     healthcheck:
@@ -117,6 +123,47 @@ services:
       retries: 3
       start_period: 30s
 
+  # ==========================================================================
+  # Ollama - Local LLM inference server
+  # API: http://localhost:11434
+  # Using 0.15.5-rc1 for glm-ocr support (revert to :latest when 0.15.5 is stable)
+  # ==========================================================================
+  ollama:
+    image: ollama/ollama:0.15.5-rc1
+    container_name: neuraal-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - neuraal_ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================================================
+  # Ollama Init - One-shot container to pull models
+  # Models: nomic-embed-text-v2-moe (embeddings), glm-ocr (OCR)
+  # ==========================================================================
+  ollama-init:
+    image: ollama/ollama:0.15.5-rc1
+    container_name: neuraal-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Pulling nomic-embed-text-v2-moe:latest...';
+      ollama pull nomic-embed-text-v2-moe:latest;
+      echo 'Pulling glm-ocr:latest...';
+      ollama pull glm-ocr:latest;
+      echo 'All models pulled successfully';
+      exit 0;
+      "
+
 # ==========================================================================
 # Named volumes for data persistence
 # ==========================================================================
@@ -125,3 +172,4 @@ volumes:
   neuraal_redisdata:
   neuraal_minio_data:
   neuraal_n8n_data:
+  neuraal_ollama_data:

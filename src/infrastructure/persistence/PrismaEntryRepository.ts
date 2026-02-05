@@ -1,5 +1,6 @@
 import { Entry } from "@/domain/entities/Entry";
 import type { EntryRepository } from "@/application/ports/EntryRepository";
+import type { SummaryFormat } from "@/domain/value-objects/SummaryText";
 import { prisma } from "./prisma";
 
 /**
@@ -92,6 +93,21 @@ export class PrismaEntryRepository implements EntryRepository {
   async delete(entryId: string): Promise<void> {
     await prisma.entry.delete({
       where: { id: entryId },
+    });
+  }
+
+  async updateSummary(
+    entryId: string,
+    summary: string,
+    format: SummaryFormat
+  ): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: {
+        summary,
+        summaryFormat: format,
+        summaryUpdatedAt: new Date(),
+      },
     });
   }
 }
