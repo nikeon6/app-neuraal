@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
-import { format } from "date-fns";
-import { motion } from "framer-motion";
-import { Calendar, Bell, LayoutGrid, StickyNote, Users, Settings } from "lucide-react";
-import { useStore, type DashboardSection } from "@/shared/store";
+import React, { useRef, useCallback, useEffect, useState } from "react";
+import { useStore } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
-import { cn } from "@/shared/lib/utils";
+import { DashboardHeader } from "./DashboardHeader";
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
@@ -35,22 +32,6 @@ import { cn } from "@/shared/lib/utils";
  * - overflow-hidden en root + min-h-0 en flex children evita que el contenido empuje
  */
 
-// Navigation tab configuration
-interface NavTab {
-  id: DashboardSection;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}
-
-// Section labels map - reusable for kicker, title, and nav
-const SECTION_LABELS: Record<DashboardSection, string> = {
-  daily: "Daily Log",
-  weeklyRecap: "Weekly Recap",
-  stickies: "Stickies",
-  topics: "Topics",
-  settings: "Settings",
-};
-
 // Placeholder component for sections not yet implemented
 function SectionPlaceholder({ title }: Readonly<{ title: string }>) {
   return (
@@ -65,8 +46,7 @@ function SectionPlaceholder({ title }: Readonly<{ title: string }>) {
 
 export function Dashboard() {
   const { 
-    selectedDate, 
-    selectedDay, 
+    selectedDate,
     clearSelection, 
     selectedTopicIds, 
     expandedDayKeys,
@@ -81,18 +61,6 @@ export function Dashboard() {
 
   // Dynamic viewport height for Android fix
   const [appHeight, setAppHeight] = useState<string>("100dvh");
-
-  // Navigation tabs configuration (memoized to avoid re-renders)
-  const navTabs = useMemo<NavTab[]>(() => [
-    { id: "daily", label: SECTION_LABELS.daily, icon: Calendar },
-    { id: "weeklyRecap", label: SECTION_LABELS.weeklyRecap, icon: LayoutGrid },
-    { id: "stickies", label: SECTION_LABELS.stickies, icon: StickyNote },
-    { id: "topics", label: SECTION_LABELS.topics, icon: Users },
-    { id: "settings", label: SECTION_LABELS.settings, icon: Settings },
-  ], []);
-
-  const isDaily = dashboardSection === "daily";
-  const currentLabel = SECTION_LABELS[dashboardSection];
 
   // FIX ANDROID: Use visualViewport to get real viewport height
   // This handles the browser bar showing/hiding correctly
@@ -179,100 +147,14 @@ export function Dashboard() {
       {/* Column 1: Tasks area - flex-1 en mobile para que ocupe espacio principal */}
       <div className="relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none">
         {/* Header with navigation and title */}
-        <header className="relative mb-4 lg:mb-6">
-          {/* Navigation tabs - horizontal scroll on mobile */}
-          <nav className="flex items-center gap-2 mb-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-            {navTabs.map((tab) => {
-              const isActive = dashboardSection === tab.id;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setDashboardSection(tab.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
-                    "border backdrop-blur-sm",
-                    isActive
-                      ? "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-white shadow-[0_0_12px_-3px_rgba(56,189,248,0.3)]"
-                      : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80"
-                  )}
-                >
-                  {Icon && (
-                    <Icon 
-                      className={cn(
-                        "w-3.5 h-3.5 transition-colors",
-                        isActive ? "text-sky-300" : "text-white/50"
-                      )} 
-                    />
-                  )}
-                  <span>{tab.label}</span>
-                  {/* Animated underline for active tab */}
-                  {isActive && (
-                    <motion.span
-                      layoutId="activeDashTab"
-                      className="absolute -bottom-1 left-3 right-3 h-[2px] rounded-full bg-gradient-to-r from-sky-400/70 to-indigo-400/50"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-            
-            {/* Notifications button (icon-only) */}
-            <button
-              type="button"
-              aria-label="Notifications"
-              onClick={() => console.log("Notifications clicked")}
-              className={cn(
-                "relative flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0",
-                "border backdrop-blur-sm",
-                "bg-white/5 text-white/50 border-white/10",
-                "hover:bg-white/10 hover:border-white/15 hover:text-white/80"
-              )}
-            >
-              <Bell className="w-4 h-4" />
-              {/* Optional: notification badge dot (hidden by default) */}
-              {/* Uncomment when notifications are implemented:
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-400 border border-background" />
-              */}
-            </button>
-          </nav>
-
-          {/* Kicker (small label) + Title - changes based on section */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            key={isDaily ? `daily-${selectedDay}` : dashboardSection}
-            className="space-y-1 lg:space-y-2"
-          >
-            {/* Kicker - always visible, blue accent */}
-            <div className="flex items-center gap-2 text-sky-400/90">
-              {isDaily && <Calendar className="w-4 h-4 lg:w-5 lg:h-5" />}
-              <span className="text-xs lg:text-sm font-medium tracking-wider uppercase">
-                {currentLabel}
-              </span>
-            </div>
-            
-            {/* Main title */}
-            {isDaily ? (
-              <>
-                <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
-                  {format(selectedDate, "MMMM d")}
-                  <span className="text-white/20">, {format(selectedDate, "yyyy")}</span>
-                </h1>
-                <p className="text-white/40 text-base lg:text-lg">
-                  {format(selectedDate, "EEEE")}
-                </p>
-              </>
-            ) : (
-              <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
-                {currentLabel}
-              </h1>
-            )}
-          </motion.div>
-        </header>
+        <DashboardHeader
+          section={dashboardSection}
+          onChangeSection={setDashboardSection}
+          selectedDate={selectedDate}
+          onNotificationsClick={() => {
+            // TODO: Implement notifications panel
+          }}
+        />
 
         {/* Content area - shows different content based on section */}
         <div className="relative flex-1 overflow-hidden min-w-0 min-h-0">

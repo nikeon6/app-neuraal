@@ -284,9 +284,9 @@ export function TaskEditor({
         {/* Right side: Buttons ALWAYS aligned right (both stacked and wide modes)
             order-1 when stacked (above title), @[640px]:order-2 when wide (right side) */}
         <div className="flex flex-col items-end gap-2 w-full @[640px]:w-auto order-1 @[640px]:order-2">
-          {/* Buttons Row - flex-wrap prevents overlap, justify-end ALWAYS for right alignment */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Entry Type Toggle */}
+          {/* Buttons Row - compact gap on very narrow screens (iPhone SE 375px), normal gap on wider */}
+          <div className="flex items-center gap-1.5 @[380px]:gap-2 flex-wrap justify-end">
+            {/* Entry Type Toggle - icon only on narrow, icon+text on wider */}
             <button
               type="button"
               aria-label={entryType === "task" ? "Switch to note" : "Switch to task"}
@@ -295,7 +295,7 @@ export function TaskEditor({
                 handleEntryTypeToggle();
               }}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all",
+                "flex items-center gap-1.5 px-2 @[420px]:px-3 py-1.5 rounded-lg text-sm transition-all flex-shrink-0",
                 entryType === "task"
                   ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
                   : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
@@ -304,19 +304,19 @@ export function TaskEditor({
             >
               {entryType === "task" ? (
                 <>
-                  <ListTodo className="w-4 h-4" />
-                  <span>Task</span>
+                  <ListTodo className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden @[420px]:inline">Task</span>
                 </>
               ) : (
                 <>
-                  <StickyNote className="w-4 h-4" />
-                  <span>Note</span>
+                  <StickyNote className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden @[420px]:inline">Note</span>
                 </>
               )}
             </button>
 
-            {/* Topic Selector Dropdown */}
-            <div className="relative" ref={topicMenuRef}>
+            {/* Topic Selector Dropdown - constrained width with truncate */}
+            <div className="relative min-w-0" ref={topicMenuRef}>
               <button
                 type="button"
                 aria-label="Topic"
@@ -326,15 +326,15 @@ export function TaskEditor({
                   e.stopPropagation();
                   setUIState(prev => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen }));
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all"
+                className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
               >
                 <div
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: currentTopicDisplay.color }}
                 />
-                <span>{currentTopicDisplay.name}</span>
-                {selectedTopic === "auto" && <Sparkles className="w-3 h-3 text-purple-400" />}
-                <ChevronDown className={cn("w-3 h-3 transition-transform", isTopicMenuOpen && "rotate-180")} />
+                <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
+                {selectedTopic === "auto" && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
+                <ChevronDown className={cn("w-3 h-3 transition-transform flex-shrink-0", isTopicMenuOpen && "rotate-180")} />
               </button>
 
               <AnimatePresence>
@@ -397,24 +397,24 @@ export function TaskEditor({
               </AnimatePresence>
             </div>
 
-            {/* Subconscious Button */}
+            {/* Subconscious Button - compact on very narrow (iPhone SE), normal on wider */}
             <button
               type="button"
               aria-label="Subconscious - Schedule reminder"
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
               title="Schedule reminder"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
             </button>
 
-            {/* Brainstorming Button */}
+            {/* Brainstorming Button - compact on very narrow (iPhone SE), normal on wider */}
             <button
               type="button"
               aria-label="Brainstorming"
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
               title="AI Brainstorming"
             >
-              <Brain className="w-5 h-5" />
+              <Brain className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
             </button>
           </div>
         </div>
