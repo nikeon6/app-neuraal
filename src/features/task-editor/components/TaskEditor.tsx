@@ -23,6 +23,7 @@ import { useStore } from "@/shared/store";
 import { TOPICS, TOPIC_IDS } from "@/shared/constants";
 import type { EntryId, DefaultTopicId, TopicMode, EntryType } from "@/shared/types";
 import { cn, getDefaultTopic } from "@/shared/lib";
+import { ConfirmDialog } from "@/shared/ui";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 
 /**
@@ -73,6 +74,9 @@ export function TaskEditor({
     saveError: undefined,
   });
   // Note: totalFileSize state removed - will be re-added when file attachments are implemented
+
+  // Delete confirmation state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Destructure UI state for convenience
   const { isExpanded, isContentMenuOpen, isTopicMenuOpen, isSaving } = uiState;
@@ -144,13 +148,24 @@ export function TaskEditor({
     triggerAutoSave();
   };
 
-  // Handle delete
-  const handleDelete = () => {
+  // Handle delete - opens confirmation dialog
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm delete - actually removes the task
+  const handleConfirmDelete = useCallback(() => {
     if (entryId) {
       removeTask(selectedDay, entryId);
     }
+    setIsDeleteDialogOpen(false);
     onClose?.();
-  };
+  }, [entryId, selectedDay, removeTask, onClose]);
+
+  // Cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+  }, []);
 
   // Handle click inside editor - expand
   const handleEditorClick = () => {
@@ -517,7 +532,7 @@ export function TaskEditor({
             <button
               type="button"
               aria-label="Delete"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               className="p-2 rounded-lg bg-white/5 hover:bg-destructive/20 text-white/60 hover:text-destructive transition-all"
               title="Delete task"
             >
@@ -526,6 +541,26 @@ export function TaskEditor({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={entryType === "task" ? "Delete task" : "Delete note"}
+        message={
+          <>
+            Are you sure you want to delete{" "}
+            <strong className="text-white">{title || (entryType === "task" ? "this task" : "this note")}</strong>?{" "}
+            This action cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        closeOnBackdrop={true}
+        destructive={true}
+        initialFocus="cancel"
+      />
     </motion.div>
   );
 }

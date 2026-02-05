@@ -5,7 +5,15 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
 import { cn, isDefaultTopicId, getDefaultTopic } from "@/shared/lib";
+import { ConfirmDialog } from "@/shared/ui";
 import type { LegacyTask, ISODate, DefaultTopicId } from "@/shared/types";
+
+// Type for task pending deletion
+interface TaskToDelete {
+  day: number;
+  taskId: string;
+  taskTitle: string;
+}
 
 /**
  * VerticalCalendar - Responsive calendar sidebar
@@ -40,6 +48,9 @@ export function VerticalCalendar() {
   const visibleDaysRef = useRef<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  // Delete confirmation state
+  const [taskToDelete, setTaskToDelete] = useState<TaskToDelete | null>(null);
 
   // Generate days for the current month
   const monthStart = startOfMonth(selectedDate);
@@ -119,14 +130,27 @@ export function VerticalCalendar() {
     };
   }, [days.length]); // Re-setup when month changes
 
-  // Handle task removal
-  const handleRemoveTask = useCallback(
-    (e: React.MouseEvent, day: number, taskId: string) => {
+  // Handle task removal - opens confirmation dialog
+  const handleRemoveTaskClick = useCallback(
+    (e: React.MouseEvent, day: number, taskId: string, taskTitle: string) => {
       e.stopPropagation();
-      removeTask(day, taskId);
+      setTaskToDelete({ day, taskId, taskTitle });
     },
-    [removeTask]
+    []
   );
+
+  // Confirm task removal
+  const handleConfirmDelete = useCallback(() => {
+    if (taskToDelete) {
+      removeTask(taskToDelete.day, taskToDelete.taskId);
+      setTaskToDelete(null);
+    }
+  }, [taskToDelete, removeTask]);
+
+  // Cancel task removal
+  const handleCancelDelete = useCallback(() => {
+    setTaskToDelete(null);
+  }, []);
 
   // Handle day click: expand/collapse with new toggle logic
   // - If NOT expanded: expand and select
@@ -327,7 +351,7 @@ export function VerticalCalendar() {
                         <button
                           type="button"
                           className="remove-btn"
-                          onClick={(e) => handleRemoveTask(e, dayNumber, task.id)}
+                          onClick={(e) => handleRemoveTaskClick(e, dayNumber, task.id, task.title)}
                           aria-label={`Eliminar tarea ${task.title}`}
                         >
                           ×
@@ -341,6 +365,26 @@ export function VerticalCalendar() {
           );
         })}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={taskToDelete !== null}
+        title="Delete task"
+        message={
+          <>
+            Are you sure you want to delete{" "}
+            <strong className="text-white">{taskToDelete?.taskTitle ?? ""}</strong>?{" "}
+            This action cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        closeOnBackdrop={true}
+        destructive={true}
+        initialFocus="cancel"
+      />
     </div>
   );
 }

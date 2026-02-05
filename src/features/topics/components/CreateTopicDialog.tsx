@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "@/shared/store";
 import type { UserTopic } from "@/shared/types";
 import { cn } from "@/shared/lib/utils";
+
+// Maximum characters allowed for topic name
+const MAX_TOPIC_NAME_LENGTH = 18;
 
 // ============================================================================
 // Color Options for Topic Creation
@@ -51,6 +55,7 @@ export function CreateTopicDialog({
   // Validation
   const trimmedName = name.trim();
   const isNameEmpty = trimmedName.length === 0;
+  const isTooLong = trimmedName.length > MAX_TOPIC_NAME_LENGTH;
   const isColorSelected = color !== null;
   const isDuplicate = useMemo(() => {
     const normalizedInput = trimmedName.toLowerCase();
@@ -59,7 +64,8 @@ export function CreateTopicDialog({
     );
   }, [trimmedName, existingTopics]);
 
-  const isValid = !isNameEmpty && !isDuplicate && isColorSelected;
+  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected;
+  const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
     onClose();
@@ -100,9 +106,10 @@ export function CreateTopicDialog({
 
   if (!isOpen) return null;
 
-  return (
+  // Use portal to render at document.body level, avoiding stacking context issues
+  const dialogContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center"
       onKeyDown={handleKeyDown}
     >
       {/* Backdrop */}
@@ -129,23 +136,38 @@ export function CreateTopicDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name input */}
           <div className="space-y-2">
-            <label
-              htmlFor="topic-name"
-              className="block text-sm font-medium text-white/70"
-            >
-              Topic name
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="topic-name"
+                className="block text-sm font-medium text-white/70"
+              >
+                Topic name
+              </label>
+              <span
+                className={cn(
+                  "text-xs",
+                  charsRemaining < 0
+                    ? "text-red-400"
+                    : charsRemaining <= 5
+                      ? "text-amber-400"
+                      : "text-white/40"
+                )}
+              >
+                {name.length}/{MAX_TOPIC_NAME_LENGTH}
+              </span>
+            </div>
             <input
               ref={inputRef}
               id="topic-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={MAX_TOPIC_NAME_LENGTH}
               placeholder="Enter topic name..."
               className={cn(
                 "w-full px-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30",
                 "focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all",
-                isDuplicate
+                isDuplicate || isTooLong
                   ? "border-red-500/50"
                   : "border-white/10 focus:border-sky-500/50"
               )}
@@ -216,4 +238,8 @@ export function CreateTopicDialog({
       </div>
     </div>
   );
+
+  // Render via portal to escape stacking context
+  if (typeof document === "undefined") return null;
+  return createPortal(dialogContent, document.body);
 }
