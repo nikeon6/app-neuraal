@@ -306,7 +306,7 @@ describe("UpdateEntry", () => {
       }
     });
 
-    it("should reject completed on note", async () => {
+    it("should silently reset completed to null on note", async () => {
       const entry = await createTestEntry("user-123", { type: "note" });
 
       const result = await updateEntry.execute({
@@ -316,10 +316,10 @@ describe("UpdateEntry", () => {
         completed: true,
       });
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe("VALIDATION_ERROR");
-        expect(result.error.message).toContain("completed");
+      // Domain now accepts completed on notes but resets to null
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.completed).toBeNull();
       }
     });
 

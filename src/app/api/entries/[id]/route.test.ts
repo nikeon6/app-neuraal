@@ -240,7 +240,7 @@ describe("PATCH /api/entries/:id", () => {
     expect(data.entry.completed).toBe(true);
   });
 
-  it("should return 400 when completed is set on note", async () => {
+  it("should silently reset completed to null when set on note", async () => {
     vi.mocked(prisma.entry.findUnique).mockResolvedValue({
       id: "entry-123",
       userId: "user-123",
@@ -255,6 +255,20 @@ describe("PATCH /api/entries/:id", () => {
       updatedAt: new Date(),
     });
 
+    vi.mocked(prisma.entry.update).mockResolvedValue({
+      id: "entry-123",
+      userId: "user-123",
+      date: "2026-01-29",
+      type: "note",
+      title: "Note",
+      content: {},
+      topicId: null,
+      completed: null,
+      version: 2,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     const request = createRequest(
       "PATCH",
       { version: 1, completed: true },
@@ -262,9 +276,10 @@ describe("PATCH /api/entries/:id", () => {
     );
     const response = await PATCH(request, createContext("entry-123"));
 
-    expect(response.status).toBe(400);
+    // Domain now accepts completed on notes but resets to null
+    expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data.error.message).toContain("completed");
+    expect(data.entry.completed).toBeNull();
   });
 
   it("should return 400 when version is missing", async () => {
