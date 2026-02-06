@@ -1,64 +1,92 @@
-# ADR-008: Automation & Async Workflows: n8n-Orchestrated Jobs (Queue Optional Later)
+# ADR-008: Automation & Async Workflows: n8n + BullMQ Hybrid
 
-- **Status:** Proposed
+- **Status:** Accepted (updated 2026-01-29)
 - **Date:** 2026-01-28
 - **Deciders:** Project maintainer(s)
 - **Technical Story:** Neuraal (TFM) — architecture decision
 
 ---
 
-
 ## Context
 
 Neuraal requires asynchronous workflows such as:
 - Scheduled notifications/messages at a user-defined `sendAt` time.
-- Long-running AI tasks (e.g., OpenAI Batch API) where results arrive minutes later.
-- Potential background processing (retries, callbacks, status updates).
+- Long-running AI tasks (e.g., LLM-generated summaries) where results arrive later.
+- Background processing (retries, callbacks, status updates).
 
-The project will run in Docker and is intended to be operated with a pragmatic DevOps workflow.
-The team plans to use **n8n** to build automation and AI flows quickly.
+The project runs in Docker and is intended to be operated with a pragmatic DevOps workflow.
 
 ## Decision
 
-Adopt an **n8n-first orchestration** model for async workflows:
+Adopt a **hybrid model**: **BullMQ workers** for reliable job dispatch + **n8n** for external workflow orchestration.
 
-1. Represent async work in Postgres via `jobs` tables (e.g., `ai_jobs`, `notification_jobs`) with:
-   - `status` (queued/processing/done/failed)
-   - `payload`
-   - `result` (or reference)
-   - timestamps
-2. Trigger n8n workflows via webhooks from the application server.
-3. For scheduled notifications:
-   - n8n uses “wait until” functionality to delay execution until `sendAt`.
-   - n8n executes the send action and calls back to the app to mark completion.
-4. For OpenAI Batch:
-   - n8n submits batch, stores `batchId`, polls/awaits completion, and calls back with results.
+### BullMQ (Redis-backed job queues)
 
-Queue system (BullMQ/Redis/worker) is **optional** and introduced only if:
-- Scheduling volume grows beyond n8n suitability,
-- More control over retries/priority/rate limits is required,
-- Operational monitoring of background tasks needs dedicated tooling.
+Two dedicated queues and workers are now active:
+
+1. **`reminders` queue** (`pnpm worker:reminders`):
+   - Processes scheduled reminders.
+   - Dispatches to n8n webhook for actual delivery (email, push, etc.).
+   - HMAC-signed webhook payloads.
+
+2. **`summaries` queue** (`pnpm worker:summaries`):
+   - Processes entry summary requests.
+   - Dispatches to n8n webhook for LLM processing.
+   - n8n calls back to the app with results (HMAC-signed callback).
+
+Workers implement:
+- `QueuePort` interface in Application layer (clean architecture boundary).
+- `BullMQAdapter` in Infrastructure layer (concrete implementation).
+- Idempotent job processing with stable identifiers.
+
+### n8n (Workflow orchestration)
+
+n8n handles external processing that the app delegates:
+- Receives webhook triggers from BullMQ workers.
+- Executes LLM calls, email delivery, and other external integrations.
+- Calls back to the app API with results (HMAC-signed).
+
+### Communication flow
+
+```
+App API → BullMQ (enqueue job)
+BullMQ Worker → n8n webhook (HMAC-signed)
+n8n processes → App API callback (HMAC-signed)
+App API → Update DB + create notification
+```
+
+### Security
+
+- All webhook communication uses **HMAC signatures** (`X-Signature` + `X-Timestamp` headers).
+- Callbacks are verified in the API route handler before processing.
+- `N8N_WEBHOOK_SECRET` is shared between the app and n8n.
 
 ## Consequences
 
 ### Positive
-- Rapid iteration: workflows are created/updated without deep code changes.
-- Async tasks are observable via DB job status + n8n execution logs.
-- Avoids introducing Redis/worker complexity prematurely.
+- Reliable: BullMQ provides retries, backoff, and persistence via Redis.
+- Observable: Job status tracked in DB + n8n execution logs + Redis queue metrics.
+- Separation of concerns: app enqueues work, workers dispatch, n8n orchestrates externals.
+- Rapid iteration: n8n workflows can be modified without code changes.
 
 ### Negative / Trade-offs
-- Requires careful n8n configuration so waits survive restarts (persistence).
-- Workflow logic must be versioned/managed to avoid “hidden business logic.”
+- Requires Redis + n8n services running alongside the app.
+- HMAC secrets must be coordinated between app and n8n.
+- Workflow logic in n8n must be versioned/managed to avoid "hidden business logic."
 
 ## Alternatives Considered
 
-1. BullMQ/Redis + custom workers from day one
-   - Rejected for v1: more infra and code; can be added later if needed.
-2. Postgres-based worker system only (pg-boss/Graphile Worker)
-   - Considered: good simplification, but n8n already covers orchestration needs.
+1. **n8n-only (no BullMQ)**
+   - Original proposal. Evolved to hybrid as reliable queueing became important for reminders and summaries.
+2. **BullMQ-only (no n8n)**
+   - Considered: would require coding all external integrations in workers. n8n provides faster iteration for LLM/email/notification flows.
+3. **Postgres-based worker system (pg-boss/Graphile Worker)**
+   - Considered: simpler, but BullMQ was already integrated and Redis was available.
 
 ## Implementation Notes
 
-- Treat n8n workflows as part of the system: document inputs/outputs and callbacks.
-- Secure webhook endpoints (signed secrets, allowlists, or HMAC signatures).
+- Workers run as separate Node.js processes (`tsx src/infrastructure/queue/reminderWorker.ts`).
+- `BullMQAdapter` implements `QueuePort` from the Application layer.
+- `N8NClient` in Infrastructure handles webhook dispatch with HMAC signing.
+- Callbacks land on `POST /api/automations/entry-summary/callback` (and similar routes).
 - Use idempotency keys for callbacks to avoid double-apply on retries.
