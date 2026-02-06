@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useStore } from "@/shared/store";
 import { useTopicsQuery } from "@/shared/api/queries";
 import { deleteTopicAndInvalidate } from "@/shared/api/mutations";
 import { ConfirmDialog } from "@/shared/ui";

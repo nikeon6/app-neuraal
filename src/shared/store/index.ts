@@ -58,8 +58,8 @@ interface AppState {
   expandedDayKeys: ISODate[];
   toggleTopicSelection: (topicId: string) => void;
   setSelectedTopics: (topicIds: string[]) => void;
-  expandDay: (dateKey: ISODate, entriesByDate?: Record<string, ApiEntry[]>) => void;
-  collapseDay: (dateKey: ISODate, entriesByDate?: Record<string, ApiEntry[]>) => void;
+  expandDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
+  collapseDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
   clearExpandedDays: () => void;
   clearSelection: () => void;
 
@@ -116,9 +116,7 @@ export const useStore = create<AppState>()(
         set((state) => {
           if (state.expandedDayKeys.includes(dateKey)) return state;
           const newExpandedDays = [...state.expandedDayKeys, dateKey];
-          const topicsFromDays = entriesByDate
-            ? getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate)
-            : [];
+          const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
           return {
             selectedTopicIdsManual: [],
             expandedDayKeys: newExpandedDays,
@@ -130,9 +128,7 @@ export const useStore = create<AppState>()(
         set((state) => {
           if (!state.expandedDayKeys.includes(dateKey)) return state;
           const newExpandedDays = state.expandedDayKeys.filter((k) => k !== dateKey);
-          const topicsFromDays = entriesByDate
-            ? getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate)
-            : [];
+          const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
           return {
             expandedDayKeys: newExpandedDays,
             selectedTopicIds: topicsFromDays,

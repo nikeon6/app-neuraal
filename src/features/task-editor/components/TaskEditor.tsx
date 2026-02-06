@@ -62,7 +62,7 @@ export function TaskEditor({
   const [title, setTitle] = useState<string>(entry.title);
 
   // Extract plain text from content JSON for the simple textarea
-  const [content, setContent] = useState<string>(() => {
+  const extractContent = (): string => {
     if (!entry.content || typeof entry.content !== "object") return "";
     try {
       const nodes = (entry.content as { content?: Array<{ content?: Array<{ text?: string }> }> }).content;
@@ -75,9 +75,9 @@ export function TaskEditor({
     } catch {
       return "";
     }
-  });
+  };
+  const [content, setContent] = useState<string>(extractContent);
 
-  // AUTO_TOPIC means the backend should auto-assign, null means no topic, string is a real topic ID
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
     entry.topicId ?? null
   );
@@ -87,11 +87,15 @@ export function TaskEditor({
   // ---------------------------------------------------------------------------
   // Refs that mirror draft state — used inside setTimeout to always read the
   // LATEST value, avoiding stale closures that caused topic/completed not saving.
+  //
+  // IMPORTANT: draftRef.content must be initialized to the same extracted
+  // content as the state, otherwise the first autosave would overwrite with "".
   // ---------------------------------------------------------------------------
   const titleRef = useRef<HTMLInputElement>(null);
+  const initialContent = useMemo(extractContent, [entry.content]);
   const draftRef = useRef({
     title: entry.title,
-    content: "",
+    content: initialContent,
     selectedTopicId: entry.topicId ?? null as string | null,
     entryType: entry.type as EntryType,
     isCompleted: entry.completed ?? false,
