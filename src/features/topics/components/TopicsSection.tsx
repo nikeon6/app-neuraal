@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import { Plus } from "lucide-react";
-import { useStore } from "@/shared/store";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTopicsQuery } from "@/shared/api/queries";
+import { deleteTopicAndInvalidate } from "@/shared/api/mutations";
 import { ConfirmDialog } from "@/shared/ui";
-import type { UserTopic } from "@/shared/types";
+import type { ApiTopic } from "@/shared/api/sdk";
 import { TopicPill } from "./TopicPill";
 import { CreateTopicDialog } from "./CreateTopicDialog";
 
@@ -13,15 +15,15 @@ import { CreateTopicDialog } from "./CreateTopicDialog";
 // ============================================================================
 
 export function TopicsSection() {
-  const topics = useStore((s) => s.topics);
-  const removeTopic = useStore((s) => s.removeTopic);
+  const queryClient = useQueryClient();
+  const { data: topics = [], isPending: isLoading } = useTopicsQuery();
 
   // Refs for focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   // Modal states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [topicToDelete, setTopicToDelete] = useState<UserTopic | null>(null);
+  const [topicToDelete, setTopicToDelete] = useState<ApiTopic | null>(null);
 
   // Handlers
   const handleOpenCreate = useCallback(() => {
@@ -32,16 +34,16 @@ export function TopicsSection() {
     setIsCreateOpen(false);
   }, []);
 
-  const handleDeleteClick = useCallback((topic: UserTopic) => {
+  const handleDeleteClick = useCallback((topic: ApiTopic) => {
     setTopicToDelete(topic);
   }, []);
 
   const handleConfirmDelete = useCallback(() => {
     if (topicToDelete) {
-      removeTopic(topicToDelete.id);
+      void deleteTopicAndInvalidate(queryClient, topicToDelete.id);
       setTopicToDelete(null);
     }
-  }, [topicToDelete, removeTopic]);
+  }, [topicToDelete, queryClient]);
 
   const handleCancelDelete = useCallback(() => {
     setTopicToDelete(null);
@@ -61,9 +63,11 @@ export function TopicsSection() {
         <div>
           <h2 className="text-lg font-semibold text-white">Your Topics</h2>
           <p className="text-sm text-white/50">
-            {hasTopics
-              ? `${topics.length} topic${topics.length !== 1 ? "s" : ""}`
-              : "Organize your tasks by topic"}
+            {isLoading
+              ? "Loading topics..."
+              : hasTopics
+                ? `${topics.length} topic${topics.length !== 1 ? "s" : ""}`
+                : "Organize your tasks by topic"}
           </p>
         </div>
         <button

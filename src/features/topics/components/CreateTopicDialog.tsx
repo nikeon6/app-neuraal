@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useStore } from "@/shared/store";
-import type { UserTopic } from "@/shared/types";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ApiTopic } from "@/shared/api/sdk";
+import { createTopicAndInvalidate } from "@/shared/api/mutations";
 import { cn } from "@/shared/lib/utils";
 
 // Maximum characters allowed for topic name
@@ -30,7 +31,7 @@ const COLOR_OPTIONS = [
 export interface CreateTopicDialogProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly existingTopics: UserTopic[];
+  readonly existingTopics: ApiTopic[];
   readonly triggerRef: React.RefObject<HTMLButtonElement | null>;
 }
 
@@ -40,9 +41,10 @@ export function CreateTopicDialog({
   existingTopics,
   triggerRef,
 }: CreateTopicDialogProps) {
-  const addTopic = useStore((s) => s.addTopic);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when dialog opens
@@ -64,7 +66,7 @@ export function CreateTopicDialog({
     );
   }, [trimmedName, existingTopics]);
 
-  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected;
+  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isSubmitting;
   const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
@@ -76,17 +78,24 @@ export function CreateTopicDialog({
   }, [onClose, triggerRef]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       if (!isValid || !color) return;
 
-      addTopic({ name: trimmedName, color });
-      // Reset form and close
-      setName("");
-      setColor(null);
-      closeAndReturnFocus();
+      setIsSubmitting(true);
+      try {
+        await createTopicAndInvalidate(queryClient, { name: trimmedName, color });
+        // Reset form and close
+        setName("");
+        setColor(null);
+        closeAndReturnFocus();
+      } catch (error) {
+        console.error("[CreateTopicDialog] Failed to create topic:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [isValid, addTopic, trimmedName, color, closeAndReturnFocus]
+    [isValid, queryClient, trimmedName, color, closeAndReturnFocus]
   );
 
   const handleCancel = useCallback(() => {
@@ -231,7 +240,7 @@ export function CreateTopicDialog({
                   : "bg-white/5 text-white/30 cursor-not-allowed"
               )}
             >
-              Create
+              {isSubmitting ? "Creating..." : "Create"}
             </button>
           </div>
         </form>

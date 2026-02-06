@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
+import { useEntriesForDates } from "@/shared/api/queries";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
@@ -45,14 +47,25 @@ function SectionPlaceholder({ title }: Readonly<{ title: string }>) {
 }
 
 export function Dashboard() {
-  const { 
+  const {
     selectedDate,
-    clearSelection, 
-    selectedTopicIds, 
+    selectedDay,
+    clearSelection,
+    selectedTopicIds,
     expandedDayKeys,
     dashboardSection,
     setDashboardSection,
   } = useStore();
+
+  // Month date keys for calendar and floating topics (data from TanStack Query)
+  const monthDateKeys = useMemo(() => {
+    const start = startOfMonth(selectedDate);
+    const end = endOfMonth(selectedDate);
+    const days = eachDayOfInterval({ start, end });
+    return days.map((d) => format(d, "yyyy-MM-dd"));
+  }, [selectedDate]);
+
+  const { entriesByDate } = useEntriesForDates(monthDateKeys);
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -142,7 +155,11 @@ export function Dashboard() {
                  xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
     >
       {/* Floating topics visualization - covers entire area */}
-      <FloatingTopics containerRef={containerRef} laneRef={laneRef} />
+      <FloatingTopics
+        containerRef={containerRef}
+        laneRef={laneRef}
+        entriesByDate={entriesByDate}
+      />
 
       {/* Column 1: Tasks area - flex-1 en mobile para que ocupe espacio principal */}
       <div className="relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none">
@@ -180,7 +197,7 @@ export function Dashboard() {
           - overflow-hidden para forzar que respete el ancho de la columna del grid
           - pb-[env(safe-area-inset-bottom)] para dispositivos con notch/gesture bar */}
       <aside className="h-20 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden order-3 lg:order-none pb-[env(safe-area-inset-bottom)]">
-        <VerticalCalendar />
+        <VerticalCalendar entriesByDate={entriesByDate} />
       </aside>
     </div>
   );

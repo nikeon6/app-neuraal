@@ -1,6 +1,6 @@
-# TFM — Calendar Tasks & Notes (Next.js)
+# Neuraal — Calendar Tasks & Notes (Next.js)
 
-A web application where authenticated users can manage **tasks** and **notes** through a **calendar-driven dashboard**, including **reminders** processed asynchronously.
+A web application where authenticated users can manage **tasks**, **notes**, and **topics** through a **calendar-driven dashboard**, including **reminders**, **AI-powered summaries**, and **auto-topic classification** via embeddings.
 
 > Key requirement: **responsive UI** (desktop and mobile) from day one.
 
@@ -9,373 +9,366 @@ A web application where authenticated users can manage **tasks** and **notes** t
 ## Product Overview
 
 Users can:
-- Sign up / log in securely.
+- Sign up / log in securely (JWT planned; currently using dev `x-user-id` header).
 - Access a dashboard with a summary view.
-- Create, edit, and manage tasks and notes.
+- Create, edit, and manage **entries** (tasks and notes).
+- Organize entries into user-defined **Topics** (color-coded categories).
 - Browse tasks by day using a **right-side day list** (expandable per day).
-- Schedule reminders for tasks (processed by a worker).
+- Attach files to entries (images, documents via S3/MinIO presigned URLs).
+- Schedule **reminders** for tasks (processed by BullMQ workers + n8n).
+- **AI features**:
+  - Generate **summaries** of entries asynchronously (n8n + LLM).
+  - **Auto-classify** entries into topics via embedding similarity (Ollama + pgvector).
+- Receive **in-app notifications** for async operations (reminders, summaries).
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: React 19 + Next.js 16 + TypeScript (App Router)
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand (with persist middleware)
-- **Animations**: Framer Motion (motion, AnimatePresence, Reorder)
-- **Date Handling**: date-fns
-- **Icons**: Lucide React
-- **Backend**: Postgres + pgvector + S3-compatible storage
-- **Async jobs**: BullMQ + Redis + Worker
-- **Testing**: Vitest + Testing Library + Playwright
-- **Quality**: ESLint + SonarJS + jsx-a11y + Prettier
-- **Observability**: Sentry
-- **Package manager**: **pnpm only**
-
----
-
-## Current UI Features
-
-### Dashboard Layout (Responsive 3-Column Grid)
-The main dashboard uses a responsive grid layout:
-
-| Breakpoint | Layout |
-|------------|--------|
-| `< lg` (< 1024px) | Vertical stack: Tasks (flex-1) → Calendar (h-20) |
-| `≥ lg` (1024px+) | 3-column grid: Tasks \| Bubbles Lane \| Calendar |
-| `≥ xl` (1280px+) | Wider bubbles lane and calendar |
-
-Grid columns (desktop):
-- **Tasks**: `minmax(280px, 1fr)` — flexible, minimum 280px
-- **Lane**: `clamp(260px, 22vw, 400px)` — space for floating topic bubbles
-- **Calendar**: `180px` fixed (200px on xl)
-
-### Floating Topics (Bubbles)
-Interactive visualization of topics as draggable bubbles:
-- Bubbles float in the dedicated lane (Column 2)
-- Each bubble represents a topic with associated color
-- Highlights when hovering over related tasks
-- Uses Framer Motion for smooth animations
-
-### Vertical Calendar
-Responsive calendar sidebar:
-- **Mobile**: Horizontal scrollable row of days with dot indicators
-- **Desktop**: Vertical list with expandable task pills per day
-
-### Task Editor
-Rich task/note editor with container queries for responsive layout:
-- Stacks vertically on narrow widths (< 640px)
-- Horizontal layout on wider containers
-- Entry type toggle (Task/Note)
-- Topic selector with color indicators
-- Auto-save functionality
-
----
-
-## Recommended Repository Structure
-
-Monorepo with pnpm workspaces:
-
-```
-/apps
-  /web        # Next.js UI
-  /api        # Backend (REST + OpenAPI)
-  /worker     # BullMQ workers
-/packages
-  /shared     # Shared types & pure utilities (no Next/Node runtime code)
-  /eslint-config
-  /tsconfig
-/docs
-  /adr        # Architecture Decision Records
-  /api        # OpenAPI specs and API docs
-  /guides     # Guides (auth, deploy, testing, etc.)
-```
-
-> If you start with UI only, keep `apps/web` and add `apps/api` + `apps/worker` later without changing the overall structure.
-
----
-
-## Current Source Structure (Feature-Based)
-
-The codebase follows a **feature-based architecture** with clear separation between shared (global) and feature-specific (local) code:
-
-```
-src/
-  app/                    # Next.js App Router pages
-    page.tsx              # Home page
-    login/page.tsx        # Login page
-    layout.tsx            # Root layout
-    globals.css           # Global styles
-  
-  shared/                 # Global Scope - available across the entire app
-    types/                # Domain types (Task, Note, Topic, etc.)
-    lib/                  # Shared utilities (cn, uid, clamp, etc.)
-    constants/            # Business rules and constants (TOPICS, DAYS)
-    store/                # Global Zustand store
-    hooks/                # Reusable custom hooks
-    ui/                   # Reusable UI components (Button, Modal, etc.)
-  
-  features/               # Local Scope - feature-specific code
-    dashboard/            # Main dashboard feature
-      components/
-    calendar/             # Calendar feature
-      components/
-    tasks/                # Task management feature
-      components/
-    topics/               # Floating topics/bubbles feature
-      components/
-    layout/               # App layout with auth protection
-      components/
-  
-  infrastructure/         # External services (Sentry, API clients)
-  
-  test/                   # Test configuration
-    setup.ts              # Vitest setup file
-```
-
-### The Scope Rule
-
-| Type | Location | Visibility | Examples |
-|------|----------|------------|----------|
-| Global Scope | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI |
-| Local Scope | `src/features/X/` | Only feature X | Dashboard, Calendar, TaskForm |
-| Infrastructure | `src/infrastructure/` | Services layer | Sentry, API clients |
-
-### Benefits
-
-- **Modularity**: Each feature is independent and self-contained
-- **Efficient reuse**: Shared components without redundancy
-- **Lazy loading**: Features can be loaded on demand
-- **Clarity**: Easy to find and understand code location
-- **Scalability**: New features don't affect existing ones
+| Category | Technology |
+|----------|-----------|
+| **Frontend** | React 19 + Next.js 16 + TypeScript (App Router) |
+| **Styling** | Tailwind CSS 4 |
+| **State** | Zustand (with persist middleware) |
+| **Animations** | Framer Motion |
+| **Icons** | Lucide React |
+| **Date Handling** | date-fns |
+| **Database** | PostgreSQL 16 + pgvector (vector similarity) |
+| **ORM** | Prisma 7 (+ raw SQL for pgvector) |
+| **Object Storage** | S3-compatible (MinIO for dev, AWS S3/R2 for prod) |
+| **Job Queues** | BullMQ + Redis 7 |
+| **Automation** | n8n (workflow orchestration for summaries, reminders) |
+| **AI / Embeddings** | Ollama (nomic-embed-text-v2-moe, glm-ocr) |
+| **API Docs** | OpenAPI 3.1 spec (`openapi/spec.ts`) + openapi-typescript |
+| **Testing** | Vitest + Testing Library + jsdom (Playwright planned for E2E) |
+| **Quality** | ESLint + SonarJS + jsx-a11y + Prettier |
+| **Observability** | Sentry (planned) |
+| **Package Manager** | **pnpm only** |
 
 ---
 
 ## Prerequisites
 
-- Node.js (LTS recommended)
-- pnpm
-- Docker (recommended for Postgres/Redis)
+- **Node.js** (LTS recommended)
+- **pnpm** (v9+)
+- **Docker** + **Docker Compose** (for Postgres, Redis, MinIO, n8n, Ollama)
 
 ---
 
-## Install
+## Quick Start
+
+### 1. Start infrastructure
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- **Postgres** (pgvector) — `localhost:5432`
+- **Redis** — `localhost:6379`
+- **MinIO** (S3) — API `localhost:9000`, Console `localhost:9001`
+- **n8n** — `localhost:5678` (user: `neuraal`, pass: `neuraal_password`)
+- **Ollama** — `localhost:11434`
+
+Init containers auto-create the MinIO bucket and pull Ollama models.
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env if needed (defaults work for local Docker setup)
+```
+
+### 3. Install dependencies
 
 ```bash
 pnpm install
 ```
 
----
-
-## Development
+### 4. Set up database
 
 ```bash
-pnpm run dev
+pnpm prisma generate
+pnpm prisma migrate dev
 ```
+
+### 5. Start development server
+
+```bash
+pnpm dev
+```
+
+### 6. (Optional) Start workers
+
+```bash
+# In separate terminals:
+pnpm worker:reminders
+pnpm worker:summaries
+```
+
+---
+
+## Scripts
+
+| Script | Description |
+|--------|-----------|
+| `pnpm dev` | Start Next.js dev server |
+| `pnpm build` | Production build |
+| `pnpm start` | Start production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm format` | Format with Prettier |
+| `pnpm type-check` | TypeScript type checking |
+| `pnpm test` | Run tests in watch mode |
+| `pnpm test:run` | Run tests once (CI) |
+| `pnpm test:coverage` | Run tests with coverage |
+| `pnpm worker:reminders` | Start reminders BullMQ worker |
+| `pnpm worker:summaries` | Start summaries BullMQ worker |
+| `pnpm openapi:emit` | Generate `openapi/openapi.json` from `openapi/spec.ts` |
+| `pnpm openapi:types` | Generate `src/shared/api/openapi-types.ts` from JSON |
+| `pnpm openapi:generate` | Both: emit + types |
+
+---
+
+## Verify Infrastructure
+
+```bash
+# Postgres with pgvector
+docker exec -it neuraal-postgres psql -U neuraal -d neuraal \
+  -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+
+# Redis
+docker exec -it neuraal-redis redis-cli ping
+
+# Ollama models
+curl http://localhost:11434/api/tags
+
+# MinIO bucket
+docker exec -it neuraal-minio mc ls local/neuraal
+
+# n8n health
+curl http://localhost:5678/healthz
+```
+
+---
+
+## Architecture
+
+The project follows **Clean Architecture (light)** with strict layer boundaries.
+
+### Backend Layers
+
+```
+src/
+  domain/                 # Pure domain — zero external deps
+    core/                 # Result type
+    entities/             # Entry, Topic, Reminder, Notification, EntrySummaryRequest
+    value-objects/        # HexColor, ISODate, EmbeddingVector, SimilarityScore, EmbeddingModelName
+
+  application/            # Use cases + ports — depends on domain only
+    core/                 # UseCaseError
+    dto/                  # TopicDTO, ReminderDTO, NotificationDTO, AttachmentDTO
+    ports/                # Interfaces: TopicRepository, EntryRepository, EmbeddingProviderPort, QueuePort...
+    use-cases/            # CreateEntry, CreateTopic, AutoAssignTopicToEntry, RebuildTopicEmbedding...
+    test/                 # InMemory repos, FakeEmbeddingProvider (test doubles)
+
+  infrastructure/         # Concrete implementations — depends on application + domain
+    auth/                 # getAuthUserId (x-user-id → future JWT)
+    automation/           # N8NClient (webhook triggers, HMAC signing)
+    config/               # AttachmentConfig
+    embedding/            # OllamaEmbeddingProvider
+    persistence/          # Prisma client, PrismaXxxRepository (raw SQL for pgvector)
+    queue/                # BullMQAdapter, reminderWorker, summaryWorker
+    storage/              # S3ObjectStorage
+
+  app/api/                # Next.js API routes — thin wiring layer
+    topics/               # CRUD + embedding rebuild
+    entries/              # CRUD + summarize + auto-topic + attachments
+    reminders/            # Create + update
+    notifications/        # List + mark-read
+    automations/          # HMAC-signed callbacks (n8n → app)
+    openapi.json/         # Serves OpenAPI spec at runtime
+```
+
+### Frontend Layers (Feature-Based)
+
+```
+src/
+  shared/                 # Global scope — available across the entire app
+    api/                  # Centralized API client (apiFetch, helpers, OpenAPI types)
+    types/                # Shared frontend types
+    lib/                  # Utilities (cn, uid, clamp, extractPlainText...)
+    constants/            # Business constants (embedding config, topics, days...)
+    store/                # Global Zustand store
+    hooks/                # Reusable custom hooks
+    ui/                   # Reusable UI components
+
+  features/               # Local scope — feature-specific code
+    dashboard/            # Main dashboard
+    calendar/             # Calendar sidebar
+    tasks-container/      # Task list container
+    task-editor/          # Rich entry editor
+    topics/               # Floating topic bubbles
+    layout/               # App layout with auth protection
+```
+
+### Other files
+
+```
+openapi/
+  spec.ts               # OpenAPI 3.1 source of truth
+  openapi.json          # Generated (pnpm openapi:emit)
+scripts/
+  openapi/emit.ts       # Spec → JSON emitter
+prisma/
+  schema.prisma         # Database schema
+  migrations/           # Prisma migrations
+docs/
+  adr/                  # Architecture Decision Records
+  design.md             # Design notes
+```
+
+### Dependency direction
+
+```
+domain  ←  application  ←  infrastructure  ←  app/api (wiring)
+  ↑                                              |
+  └──────── no reverse dependencies ─────────────┘
+```
+
+### Import rules
+
+- `domain/` → imports from `domain/` only
+- `application/` → imports from `domain/` and `application/` only
+- `infrastructure/` → imports from `application/` + `domain/`
+- `shared/` → imports from `shared/` only
+- `features/X/` → imports from `shared/` and `features/X/` only
+- **Never** cross-import between features
+
+---
+
+## API Documentation (OpenAPI)
+
+The project has a single-source OpenAPI 3.1 spec in `openapi/spec.ts`.
+
+```bash
+# Regenerate JSON + TypeScript types
+pnpm openapi:generate
+
+# Or inspect at runtime
+curl http://localhost:3000/api/openapi.json
+```
+
+### Documented endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/topics` | List user topics |
+| POST | `/api/topics` | Create topic |
+| PATCH | `/api/topics/{id}` | Update topic |
+| DELETE | `/api/topics/{id}` | Delete topic |
+| POST | `/api/topics/{id}/embedding/rebuild` | Rebuild topic embedding |
+| GET | `/api/entries?date=YYYY-MM-DD` | List entries by date |
+| POST | `/api/entries` | Create entry |
+| PATCH | `/api/entries/{id}` | Update entry |
+| POST | `/api/entries/{id}/summarize` | Request async summary (202) |
+| POST | `/api/entries/{id}/auto-topic` | Auto-classify entry into topic |
+| POST | `/api/entries/{id}/attachments/presigned-url` | Get presigned upload URL |
+| DELETE | `/api/entries/{id}/attachments/{attachmentId}` | Delete attachment |
+| POST | `/api/reminders` | Create reminder |
+| PATCH | `/api/reminders/{id}` | Update reminder |
+| GET | `/api/notifications` | List notifications |
+| POST | `/api/notifications/{id}/read` | Mark notification as read |
+| POST | `/api/automations/entry-summary/callback` | HMAC-signed callback from n8n |
+| GET | `/api/openapi.json` | OpenAPI spec (no auth) |
+
+---
+
+## Environment Variables
+
+See `.env.example` for the full list with documentation. Key groups:
+
+| Group | Variables |
+|-------|----------|
+| **Database** | `DATABASE_URL` |
+| **Redis** | `REDIS_URL` |
+| **S3/MinIO** | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
+| **n8n** | `N8N_BASE_URL`, `N8N_*_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET` |
+| **Ollama** | `OLLAMA_BASE_URL`, `OLLAMA_EMBED_MODEL`, `EMBEDDING_DIM`, `AUTO_TOPIC_THRESHOLD` |
+| **App** | `APP_BASE_URL` |
+| **Frontend** | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_DEV_USER_ID` |
+
+**Never commit `.env` files** with real secrets.
 
 ---
 
 ## Testing
-
-This project uses **Vitest** + **Testing Library** for testing, following a **TDD approach**.
-
-### Test Commands
-
-```bash
-# Run tests in watch mode (interactive development)
-pnpm test
-
-# Run tests once (CI/CD mode)
-pnpm test:run
-
-# Run tests with coverage report
-pnpm test:coverage
-```
 
 ### Test Stack
 
 | Tool | Purpose |
 |------|---------|
 | **Vitest** | Fast test runner with native TypeScript support |
-| **Testing Library** | Testing utilities focused on user behavior |
-| **jsdom** | DOM environment for testing React components |
+| **Testing Library** | React testing utilities (behavior-focused) |
+| **jsdom** | DOM environment for component tests |
 | **@testing-library/jest-dom** | Custom matchers for DOM assertions |
-| **@testing-library/user-event** | Simulates user interactions |
 
-### Test Structure
+### Test Layers
 
-```
-src/
-  __tests__/              # Integration tests
-  components/
-    ComponentName/
-      ComponentName.tsx
-      ComponentName.test.tsx   # Component tests
-  domain/
-    types.ts
-    types.test.ts              # Domain logic tests
-  lib/
-    store.ts
-    store.test.ts              # Store tests
-    utils.ts
-    utils.test.ts              # Utility tests
-```
+- **Domain**: Value objects, entities, pure functions
+- **Application**: Use cases with in-memory test doubles
+- **Infrastructure**: Repository implementations (Prisma, Ollama, S3)
+- **API**: Route handler integration tests
+- **Component**: React components with Testing Library
 
 ### TDD Workflow
 
 1. **Red**: Write a failing test
 2. **Green**: Write the minimum code to pass
-3. **Refactor**: Improve the code while keeping tests green
-
-### Coverage Targets
-
-- **Domain logic**: 100%
-- **Auth/access control**: 100%
-- **Core utilities**: High coverage
-- **UI components**: Focus on behavior, not implementation
+3. **Refactor**: Improve while keeping tests green
 
 ---
 
-## Environment Variables
+## Authentication
 
-All secrets must come from environment variables and must be **validated at startup** (Zod validation recommended).
+### Current state (development)
 
-Example (high-level; actual variables may evolve):
+Temporary `x-user-id` header sent from the API client:
+- Controlled by `NEXT_PUBLIC_DEV_USER_ID` env var
+- Not sent in production (`NODE_ENV=production`)
+- HMAC-signed callbacks do NOT use this header
 
-### Web (`apps/web/.env.local`)
-- `NEXT_PUBLIC_APP_URL`
-- `NEXT_PUBLIC_API_URL`
-- `SENTRY_DSN` (optional)
+### Target state (future)
 
-### API (`apps/api/.env`)
-- `DATABASE_URL`
-- `REDIS_URL`
-- `S3_ENDPOINT`
-- `S3_ACCESS_KEY`
-- `S3_SECRET_KEY`
-- `S3_BUCKET`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `JWT_ACCESS_TTL`
-- `JWT_REFRESH_TTL`
-- `SENTRY_DSN` (optional)
-
-### Worker (`apps/worker/.env`)
-- `REDIS_URL`
-- `DATABASE_URL` (if applicable)
-- `S3_*` (if applicable)
-- `SENTRY_DSN` (optional)
-
-**Never commit `.env*` files** with real secrets.
+JWT-based auth with access + refresh tokens in httpOnly cookies. See `docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md`.
 
 ---
 
-## Core Functional Requirements (MVP)
+## Architecture Decision Records
 
-### Authentication
-- Sign up / log in / log out.
-- JWT-based auth using **two tokens**:
-  - Short-lived **access token**
-  - Long-lived **refresh token** (rotation recommended)
-- Strong password policy.
-
-### Dashboard
-- Summary view (today / upcoming tasks / recent notes / upcoming reminders).
-- Quick actions: create task / create note.
-
-### Calendar + Right Sidebar Days
-- Calendar view with:
-  - Right-side list of days
-  - Expandable day panels showing tasks for that day
-
-### Tasks
-- CRUD tasks, mark as done, reschedule.
-- Every resource belongs to a user (strict server-side access control).
-
-### Notes
-- CRUD notes.
-- Decision via ADR: link notes to a day and/or to a task depending on final UX.
-
-### Reminders
-- Users can schedule reminders for tasks.
-- Asynchronous processing via BullMQ/Redis in `apps/worker`.
+| ADR | Decision |
+|-----|----------|
+| [001](docs/adr/adr-001-nextjs-app-router-and-feature-structure.md) | Next.js App Router + feature-based structure |
+| [002](docs/adr/adr-002-state-management-feature-scoped-first.md) | Feature-scoped state management |
+| [003](docs/adr/adr-003-testing-stack-vitest-testing-library-playwright.md) | Testing stack: Vitest + Testing Library + Playwright |
+| [004](docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md) | Auth: access + refresh tokens in httpOnly cookies |
+| [005](docs/adr/adr-005-observability-sentry.md) | Observability with Sentry |
+| [006](docs/adr/adr-006-auth-oauth-authjs-postgres-sessions.md) | Auth: OAuth + Auth.js + Postgres sessions |
+| [007](docs/adr/adr-007-hybrid-persistence-postgres-s3-compatible.md) | Hybrid persistence: Postgres + S3 |
+| [008](docs/adr/adr-008-automation-n8n-orchestrated-async-jobs.md) | Automation: n8n + BullMQ async jobs |
+| [009](docs/adr/adr-009-pgvector-embeddings-auto-topic.md) | pgvector embeddings for auto-topic classification |
+| [010](docs/adr/adr-010-openapi-spec-generated-types.md) | OpenAPI spec as source of truth + generated types |
 
 ---
 
-## Non-Functional Requirements
+## Docker Compose Services
 
-### Security by Design
-- Apply OWASP Top 10 principles.
-- Access control must be enforced **server-side**, never only in the UI.
-- Validate inputs at every boundary.
-- Secure cookie settings for auth tokens: `HttpOnly`, `Secure` (prod), appropriate `SameSite`.
-- Brute-force protections for login: rate limiting + temporary lock/backoff.
-
-### Architecture & Maintainability
-- Clean Architecture (light) with strict boundary discipline.
-- Avoid antipatterns and unnecessary coupling.
-- **All code and code comments must be in English** (docs can be EN/ES).
-
-### Performance (Real + Perceived)
-- Skeleton/loading states.
-- Avoid heavy client bundles (Server Components by default).
-- For large lists: pagination/virtualization if needed.
-
-### Accessibility
-- Follow `jsx-a11y` rules and good a11y practices:
-  - labels
-  - correct roles
-  - visible focus
-  - keyboard support
-
----
-
-## Testing Strategy
-
-- Unit: domain logic / pure utilities.
-- Integration: use cases + adapters (use test DB when needed).
-- E2E (Playwright) for critical flows:
-  - login → create task → see it in day panel → schedule reminder
-
-Use **strategic coverage**: prioritize auth, permissions, scheduling, and critical business rules.
-
----
-
-## Observability (Sentry)
-
-- Enable Sentry in web/api/worker where applicable.
-- Capture failures with context (never log secrets/tokens).
-- Monitor latency and job failures.
-
----
-
-## API Documentation
-
-- OpenAPI + Swagger for endpoints.
-- Docs-as-Code: update docs in the same PR as the API changes.
-
----
-
-## Git Workflow (Pull Requests)
-
-- Changes must go through Pull Requests.
-- Keep PRs small and reviewable.
-- Include: what changed, why, how to test, and security notes where relevant.
-
-Suggested convention:
-- `feat/<scope>-<short>`
-- `fix/<scope>-<short>`
-- `chore/<scope>-<short>`
-
----
-
-## Deployment (Production)
-
-- Docker + `docker-compose` on a VPS.
-- Typical services:
-  - web, api, worker, postgres (volume), redis
-- Secrets via environment variables on the VPS.
-- Automated migrations during deployment (defined in the deployment guide).
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| postgres | `pgvector/pgvector:pg16` | 5432 | Database with vector support |
+| redis | `redis:7-alpine` | 6379 | BullMQ job queues |
+| minio | `minio/minio` | 9000/9001 | S3-compatible object storage |
+| n8n | `n8nio/n8n` | 5678 | Workflow automation |
+| ollama | `ollama/ollama` | 11434 | Local LLM inference (embeddings, OCR) |
 
 ---
 

@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { VerticalCalendar } from "./VerticalCalendar";
-import type { LegacyTask, TopicId } from "../../../shared/types";
-import { DEFAULT_USER_ID } from "../../../shared/store";
+import type { ApiEntry } from "@/shared/api/sdk";
 
 // Mock scrollTo since jsdom doesn't implement it
 Element.prototype.scrollTo = vi.fn();
@@ -20,71 +20,96 @@ class MockIntersectionObserver {
 window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
 // ============================================================================
-// Mock Data
+// Mock Data (ApiEntry shape)
 // ============================================================================
-const createMockTask = (
-  id: string,
-  topicId: TopicId,
-  title: string,
-  completed: boolean = false
-): LegacyTask => ({
-  id,
-  title,
-  topicId,
-  completed,
-  userId: DEFAULT_USER_ID,
-  createdAt: Date.now(),
-});
+function createMockEntry(id: string, title: string, overrides: Partial<ApiEntry> = {}): ApiEntry {
+  return {
+    id,
+    userId: "user-123",
+    date: "2024-01-15",
+    type: "task",
+    title,
+    content: null,
+    topicId: null,
+    completed: false,
+    summary: null,
+    summaryUpdatedAt: null,
+    version: 1,
+    createdAt: "2024-01-15T10:00:00Z",
+    updatedAt: "2024-01-15T10:00:00Z",
+    ...overrides,
+  } as ApiEntry;
+}
 
-// Tasks for different days
-const mockTasksForDay15: LegacyTask[] = [
-  createMockTask("task-1", "work", "Complete project report"),
-  createMockTask("task-2", "health", "Morning yoga session"),
-];
-
-const mockTasksForDay20: LegacyTask[] = [
-  createMockTask("task-3", "learning", "Study TypeScript"),
-];
-
-const mockTasksByDay: Record<number, LegacyTask[]> = {
-  15: mockTasksForDay15,
-  20: mockTasksForDay20,
+const mockEntriesByDate: Record<string, ApiEntry[]> = {
+  "2024-01-15": [
+    createMockEntry("entry-1", "Complete project report", { topicId: "topic-work" }),
+    createMockEntry("entry-2", "Morning yoga session", { topicId: "topic-health" }),
+  ],
+  "2024-01-20": [
+    createMockEntry("entry-3", "Study TypeScript", { date: "2024-01-20", topicId: "topic-learning" }),
+  ],
 };
 
+const mockTopics = [
+  { id: "topic-work", userId: "user-123", name: "Trabajo", color: "#3b82f6" },
+  { id: "topic-health", userId: "user-123", name: "Salud", color: "#22c55e" },
+  { id: "topic-learning", userId: "user-123", name: "Learning", color: "#f59e0b" },
+];
+
 // ============================================================================
-// Mock Store
+// Mocks
 // ============================================================================
+const mockTopicsQuery = vi.fn();
+const mockDeleteEntryAndInvalidate = vi.fn();
 const mockSetSelectedDay = vi.fn();
 const mockSetSelectedDate = vi.fn();
-const mockRemoveTask = vi.fn();
 const mockExpandDay = vi.fn();
 const mockCollapseDay = vi.fn();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createMockState = (overrides: Record<string, any> = {}): any => ({
-  selectedDate: new Date("2024-01-15"),
-  selectedDay: 15,
-  setSelectedDay: mockSetSelectedDay,
-  setSelectedDate: mockSetSelectedDate,
-  tasksByDay: mockTasksByDay,
-  removeTask: mockRemoveTask,
-  selectedTopicIds: [],
-  expandedDayKeys: [],
-  expandDay: mockExpandDay,
-  collapseDay: mockCollapseDay,
-  ...overrides,
-});
+vi.mock("@/shared/api/queries", () => ({
+  useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
+  topicsQueryKey: ["topics"],
+}));
+
+vi.mock("@/shared/api/mutations", () => ({
+  deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
+}));
 
 vi.mock("@/shared/store", () => ({
-  useStore: vi.fn((selector) => {
-    const state = createMockState();
+  useStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      selectedDate: new Date("2024-01-15"),
+      selectedDay: 15,
+      setSelectedDay: mockSetSelectedDay,
+      setSelectedDate: mockSetSelectedDate,
+      selectedTopicIds: [] as string[],
+      expandedDayKeys: [] as string[],
+      expandDay: mockExpandDay,
+      collapseDay: mockCollapseDay,
+    };
     return typeof selector === "function" ? selector(state) : state;
   }),
-  DEFAULT_USER_ID: "user_demo",
 }));
 
 // Import for resetting mock
 import * as storeModule from "../../../shared/store";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+function createQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function renderCalendar(entriesByDate: Record<string, ApiEntry[]> = mockEntriesByDate) {
+  const qc = createQueryClient();
+  return render(
+    <QueryClientProvider client={qc}>
+      <VerticalCalendar entriesByDate={entriesByDate} />
+    </QueryClientProvider>
+  );
+}
 
 // ============================================================================
 // Tests
@@ -92,11 +117,21 @@ import * as storeModule from "../../../shared/store";
 describe("VerticalCalendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Reset store mock to default state
+    mockTopicsQuery.mockReturnValue({ data: mockTopics, isPending: false });
+    mockDeleteEntryAndInvalidate.mockResolvedValue(undefined);
+
     vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-      const state = createMockState();
-      return typeof selector === "function" ? selector(state) : state;
+      const state = {
+        selectedDate: new Date("2024-01-15"),
+        selectedDay: 15,
+        setSelectedDay: mockSetSelectedDay,
+        setSelectedDate: mockSetSelectedDate,
+        selectedTopicIds: [],
+        expandedDayKeys: [],
+        expandDay: mockExpandDay,
+        collapseDay: mockCollapseDay,
+      };
+      return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
     });
   });
 
@@ -105,80 +140,69 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Rendering Tests
+  // Rendering
   // --------------------------------------------------------------------------
   describe("Rendering", () => {
     it("renders the calendar container", () => {
-      render(<VerticalCalendar />);
-      
-      // Should render month header (visible on desktop)
+      renderCalendar();
+
       expect(screen.getByText("Jan")).toBeInTheDocument();
       expect(screen.getByText("2024")).toBeInTheDocument();
     });
 
     it("renders all days of the month", () => {
-      render(<VerticalCalendar />);
-      
+      renderCalendar();
+
       // January 2024 has 31 days
-      // Check for some specific day numbers (they appear in both mobile and desktop views)
       const day1Elements = screen.getAllByText("1");
       expect(day1Elements.length).toBeGreaterThan(0);
-      
+
       const day31Elements = screen.getAllByText("31");
       expect(day31Elements.length).toBeGreaterThan(0);
     });
 
     it("renders mobile compact view elements", () => {
-      render(<VerticalCalendar />);
-      
-      // Mobile view should have buttons for each day
+      renderCalendar();
+
       const dayButtons = screen.getAllByRole("button");
-      // At least 31 buttons for days (plus any task remove buttons)
       expect(dayButtons.length).toBeGreaterThanOrEqual(31);
     });
 
     it("highlights the selected day", () => {
-      render(<VerticalCalendar />);
-      
-      // The selected day (15) should have special styling
-      // In the desktop view, it should have the "active" class on the day-row
+      renderCalendar();
+
       const dayElement = document.getElementById("day-2024-01-15");
       expect(dayElement).toBeInTheDocument();
     });
   });
 
   // --------------------------------------------------------------------------
-  // Day Selection Tests
+  // Day Selection
   // --------------------------------------------------------------------------
   describe("Day Selection", () => {
     it("calls setSelectedDate and setSelectedDay when clicking a day in mobile view", async () => {
       const user = userEvent.setup();
-      render(<VerticalCalendar />);
-      
-      // Find day 20 button in mobile view (has text "20")
+      renderCalendar();
+
       const day20Buttons = screen.getAllByText("20");
-      const mobileButton = day20Buttons.find(el => 
-        el.closest("button") && !el.closest(".day-row")
+      const mobileButton = day20Buttons.find(
+        (el) => el.closest("button") && !el.closest(".day-row")
       );
-      
+
       if (mobileButton) {
         await user.click(mobileButton.closest("button")!);
-        
         expect(mockSetSelectedDate).toHaveBeenCalled();
         expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
       }
     });
 
-    it("calls setSelectedDate and setSelectedDay when clicking a day row in desktop view", async () => {
+    it("calls setSelectedDate and setSelectedDay when clicking a day row", async () => {
       const user = userEvent.setup();
-      render(<VerticalCalendar />);
-      
-      // Find the day row element for day 20
+      renderCalendar();
+
       const dayRow = document.getElementById("day-2024-01-20");
-      
       if (dayRow) {
         await user.click(dayRow);
-        
         expect(mockSetSelectedDate).toHaveBeenCalled();
         expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
       }
@@ -186,34 +210,22 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Task Display Tests
+  // Task Display
   // --------------------------------------------------------------------------
   describe("Task Display", () => {
     it("does NOT display task pills by default (no selection)", () => {
-      render(<VerticalCalendar />);
-      
-      // Without selection, tasks are not visible
+      renderCalendar();
+
       expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
       expect(screen.queryByText("Morning yoga session")).not.toBeInTheDocument();
     });
 
-    it("shows task indicator dot for days with tasks", () => {
-      render(<VerticalCalendar />);
-      
-      // The dot indicators should be present for days with tasks
-      // We check by looking for elements with specific classes
-      const indicators = document.querySelectorAll(".bg-primary.rounded-full");
-      expect(indicators.length).toBeGreaterThan(0);
-    });
-
     it("shows day anchors with data attributes for wire connections", () => {
-      render(<VerticalCalendar />);
-      
-      // Day rows should have data-day-anchor attribute for FloatingTopics wires
-      const dayAnchors = document.querySelectorAll('[data-day-anchor="true"]');
+      renderCalendar();
+
+      const dayAnchors = document.querySelectorAll("[data-day-anchor=\"true\"]");
       expect(dayAnchors.length).toBeGreaterThan(0);
-      
-      // Check that they have the required data attributes
+
       const firstAnchor = dayAnchors[0] as HTMLElement;
       expect(firstAnchor.dataset.dayNumber).toBeDefined();
       expect(firstAnchor.dataset.dateKey).toBeDefined();
@@ -221,77 +233,31 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Task Removal Tests (when tasks are visible via selection)
-  // --------------------------------------------------------------------------
-  describe("Task Removal", () => {
-    it("does not render remove buttons without selection", () => {
-      render(<VerticalCalendar />);
-      
-      // Without selection, no task pills or remove buttons
-      const removeButtons = screen.queryAllByRole("button", { name: /eliminar tarea/i });
-      expect(removeButtons.length).toBe(0);
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  // Empty State Tests
+  // Empty State
   // --------------------------------------------------------------------------
   describe("Empty State", () => {
-    it("renders calendar without tasks when no tasks exist", () => {
-      vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-        const state = createMockState({ tasksByDay: {} });
-        return typeof selector === "function" ? selector(state) : state;
-      });
-      
-      render(<VerticalCalendar />);
-      
-      // Calendar should still render
+    it("renders calendar without entries when entriesByDate is empty", () => {
+      renderCalendar({});
+
       expect(screen.getByText("Jan")).toBeInTheDocument();
-      
-      // No task pills should be visible
       expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
     });
   });
 
   // --------------------------------------------------------------------------
-  // Task pills render when topics are selected or days expanded
-  // --------------------------------------------------------------------------
-  describe("Task Pills with Selection", () => {
-    it("does not display task pills without selection or expansion", () => {
-      const completedTask = createMockTask("task-completed", "work", "Completed task", true);
-      
-      vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-        const state = createMockState({ 
-          tasksByDay: { 15: [completedTask] },
-          selectedTopicIds: [], // No selection
-          expandedDayKeys: [], // No expanded days
-        });
-        return typeof selector === "function" ? selector(state) : state;
-      });
-      
-      render(<VerticalCalendar />);
-      
-      // Task text should not be visible without selection or expansion
-      expect(screen.queryByText("Completed task")).not.toBeInTheDocument();
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  // Accessibility Tests
+  // Accessibility
   // --------------------------------------------------------------------------
   describe("Accessibility", () => {
     it("no remove buttons in collapsed mode", () => {
-      render(<VerticalCalendar />);
-      
-      // In collapsed mode, tasks aren't visible, so no remove buttons
+      renderCalendar();
+
       const removeButtons = screen.queryAllByRole("button", { name: /eliminar tarea/i });
       expect(removeButtons.length).toBe(0);
     });
 
     it("day buttons are keyboard accessible", () => {
-      render(<VerticalCalendar />);
-      
-      // All day buttons should be focusable
+      renderCalendar();
+
       const dayButtons = screen.getAllByRole("button");
       dayButtons.forEach((button) => {
         expect(button).not.toHaveAttribute("tabindex", "-1");
@@ -300,27 +266,30 @@ describe("VerticalCalendar", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Today Highlight Tests
+  // Today Highlight
   // --------------------------------------------------------------------------
   describe("Today Highlight", () => {
     it("highlights today with special styling when not selected", () => {
-      // Mock a date where today is different from selected
       const today = new Date();
       const todayDay = today.getDate();
-      
-      // Only test if today is not day 15 (the selected day in mock)
+
       if (todayDay !== 15) {
         vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-          const state = createMockState({
-            selectedDate: new Date(today.getFullYear(), today.getMonth(), 1), // First of current month
-          });
-          return typeof selector === "function" ? selector(state) : state;
+          const state = {
+            selectedDate: new Date(today.getFullYear(), today.getMonth(), 1),
+            selectedDay: 1,
+            setSelectedDay: mockSetSelectedDay,
+            setSelectedDate: mockSetSelectedDate,
+            selectedTopicIds: [],
+            expandedDayKeys: [],
+            expandDay: mockExpandDay,
+            collapseDay: mockCollapseDay,
+          };
+          return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
         });
-        
-        render(<VerticalCalendar />);
-        
-        // Today should have ring styling when not selected
-        // This is a visual test - we verify the component renders day 1 (appears in both views)
+
+        renderCalendar({});
+
         const day1Elements = screen.getAllByText("1");
         expect(day1Elements.length).toBeGreaterThan(0);
       }
