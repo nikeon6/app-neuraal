@@ -14,7 +14,10 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "worker:reminders": "tsx src/infrastructure/queue/reminderWorker.ts",
-    "worker:summaries": "tsx src/infrastructure/queue/summaryWorker.ts"
+    "worker:summaries": "tsx src/infrastructure/queue/summaryWorker.ts",
+    "openapi:emit": "tsx scripts/openapi/emit.ts",
+    "openapi:types": "openapi-typescript openapi/openapi.json -o src/shared/api/openapi-types.ts",
+    "openapi:generate": "pnpm openapi:emit && pnpm openapi:types"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.982.0",
@@ -53,6 +56,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^27.4.0",
+    "openapi-typescript": "^7.10.1",
     "prettier": "^3.4.0",
     "prisma": "^7.3.0",
     "tailwindcss": "^4",

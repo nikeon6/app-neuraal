@@ -57,6 +57,26 @@ export class InMemoryEntryRepository implements EntryRepository {
     });
   }
 
+  async updateTopic(entryId: string, topicId: string | null): Promise<void> {
+    const entry = this.entries.find((e) => e.id === entryId);
+    if (entry) {
+      // Update via withUpdates to maintain immutability
+      const updated = entry.withUpdates({ topicId });
+      if (updated.isOk()) {
+        const index = this.entries.findIndex((e) => e.id === entryId);
+        this.entries[index] = updated.value;
+      }
+    }
+  }
+
+  /**
+   * Helper for tests: get the current topicId of an entry.
+   */
+  getTopicId(entryId: string): string | null | undefined {
+    const entry = this.entries.find((e) => e.id === entryId);
+    return entry?.topicId;
+  }
+
   /**
    * Helper for tests: clear all entries.
    */

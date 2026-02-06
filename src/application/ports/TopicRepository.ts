@@ -1,6 +1,14 @@
 import type { Topic } from "@/domain/entities/Topic";
 
 /**
+ * Result of a similarity search against topic embeddings.
+ */
+export interface TopicSimilarityMatch {
+  topicId: string;
+  distance: number; // cosine distance (0 = identical, 1 = orthogonal)
+}
+
+/**
  * Port (interface) for Topic persistence.
  * Infrastructure layer will provide the concrete implementation.
  */
@@ -35,4 +43,29 @@ export interface TopicRepository {
    * Deletes a topic by id.
    */
   delete(topicId: string): Promise<void>;
+
+  // =========================================================================
+  // Embedding methods (Slice 6)
+  // =========================================================================
+
+  /**
+   * Stores an embedding vector for a topic.
+   */
+  setEmbedding(
+    topicId: string,
+    vector: number[],
+    model: string,
+    updatedAt: Date
+  ): Promise<void>;
+
+  /**
+   * Finds the most similar topic for a user by comparing the given vector
+   * against all topic embeddings using cosine distance.
+   * Only considers topics that have an embedding set.
+   * Returns null if no topics have embeddings.
+   */
+  findBestMatchByEmbedding(
+    userId: string,
+    vector: number[]
+  ): Promise<TopicSimilarityMatch | null>;
 }

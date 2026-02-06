@@ -1,6 +1,9 @@
 import { Topic } from "@/domain/entities/Topic";
-import type { TopicRepository } from "@/application/ports/TopicRepository";
-import { prisma } from "./prisma";
+import type {
+  TopicRepository,
+  TopicSimilarityMatch,
+} from "@/application/ports/TopicRepository";
+import { prisma, pool } from "./prisma";
 
 /**
  * Prisma implementation of TopicRepository.
@@ -105,5 +108,61 @@ export class PrismaTopicRepository implements TopicRepository {
     await prisma.topic.delete({
       where: { id: topicId },
     });
+  }
+
+  // =========================================================================
+  // Embedding methods (Slice 6) — use raw SQL for pgvector operations
+  // =========================================================================
+
+  /**
+   * Stores an embedding vector for a topic.
+   * Uses raw SQL because Prisma doesn't natively support the vector type.
+   */
+  async setEmbedding(
+    topicId: string,
+    vector: number[],
+    model: string,
+    updatedAt: Date
+  ): Promise<void> {
+    const pgVector = `[${vector.join(",")}]`;
+    await pool.query(
+      `UPDATE topics
+         SET embedding = $1::vector,
+             embedding_model = $2,
+             embedding_updated_at = $3
+       WHERE id = $4`,
+      [pgVector, model, updatedAt, topicId]
+    );
+  }
+
+  /**
+   * Finds the most similar topic for a user by cosine distance.
+   * Uses pgvector's <=> operator (cosine distance).
+   * Only considers topics with an embedding set.
+   */
+  async findBestMatchByEmbedding(
+    userId: string,
+    vector: number[]
+  ): Promise<TopicSimilarityMatch | null> {
+    const pgVector = `[${vector.join(",")}]`;
+
+    const result = await pool.query<{ id: string; distance: number }>(
+      `SELECT id, (embedding <=> $1::vector) AS distance
+         FROM topics
+        WHERE user_id = $2
+          AND embedding IS NOT NULL
+        ORDER BY embedding <=> $1::vector
+        LIMIT 1`,
+      [pgVector, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return {
+      topicId: result.rows[0].id,
+      distance: Number.parseFloat(String(result.rows[0].distance)),
+    };
   }
 }

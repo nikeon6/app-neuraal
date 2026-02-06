@@ -12,12 +12,16 @@ export interface ReminderPayload {
 
 /**
  * Payload sent to the automation service (n8n) for entry summaries.
+ * Includes entry content so n8n can generate the summary without DB access.
  */
 export interface EntrySummaryPayload {
   requestId: string;
   userId: string;
   entryId: string;
   callbackUrl: string;
+  entryTitle: string;
+  entryType: string;
+  entryContent: Record<string, unknown>;
 }
 
 /**

@@ -66,7 +66,7 @@ describe("ProcessEntrySummaryJob", () => {
   });
 
   describe("successful processing", () => {
-    it("should call automation service with correct payload", async () => {
+    it("should call automation service with correct payload including entry data", async () => {
       await createTestEntry();
       await createTestRequest();
 
@@ -79,6 +79,9 @@ describe("ProcessEntrySummaryJob", () => {
       expect(payload?.userId).toBe(userId);
       expect(payload?.entryId).toBe(entryId);
       expect(payload?.callbackUrl).toBe(callbackUrl);
+      expect(payload?.entryTitle).toBe("Test Entry");
+      expect(payload?.entryType).toBe("note");
+      expect(payload?.entryContent).toEqual({ text: "This is test content." });
     });
 
     it("should mark request as submitted on success", async () => {

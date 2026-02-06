@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { Notification } from "../../domain/entities/Notification";
 import { NotificationRepository } from "../../application/ports/NotificationRepository";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 /**
  * Prisma implementation of NotificationRepository.

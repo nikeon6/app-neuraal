@@ -110,4 +110,11 @@ export class PrismaEntryRepository implements EntryRepository {
       },
     });
   }
+
+  async updateTopic(entryId: string, topicId: string | null): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: { topicId },
+    });
+  }
 }

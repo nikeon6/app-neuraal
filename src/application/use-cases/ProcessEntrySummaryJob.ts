@@ -93,12 +93,15 @@ export class ProcessEntrySummaryJob {
       });
     }
 
-    // 4. Call automation service
+    // 4. Call automation service (include entry data so n8n can generate summary)
     const automationResult = await this.automationPort.requestEntrySummary({
       requestId,
       userId,
       entryId,
       callbackUrl: this.callbackUrl,
+      entryTitle: entry.title.toString(),
+      entryType: entry.type.toString(),
+      entryContent: entry.content.toJSON(),
     });
 
     if (automationResult.success) {

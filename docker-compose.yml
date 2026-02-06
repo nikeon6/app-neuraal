@@ -96,6 +96,8 @@ services:
       N8N_PORT: 5678
       N8N_PROTOCOL: http
       WEBHOOK_URL: http://localhost:5678/
+      # Variable para la firma HMAC
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET}
       # Security (change these in production!)
       N8N_ENCRYPTION_KEY: dev_encryption_key_change_me_32chars!
       N8N_USER_MANAGEMENT_JWT_SECRET: dev_jwt_secret_change_me_in_prod!
@@ -114,6 +116,12 @@ services:
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-neuraal-dev}
       LANGCHAIN_CALLBACKS_BACKGROUND: "true"
+      # Environment variables
+      N8N_ENV_VARS_ENABLED: "N8N_WEBHOOK_SECRET,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT"
+      # Allow built-in Node.js modules in Code nodes (crypto for HMAC)
+      NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
+      # Allow $env access in Code nodes
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
     volumes:
       - neuraal_n8n_data:/home/node/.n8n
     healthcheck:

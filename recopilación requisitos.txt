@@ -151,5 +151,251 @@ Y ahora necesito generar la api, la capa de dominio, casos de uso, etc... lo cua
 
 
 
+Implementa el SLICE 4 del backend: REMINDERS + WORKER BullMQ + llamada a n8n + NOTIFICATIONS mínimas.
+Arquitectura: Clean Architecture + TDD, igual que los slices anteriores.
 
+PRE-REQUISITOS
+- Redis ya está levantado en local.
+- Variable de entorno REDIS_URL existe (redis://localhost:6379).
+- n8n se usará sí o sí. Añade variables N8N_BASE_URL y N8N_REMINDER_WEBHOOK_URL.
+- Auth temporal: getAuthUserId leyendo x-user-id.
+
+OBJETIVO FUNCIONAL
+1) El usuario puede programar un aviso (reminder) para una entry (task/note) a una fecha/hora.
+2) La API debe encolar un job con delay en BullMQ.
+3) Un worker ejecuta el job cuando toca y hace una llamada HTTP a n8n.
+4) Debe existir notificación en dashboard cuando el reminder se envía o falla.
+
+DOMINIO
+Reminder:
+- id
+- userId
+- entryId
+- scheduledAt (ISO datetime, UTC recomendado)
+- channel (string: "whatsapp" | "email" | "push" | etc, por ahora libre)
+- status: "pending" | "sent" | "canceled" | "failed"
+- createdAt, updatedAt
+
+Notification:
+- id
+- userId
+- type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED"
+- title
+- message
+- status: "unread" | "read"
+- payload json (opcional)
+- createdAt
+
+VALUE OBJECTS
+- ISODateTime (valida formato ISO; almacenar en DB como timestamptz)
+- ReminderStatus
+- Channel (string no vacía)
+
+VALIDACIONES
+- scheduledAt debe ser futuro (tolerancia 1-2s). Si no, 400.
+- Ownership: 404 si entry/reminder no existe o no pertenece al user.
+- Cancelar: solo si status == pending (si ya sent, 409).
+
+API ENDPOINTS
+A) POST /api/reminders
+Body:
+{
+  "entryId": "string",
+  "scheduledAt": "2026-02-04T18:30:00.000Z",
+  "channel": "whatsapp",
+  "message": "opcional"
+}
+Responses:
+- 201 { reminderDTO }
+- 400 invalid
+- 401 no auth
+- 404 entry no existe / no es del user
+
+B) PATCH /api/reminders/:id
+Body:
+{
+  "scheduledAt"?: "ISO datetime",
+  "channel"?: "string",
+  "status"?: "canceled"
+}
+Rules:
+- Permitir reprogramar solo si pending.
+- Permitir cancelar con status:"canceled" solo si pending.
+Responses:
+- 200 { reminderDTO }
+- 400, 401, 404
+- 409 si no se puede (p.ej. ya enviado)
+
+C) GET /api/notifications
+Query optional: ?since=ISO datetime
+- 200 [{ notificationDTO }]
+- 401
+
+D) POST /api/notifications/:id/read
+- 200
+- 401, 404 (ownership)
+
+WORKER (BullMQ)
+- Crear cola "reminders".
+- Al crear reminder: encolar job con jobId = reminderId y delay = scheduledAt - now.
+- Worker consume:
+  1) carga reminder por id desde Postgres
+  2) si status != pending -> no hace nada (ack)
+  3) llama a n8n webhook por HTTP POST con payload:
+     { reminderId, userId, entryId, scheduledAt, channel, message }
+     - Firma HMAC (X-Signature) con secret N8N_WEBHOOK_SECRET + timestamp (X-Timestamp) para evitar spoofing
+  4) si n8n responde 2xx -> marcar reminder sent + crear notification REMINDER_SENT
+  5) si falla -> marcar reminder failed + crear notification REMINDER_FAILED
+- Con reintentos:
+  - attempts: 5
+  - backoff exponencial (p.ej. 1m, 5m, 15m...)
+- Concurrency configurable (por env, default 5).
+
+IMPORTANTE SOBRE “CANCEL / RESCHEDULE”
+- Para MVP, no es obligatorio borrar jobs antiguos del queue.
+- Implementa la estrategia simple y robusta:
+  - los jobs pueden quedar “huérfanos”
+  - el worker siempre revalida en DB: si status no pending o scheduledAt cambió, entonces no envía.
+- Deja TODO si quieres optimizar removiendo jobs por jobId.
+
+ARQUITECTURA
+Domain:
+- Entities: Reminder, Notification
+- ValueObjects: ISODateTime, ReminderStatus, NotificationStatus
+- Tests de Domain
+
+Application:
+Ports:
+- ReminderRepository: create, findById, update, listByUser, listDue? (si hace falta), etc.
+- NotificationRepository: create, listByUser, markRead
+- EntryRepository: validar ownership del entry al crear reminder
+- QueuePort: enqueueReminder(reminderId, scheduledAt)
+- N8NPort: sendReminder(payload, signature headers)
+Use cases:
+- CreateReminder (guarda + encola)
+- UpdateReminder (reprograma/cancela con reglas)
+- ListNotifications
+- MarkNotificationRead
+- ProcessReminderJob (use case del worker para tener lógica testable)
+Tests:
+- Application tests con repos in-memory + FakeQueue + FakeN8N:
+  - CreateReminder encola con delay correcto
+  - scheduledAt pasado => 400
+  - UpdateReminder cancel => cambia status
+  - Reprogramar => actualiza scheduledAt
+  - ProcessReminderJob:
+    - si reminder no pending => no llama a n8n
+    - si n8n ok => sent + notification sent
+    - si n8n error => failed + notification failed
+
+Infrastructure:
+- Prisma schema: models Reminder + Notification (timestamptz).
+- Prisma repositories para Reminder y Notification.
+- BullMQ adapter:
+  - implementación de QueuePort usando Redis + BullMQ.
+- n8n http client adapter:
+  - POST a N8N_REMINDER_WEBHOOK_URL (o base + path)
+  - añade headers de firma HMAC
+- Worker runtime:
+  - crea un entrypoint ejecutable (p.ej. src/infrastructure/queue/reminderWorker.ts)
+  - con un script pnpm: "worker:reminders" que levanta el worker
+  - El worker debe poder correr como proceso separado (node/tsx).
+
+API:
+- src/app/api/reminders/route.ts  (POST)
+- src/app/api/reminders/[id]/route.ts (PATCH)
+- src/app/api/notifications/route.ts (GET)
+- src/app/api/notifications/[id]/read/route.ts (POST)
+- Tests de route handlers (igual estilo que Topics/Entries)
+
+ENV
+Añadir a .env.example (y documentar):
+- REDIS_URL
+- N8N_REMINDER_WEBHOOK_URL
+- N8N_WEBHOOK_SECRET
+
+ENTREGABLES
+- Código + tests pasando
+- Scripts pnpm para:
+  - ejecutar tests
+  - arrancar el worker (pnpm worker:reminders)
+- Comandos Prisma migrate
+- Ejemplos curl:
+  - crear reminder
+  - cancelar reminder
+  - listar notifications
+
+IMPORTANTE
+- Mantén Clean Architecture. La lógica del worker debe estar en Application (ProcessReminderJob) y el runtime en Infrastructure.
+- No tocar UI.
+- Continúa usando getAuthUserId con x-user-id.
+- Si detectas que n8n no está corriendo, el worker debe marcar failed y notificar.
+
+Empieza por tests de Domain, luego tests de Application, luego Infra (Prisma + BullMQ + n8n client), luego API.
+
+
+
+DATOS Y CREDNCIALES DEL BACKEND
+
+N8n: email de gmail y pass Neuraal6
+
+Entorno local completo configurado
+Archivos creados/actualizados:
+Archivo	Acción
+docker-compose.yml	Actualizado con MinIO, minio-init, n8n
+.env	Actualizado con variables de MinIO y n8n
+.env.example	Creado con plantilla completa
+Estado de los servicios:
+Servicio	Puerto	Estado	Función
+neuraal-postgres	5432	✅ healthy	PostgreSQL + pgvector
+neuraal-redis	6379	✅ healthy	BullMQ queues
+neuraal-minio	9000/9001	✅ healthy	S3-compatible storage
+neuraal-n8n	5678	✅ healthy	Workflow automation
+Accesos:
+Servicio	URL	Credenciales
+MinIO Console	http://localhost:9001	minioadmin / minioadmin_password
+n8n UI	http://localhost:5678	neuraal / neuraal_password
+MinIO S3 API	http://localhost:9000	(usa keys del .env)
+Comandos de referencia:
+# Levantar tododocker compose up -d# Ver estadodocker compose ps# Ver logs de un serviciodocker compose logs -f n8ndocker compose logs -f minio# Parar tododocker compose down# Parar y borrar volúmenes (CUIDADO: borra datos)docker compose down -v
+Verificación (comandos probados):
+# A) Postgresdocker exec neuraal-postgres psql -U neuraal -d neuraal -c "SELECT 1;"# B) Redisdocker exec neuraal-redis redis-cli ping# Respuesta: PONG# C) MinIO healthcurl.exe -s http://localhost:9000/minio/health/ready# Respuesta vacía = OK# D) n8ncurl.exe -I http://localhost:5678# Respuesta: HTTP/1.1 200 OK
+Crear workflow de prueba en n8n:
+Abre http://localhost:5678 (login: neuraal / neuraal_password)
+Crea nuevo workflow
+Añade nodo Webhook → Method: POST, Path: neuraal-send-reminder
+Añade nodo Respond to Webhook → Response Code: 200
+Conecta ambos y activa el workflow
+Prueba:
+curl.exe -X POST http://localhost:5678/webhook/neuraal-send-reminder -H "Content-Type: application/json" -d '{\"test\":true}'
+Sobre MinIO (emulación S3):
+MinIO emula la API de AWS S3 al 100%
+El bucket neuraal se crea automáticamente via minio-init
+Policy por defecto: privada (requiere credenciales)
+Para crear buckets manualmente: entra en la consola http://localhost:9001
+Variables en .env:
+# S3/MinIOS3_ENDPOINT="http://localhost:9000"S3_REGION="eu-west-1"S3_BUCKET="neuraal"S3_ACCESS_KEY_ID="minioadmin"S3_SECRET_ACCESS_KEY="minioadmin_password"S3_FORCE_PATH_STYLE="true"# n8nN8N_BASE_URL="http://localhost:5678"N8N_REMINDER_WEBHOOK_URL="http://localhost:5678/webhook/neuraal-send-reminder"N8N_WEBHOOK_SECRET="dev_secret_change_me_in_production"
+
+
+
+
+
+AÑADIR VISUALIZACION DE BULLMQ:
+Quiero añadir una UI sencilla para inspeccionar colas BullMQ (bull-board) en local.
+
+Requisitos:
+- Añadir bull-board como servidor separado en Express (NO dentro de Next).
+- Puerto 3005 por defecto.
+- Ruta /admin/queues.
+- Conectar a REDIS_URL del .env.
+- Registrar la cola "reminders" (BullMQ Queue).
+- Añadir script pnpm: "queue:board" para levantarlo con tsx.
+- Añadir dependencias necesarias (@bull-board/api, @bull-board/express, express, tsx si falta).
+
+Entregable:
+- Archivo src/infrastructure/queue/board.ts
+- package.json actualizado con script
+- Instrucciones:
+  - pnpm queue:board
+  - abrir http://localhost:3005/admin/queues
 

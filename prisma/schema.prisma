@@ -2,7 +2,8 @@
 // https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -21,6 +22,12 @@ model Topic {
   color     String   @db.VarChar(7) // #RRGGBB format
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Embedding fields for auto-topic classification (Slice 6)
+  // pgvector column: managed via raw SQL since Prisma doesn't natively support vector type
+  // embedding         Unsupported("vector(768)")? — stored as SQL column, not in Prisma model
+  embeddingModel    String?   @map("embedding_model") @db.VarChar(100)
+  embeddingUpdatedAt DateTime? @map("embedding_updated_at")
 
   // Ensure unique topic names per user (case-insensitive handled in app layer)
   @@unique([userId, name])

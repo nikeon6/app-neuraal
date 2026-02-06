@@ -40,4 +40,10 @@ export interface EntryRepository {
     summary: string,
     format: SummaryFormat
   ): Promise<void>;
+
+  /**
+   * Updates the topicId of an entry.
+   * Used by auto-topic assignment.
+   */
+  updateTopic(entryId: string, topicId: string | null): Promise<void>;
 }
