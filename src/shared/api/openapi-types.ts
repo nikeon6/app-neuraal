@@ -333,7 +333,9 @@ export interface components {
             type: "task" | "note";
             title: string;
             /** @description TipTap/ProseMirror JSON content */
-            content: Record<string, never>;
+            content: {
+                [key: string]: unknown;
+            };
             topicId?: string | null;
             /** @description null for notes */
             completed?: boolean | null;
@@ -644,7 +646,9 @@ export interface operations {
                     /** @enum {string} */
                     type: "task" | "note";
                     title: string;
-                    content: Record<string, never>;
+                    content: {
+                        [key: string]: unknown;
+                    };
                     topicId?: string | null;
                     completed?: boolean;
                 };
@@ -706,9 +710,16 @@ export interface operations {
                     /** @description Current version for optimistic concurrency */
                     version?: number;
                     title?: string;
-                    content?: Record<string, never>;
+                    content?: {
+                        [key: string]: unknown;
+                    };
                     topicId?: string | null;
                     completed?: boolean;
+                    /**
+                     * @description Change entry type
+                     * @enum {string}
+                     */
+                    type?: "task" | "note";
                 };
             };
         };

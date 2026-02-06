@@ -40,6 +40,7 @@ export async function PATCH(
     content?: Record<string, unknown>;
     topicId?: string | null;
     completed?: boolean;
+    type?: "task" | "note";
   };
   try {
     body = await request.json();
@@ -50,7 +51,7 @@ export async function PATCH(
     );
   }
 
-  const { version, title, content, topicId, completed } = body;
+  const { version, title, content, topicId, completed, type } = body;
 
   // Execute use case
   const repository = new PrismaEntryRepository();
@@ -63,6 +64,7 @@ export async function PATCH(
     content,
     topicId,
     completed,
+    type,
   });
 
   if (result.isErr()) {

@@ -43,7 +43,8 @@ export class UpdateEntry {
       input.title !== undefined ||
       input.content !== undefined ||
       input.topicId !== undefined ||
-      input.completed !== undefined;
+      input.completed !== undefined ||
+      input.type !== undefined;
 
     if (!hasUpdate) {
       return err(validationError("Must provide at least one field to update"));
@@ -75,6 +76,7 @@ export class UpdateEntry {
       content: input.content,
       topicId: input.topicId,
       completed: input.completed,
+      type: input.type,
     });
 
     if (updateResult.isErr()) {

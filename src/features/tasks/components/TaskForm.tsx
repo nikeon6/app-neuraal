@@ -2,23 +2,44 @@
 
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { useStore } from "@/shared/store";
-import { type DefaultTopicId } from "@/shared/types";
-import { TOPICS, TOPIC_IDS, DAYS } from "@/shared/constants";
+import { useStore, selectDateKey } from "@/shared/store";
 
+/**
+ * TaskForm — Quick-add form for creating new entries via the API.
+ *
+ * Uses API topics from the store instead of hardcoded constants.
+ */
 export function TaskForm() {
-  const { selectedDay, setSelectedDay, addTask } = useStore();
+  const dateKey = useStore(selectDateKey);
+  const apiCreateEntry = useStore((s) => s.apiCreateEntry);
+  const topics = useStore((s) => s.topics);
+
   const [newTitle, setNewTitle] = useState("");
-  const [newTopic, setNewTopic] = useState<DefaultTopicId>("work");
+  const [newTopicId, setNewTopicId] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newTitle.trim()) return;
-      addTask(selectedDay, newTitle, newTopic);
-      setNewTitle("");
+      if (!newTitle.trim() || isSubmitting) return;
+
+      setIsSubmitting(true);
+      try {
+        await apiCreateEntry({
+          date: dateKey,
+          type: "task",
+          title: newTitle.trim(),
+          content: {} as Record<string, never>,
+          topicId: newTopicId || null,
+        });
+        setNewTitle("");
+      } catch (err) {
+        console.error("Failed to create entry:", err);
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [selectedDay, newTitle, newTopic, addTask]
+    [dateKey, newTitle, newTopicId, apiCreateEntry, isSubmitting]
   );
 
   return (
@@ -28,30 +49,17 @@ export function TaskForm() {
       </h3>
 
       <div className="task-form-row">
-        <label htmlFor="day-select">Day</label>
-        <select
-          id="day-select"
-          value={selectedDay}
-          onChange={(e) => setSelectedDay(Number(e.target.value))}
-          className="w-20"
-        >
-          {DAYS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-
         <label htmlFor="topic-select">Topic</label>
         <select
           id="topic-select"
-          value={newTopic}
-          onChange={(e) => setNewTopic(e.target.value as DefaultTopicId)}
+          value={newTopicId}
+          onChange={(e) => setNewTopicId(e.target.value)}
           className="w-28"
         >
-          {TOPIC_IDS.map((id) => (
-            <option key={id} value={id}>
-              {TOPICS[id].name}
+          <option value="">No topic</option>
+          {topics.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>
@@ -68,11 +76,11 @@ export function TaskForm() {
 
         <button
           type="submit"
-          disabled={!newTitle.trim()}
+          disabled={!newTitle.trim() || isSubmitting}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-xl flex items-center gap-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
         >
           <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Add</span>
+          <span className="hidden sm:inline">{isSubmitting ? "..." : "Add"}</span>
         </button>
       </div>
     </form>

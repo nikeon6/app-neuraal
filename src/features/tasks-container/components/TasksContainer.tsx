@@ -3,10 +3,9 @@
 import React, { useCallback, useRef, useMemo, memo } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
-import { useStore } from "@/shared/store";
+import { useStore, selectDateKey, selectCurrentEntries } from "@/shared/store";
 import { TaskEditor } from "@/features/task-editor";
-import type { LegacyTask, DefaultTopicId } from "@/shared/types";
-import { isDefaultTopicId } from "@/shared/lib";
+import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
 
 // Import scrollbar styles (moved to CSS file for better performance)
@@ -18,18 +17,11 @@ import "../styles/scrollbar.css";
 /**
  * WHY THIS REFACTOR IS FASTER:
  *
- * BEFORE (HTML5 Drag & Drop):
- * - onDragOver fired 60+ times/second, each calling setState → massive re-renders
- * - AnimatePresence on each item created/destroyed DOM nodes constantly
- * - setInterval for auto-scroll was recreated on every dragOver event
- * - Every pixel of movement triggered React reconciliation
- *
- * AFTER (Framer Motion Reorder):
  * - Reorder.Group handles drag internally with motion values (no React state per-pixel)
  * - Items animate via transforms (GPU-accelerated, no layout thrashing)
  * - Only onReorder callback fires when order actually changes
  * - RAF-based auto-scroll runs independently of React render cycle
- * - TaskEditorWrapper is memoized - only re-renders if task data changes
+ * - TaskEditorWrapper is memoized - only re-renders if entry data changes
  * - Store is updated ONCE on drag end, not during drag
  */
 
@@ -37,7 +29,7 @@ import "../styles/scrollbar.css";
 // TaskEditorWrapper Component (Memoized for performance)
 // ============================================================================
 interface TaskEditorWrapperProps {
-  task: LegacyTask;
+  entry: ApiEntry;
   dragControls: ReturnType<typeof useDragControls>;
   onExpand: (element: HTMLDivElement) => void;
   isDragDisabled: boolean;
@@ -45,10 +37,10 @@ interface TaskEditorWrapperProps {
 
 /**
  * Memoized wrapper for TaskEditor with drag handle.
- * Only re-renders when task data actually changes.
+ * Only re-renders when entry data actually changes.
  */
 const TaskEditorWrapper = memo(function TaskEditorWrapper({
-  task,
+  entry,
   dragControls,
   onExpand,
   isDragDisabled,
@@ -79,10 +71,7 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
 
   return (
     <div ref={wrapperRef} className="relative" onClick={handleEditorClick}>
-      {/* Drag Handle - positioned on the left
-          Desktop: hidden by default, visible on hover
-          Mobile/touch: always visible (no hover on touch devices)
-          Uses @media(hover:none) and @media(pointer:coarse) for touch detection */}
+      {/* Drag Handle */}
       <button
         type="button"
         data-testid="drag-handle"
@@ -106,13 +95,9 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
         <GripVertical className="w-5 h-5" />
       </button>
 
-      {/* TaskEditor - props are stable, won't cause re-render */}
+      {/* TaskEditor */}
       <TaskEditor
-        entryId={task.id}
-        initialTitle={task.title}
-        initialTopic={isDefaultTopicId(task.topicId) ? task.topicId : "auto"}
-        initialEntryType="task"
-        initialCompleted={task.completed}
+        entry={entry}
       />
     </div>
   );
@@ -122,19 +107,15 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
 // ReorderableTaskItem Component
 // ============================================================================
 interface ReorderableTaskItemProps {
-  task: LegacyTask;
+  entry: ApiEntry;
   onExpand: (element: HTMLDivElement) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
   updatePointerY: (y: number) => void;
 }
 
-/**
- * Individual reorderable task item using Framer Motion's Reorder.Item.
- * Handles its own drag controls for handle-only dragging.
- */
 function ReorderableTaskItem({
-  task,
+  entry,
   onExpand,
   onDragStart,
   onDragEnd,
@@ -162,16 +143,15 @@ function ReorderableTaskItem({
 
   return (
     <Reorder.Item
-      value={task.id}
-      data-testid={`task-editor-wrapper-${task.id}`}
-      data-completed={task.completed ? "true" : "false"}
+      value={entry.id}
+      data-testid={`task-editor-wrapper-${entry.id}`}
+      data-completed={entry.completed ? "true" : "false"}
       role="listitem"
       dragListener={false}
       dragControls={dragControls}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDrag={handleDrag}
-      // Smooth spring animation for reordering
       layout
       initial={false}
       animate={{ opacity: 1, scale: 1 }}
@@ -191,7 +171,7 @@ function ReorderableTaskItem({
       className="group relative"
     >
       <TaskEditorWrapper
-        task={task}
+        entry={entry}
         dragControls={dragControls}
         onExpand={onExpand}
         isDragDisabled={false}
@@ -204,40 +184,30 @@ function ReorderableTaskItem({
 // TasksContainer Component
 // ============================================================================
 
-/**
- * TasksContainer - High-performance container for TaskEditors with drag reordering.
- *
- * Features:
- * - 60fps smooth drag reordering via Framer Motion Reorder
- * - Handle-only dragging (GripVertical icon)
- * - Auto-scroll when dragging near container edges (RAF-based)
- * - Persists order to store only on drag end (not during drag)
- * - Memoized TaskEditors prevent unnecessary re-renders
- * - Auto-scroll when TaskEditor expands at bottom
- *
- * @component
- */
 export function TasksContainer() {
-  const selectedDay = useStore((s) => s.selectedDay);
-  const tasksByDay = useStore((s) => s.tasksByDay);
-  const addTask = useStore((s) => s.addTask);
-  const reorderTasks = useStore((s) => s.reorderTasks);
+  const dateKey = useStore(selectDateKey);
+  const entries = useStore(selectCurrentEntries);
+  const loadingDates = useStore((s) => s.loadingDates);
+  const apiCreateEntry = useStore((s) => s.apiCreateEntry);
+  const topics = useStore((s) => s.topics);
 
-  // Get tasks for selected day
-  const tasks = tasksByDay[selectedDay] || [];
+  const isLoading = loadingDates.includes(dateKey);
 
-  // Create a map for quick task lookup by ID
-  const taskMap = useMemo(() => {
-    const map = new Map<string, LegacyTask>();
-    tasks.forEach((t) => map.set(t.id, t));
+  // Create a map for quick entry lookup by ID
+  const entryMap = useMemo(() => {
+    const map = new Map<string, ApiEntry>();
+    entries.forEach((e) => map.set(e.id, e));
     return map;
-  }, [tasks]);
+  }, [entries]);
 
-  // Ordered task IDs with sync to store
+  // Ordered entry IDs with local drag state
   const { orderedIds, setOrderedIds, commitOrder } = useOrderedTaskIds({
-    tasks,
-    selectedDay,
-    onReorder: reorderTasks,
+    tasks: entries,
+    selectedDay: dateKey,
+    onReorder: () => {
+      // TODO: Implement server-side reorder if needed.
+      // For now, reorder is local-only during a session.
+    },
   });
 
   // Auto-scroll during drag
@@ -251,26 +221,31 @@ export function TasksContainer() {
     maxScrollSpeed: 12,
   });
 
-  // Dragging state ref (not React state - no re-renders needed)
   const isDraggingRef = useRef(false);
 
-  // Handle drag start
   const handleDragStart = useCallback(() => {
     isDraggingRef.current = true;
     startAutoScroll();
   }, [startAutoScroll]);
 
-  // Handle drag end - commit order to store
   const handleDragEnd = useCallback(() => {
     isDraggingRef.current = false;
     stopAutoScroll();
-    // Persist to store only on drag end
     commitOrder();
   }, [stopAutoScroll, commitOrder]);
 
-  // Handle add new task
-  const handleAddTask = useCallback(() => {
-    addTask(selectedDay, "Nueva tarea", "work" as DefaultTopicId);
+  // Handle add new entry
+  const handleAddTask = useCallback(async () => {
+    // Pick the first topic if available, otherwise no topic
+    const defaultTopicId = topics.length > 0 ? topics[0].id : undefined;
+
+    await apiCreateEntry({
+      date: dateKey,
+      type: "task",
+      title: "New task",
+      content: {} as Record<string, never>,
+      topicId: defaultTopicId ?? null,
+    });
 
     // Auto-scroll to bottom after adding
     setTimeout(() => {
@@ -281,10 +256,9 @@ export function TasksContainer() {
         });
       }
     }, 100);
-  }, [selectedDay, addTask, containerRef]);
+  }, [dateKey, apiCreateEntry, topics, containerRef]);
 
   // Handle TaskEditor expansion - auto-scroll to show expanded content
-  // Skip if currently dragging to avoid conflicts
   const handleTaskExpand = useCallback(
     (element: HTMLDivElement) => {
       if (isDraggingRef.current) return;
@@ -313,8 +287,23 @@ export function TasksContainer() {
     [containerRef]
   );
 
+  // Loading state
+  if (isLoading && entries.length === 0) {
+    return (
+      <div
+        data-testid="tasks-container"
+        role="list"
+        className="flex flex-col h-full w-full pl-10"
+      >
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-white/40 text-sm animate-pulse">Loading entries...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Empty state
-  if (tasks.length === 0) {
+  if (entries.length === 0) {
     return (
       <div
         data-testid="tasks-container"
@@ -330,9 +319,9 @@ export function TasksContainer() {
             data-testid="tasks-empty-state"
             className="flex flex-col items-start py-8"
           >
-            <p className="text-lg text-white/60">No hay tareas para este día</p>
+            <p className="text-lg text-white/60">No entries for this day</p>
             <p className="text-sm text-white/40 mt-1">
-              Haz clic en el botón para añadir una
+              Click the button below to add one
             </p>
           </div>
         </div>
@@ -350,7 +339,7 @@ export function TasksContainer() {
           "
         >
           <Plus className="w-5 h-5" />
-          <span className="text-sm font-medium">Añadir tarea</span>
+          <span className="text-sm font-medium">Add entry</span>
         </button>
       </div>
     );
@@ -362,7 +351,7 @@ export function TasksContainer() {
       role="list"
       className="flex flex-col h-full w-full"
     >
-      {/* Scrollable TaskEditor List with Reorder */}
+      {/* Scrollable Entry List with Reorder */}
       <Reorder.Group
         ref={containerRef as React.RefObject<HTMLUListElement>}
         axis="y"
@@ -372,14 +361,14 @@ export function TasksContainer() {
         className="flex-1 overflow-y-auto space-y-4 pr-4 pl-10 tasks-scrollbar"
         layoutScroll
       >
-        {orderedIds.map((taskId) => {
-          const task = taskMap.get(taskId);
-          if (!task) return null;
+        {orderedIds.map((entryId) => {
+          const entry = entryMap.get(entryId);
+          if (!entry) return null;
 
           return (
             <ReorderableTaskItem
-              key={task.id}
-              task={task}
+              key={entry.id}
+              entry={entry}
               onExpand={handleTaskExpand}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
@@ -389,7 +378,7 @@ export function TasksContainer() {
         })}
       </Reorder.Group>
 
-      {/* Add Task Button - Centered circle with + */}
+      {/* Add Entry Button */}
       <div className="flex justify-center mt-4 mb-2 flex-shrink-0">
         <button
           type="button"

@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar, Bell, LayoutGrid, StickyNote, Users, Settings } from "lucide-react";
 import { useStore, type DashboardSection } from "@/shared/store";
+import { useTopics, useEntries } from "@/shared/hooks";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
@@ -73,6 +74,10 @@ export function Dashboard() {
     dashboardSection,
     setDashboardSection,
   } = useStore();
+
+  // Load topics and entries from the API
+  useTopics();
+  useEntries();
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { LegacyTask } from "@/shared/types";
 
 /**
  * Hook to manage ordered task IDs with sync to store.
@@ -12,9 +11,12 @@ import type { LegacyTask } from "@/shared/types";
  */
 
 interface UseOrderedTaskIdsOptions {
-  tasks: LegacyTask[];
-  selectedDay: number;
-  onReorder: (day: number, newOrder: string[]) => void;
+  /** Array of items with at least an `id` field (ApiEntry, LegacyTask, etc.). */
+  tasks: ReadonlyArray<{ id: string }>;
+  /** Key that changes when the list context changes (e.g. dateKey or day number). */
+  selectedDay: number | string;
+  /** Called with the new ID order when committed (drag end). */
+  onReorder: (day: number | string, newOrder: string[]) => void;
 }
 
 interface UseOrderedTaskIdsReturn {
@@ -42,7 +44,7 @@ export function useOrderedTaskIds({
   const originalOrderRef = useRef<string[]>(tasks.map((t) => t.id));
   
   // Track selected day to detect day changes
-  const prevSelectedDayRef = useRef<number>(selectedDay);
+  const prevSelectedDayRef = useRef<number | string>(selectedDay);
 
   // Sync with store when tasks or day changes
   useEffect(() => {

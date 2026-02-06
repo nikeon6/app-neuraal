@@ -9,13 +9,20 @@ import React, {
   useEffect,
 } from "react";
 import { useStore } from "@/shared/store";
-import type { DefaultTopicId } from "@/shared/types";
 import type {
   TopicNodeCenter,
   TaskCenter,
 } from "@/features/topics/types";
-import { TOPICS, TOPIC_IDS } from "@/shared/constants";
-import { clamp, median, quadPath, isDefaultTopicId, cn } from "@/shared/lib";
+import { clamp, median, quadPath, cn } from "@/shared/lib";
+// Default anchor positions for topic bubbles (cycled for > 6 topics)
+const DEFAULT_ANCHORS = [
+  { xPct: 0.2, yPct: 0.25 },
+  { xPct: 0.35, yPct: 0.4 },
+  { xPct: 0.5, yPct: 0.55 },
+  { xPct: 0.25, yPct: 0.65 },
+  { xPct: 0.65, yPct: 0.35 },
+  { xPct: 0.45, yPct: 0.7 },
+] as const;
 
 // ============================================================================
 // Configuration Constants
@@ -47,8 +54,8 @@ function applyMinTrunkHysteresis(
   nodeX: number,
   xMin: number,
   xMax: number,
-  pushDirRef: { current: Partial<Record<DefaultTopicId, 1 | -1>> },
-  topicId: DefaultTopicId
+  pushDirRef: { current: Partial<Record<string, 1 | -1>> },
+  topicId: string
 ): number {
   const dist = Math.abs(desiredX - nodeX);
   if (dist >= MIN_TRUNK) return clamp(desiredX, xMin, xMax);
@@ -76,7 +83,7 @@ interface FloatingTopicsProps {
 }
 
 interface DragState {
-  id: DefaultTopicId;
+  id: string;
   pointerId: number;
   offsetX: number;
   offsetY: number;
@@ -100,7 +107,8 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // ---------------------------------------------------------------------------
   // Store selectors (optimized - only subscribe to what we need)
   // ---------------------------------------------------------------------------
-  const tasksByDay = useStore((s) => s.tasksByDay);
+  const entriesByDate = useStore((s) => s.entriesByDate);
+  const topics = useStore((s) => s.topics);
   const topicPositions = useStore((s) => s.topicPositions);
   const setTopicPosition = useStore((s) => s.setTopicPosition);
   const highlightedTopic = useStore((s) => s.highlightedTopic);
@@ -108,7 +116,18 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // Multi-selection support
   const selectedTopicIds = useStore((s) => s.selectedTopicIds);
   const toggleTopicSelection = useStore((s) => s.toggleTopicSelection);
-  const clearSelection = useStore((s) => s.clearSelection);
+  const _clearSelection = useStore((s) => s.clearSelection);
+
+  // Build a lookup from API topics (equivalent to old TOPICS constant)
+  const topicIdSet = useMemo(() => new Set(topics.map((t) => t.id)), [topics]);
+  const topicMap = useMemo(() => {
+    const map: Record<string, { name: string; color: string }> = {};
+    for (const t of topics) {
+      map[t.id] = { name: t.name, color: t.color };
+    }
+    return map;
+  }, [topics]);
+  const topicIds = useMemo(() => topics.map((t) => t.id), [topics]);
 
   // ---------------------------------------------------------------------------
   // State (minimal - only what triggers necessary re-renders)
@@ -133,10 +152,10 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   
   // Visual position of nodes (includes drag position)
   // This is the "source of truth" for rendering during drag
-  const nodePosRef = useRef<Record<DefaultTopicId, NodePosition>>({} as Record<DefaultTopicId, NodePosition>);
+  const nodePosRef = useRef<Record<string, NodePosition>>({} as Record<string, NodePosition>);
   
   // DOM element refs for direct manipulation
-  const nodeElRef = useRef<Record<DefaultTopicId, HTMLButtonElement | null>>({} as Record<DefaultTopicId, HTMLButtonElement | null>);
+  const nodeElRef = useRef<Record<string, HTMLButtonElement | null>>({} as Record<string, HTMLButtonElement | null>);
   
   // SVG path refs for imperative "d" updates
   const pathElRef = useRef<Record<string, SVGPathElement | null>>({});
@@ -146,9 +165,9 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   const haloElRef = useRef<Record<string, SVGCircleElement | null>>({});
   
   // Junction positions (current and target) - never triggers re-render
-  const junctionRef = useRef<Partial<Record<DefaultTopicId, { x: number; y: number }>>>({});
-  const junctionTargetRef = useRef<Partial<Record<DefaultTopicId, { y: number }>>>({});
-  const junctionTargetXRef = useRef<Partial<Record<DefaultTopicId, { x: number }>>>({});
+  const junctionRef = useRef<Partial<Record<string, { x: number; y: number }>>>({});
+  const junctionTargetRef = useRef<Partial<Record<string, { y: number }>>>({});
+  const junctionTargetXRef = useRef<Partial<Record<string, { x: number }>>>({});
   
   // Drag state
   const dragRef = useRef<DragState | null>(null);
@@ -169,37 +188,38 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   
   // Cached median Y per topic - avoids expensive scans during drag
   // Updated only when wireStructure/taskCenters change, NOT per frame
-  const topicMedianYRef = useRef<Partial<Record<DefaultTopicId, number>>>({});
+  const topicMedianYRef = useRef<Partial<Record<string, number>>>({});
   
   // Persistent push direction per topic (for minTrunk logic in stack mode)
   // Prevents snap/discontinuity when crossing the center of the lane
-  const pushDirRef = useRef<Partial<Record<DefaultTopicId, 1 | -1>>>({});
+  const pushDirRef = useRef<Partial<Record<string, 1 | -1>>>({});
 
   // ---------------------------------------------------------------------------
   // Derived data (memoized)
   // ---------------------------------------------------------------------------
-  const flatTasks = useMemo(
-    () => Object.values(tasksByDay).flat().filter((t) => isDefaultTopicId(t.topicId)),
-    [tasksByDay]
+  // Flatten all entries across dates, keeping only those with a known topic
+  const flatEntries = useMemo(
+    () => Object.values(entriesByDate).flat().filter((e) => e.topicId && topicIdSet.has(e.topicId)),
+    [entriesByDate, topicIdSet]
   );
 
   const topicCounts = useMemo(() => {
-    const counts: Partial<Record<DefaultTopicId, number>> = {};
-    for (const t of flatTasks) {
-      if (isDefaultTopicId(t.topicId)) {
-        counts[t.topicId] = (counts[t.topicId] || 0) + 1;
+    const counts: Record<string, number> = {};
+    for (const e of flatEntries) {
+      if (e.topicId) {
+        counts[e.topicId] = (counts[e.topicId] || 0) + 1;
       }
     }
-    return counts as Record<DefaultTopicId, number>;
-  }, [flatTasks]);
+    return counts;
+  }, [flatEntries]);
 
   const activeTopics = useMemo(() => {
-    return TOPIC_IDS.filter((id) => topicCounts[id] > 0);
-  }, [topicCounts]);
+    return topicIds.filter((id) => (topicCounts[id] ?? 0) > 0);
+  }, [topicIds, topicCounts]);
 
   // Base topic centers (from store positions + defaults)
   // This is used for initial render and as base for drag
-  const baseTopicCenters = useMemo((): Partial<Record<DefaultTopicId, TopicNodeCenter>> => {
+  const baseTopicCenters = useMemo((): Partial<Record<string, TopicNodeCenter>> => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     const margin = 20;
 
@@ -215,15 +235,17 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     const areaTop = hasLane ? boardSize.laneTop : margin;
     const areaH = hasLane ? boardSize.laneH : Math.max(1, boardSize.h - margin * 2);
 
-    const centers: Partial<Record<DefaultTopicId, TopicNodeCenter>> = {};
+    const centers: Partial<Record<string, TopicNodeCenter>> = {};
 
-    for (const id of activeTopics) {
-      const count = topicCounts[id];
+    for (let idx = 0; idx < activeTopics.length; idx++) {
+      const id = activeTopics[idx];
+      const count = topicCounts[id] ?? 0;
       // Scale radius down in mobile stack mode for smaller bubbles
       const baseR = Math.min(65, 20 + count * 8);
       const r = isStackLayout ? baseR * NODE_SCALE_STACK : baseR;
 
-      const anchor = TOPICS[id].anchor;
+      // Cycle through default anchors for positioning
+      const anchor = DEFAULT_ANCHORS[idx % DEFAULT_ANCHORS.length];
       const defX = areaX + anchor.xPct * areaW;
       const defY = areaTop + anchor.yPct * areaH;
 
@@ -489,7 +511,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   useEffect(() => {
     const timeout = setTimeout(scheduleRecalc, 100);
     return () => clearTimeout(timeout);
-  }, [tasksByDay, scheduleRecalc]);
+  }, [entriesByDate, scheduleRecalc]);
 
   // Recalc when selection changes (task pills appear/disappear in panel)
   useEffect(() => {
@@ -506,38 +528,32 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // MODE: Selected (multi-select) - selected topics use wires to individual tasks in panel
   // ---------------------------------------------------------------------------
   const wireStructure = useMemo(() => {
-    // Helper: collect visible task IDs for a topic (for selected mode - tasks in panel)
-    const getTaskIdsForTopic = (topicId: DefaultTopicId): string[] => {
+    // Helper: collect visible entry IDs for a topic (for selected mode)
+    const getEntryIdsForTopic = (topicId: string): string[] => {
       const ids: string[] = [];
-      const allTasks = Object.values(tasksByDay).flat();
-      for (const t of allTasks) {
-        if (t.topicId === topicId && TOPICS[t.topicId] && taskCenters[t.id]) {
-          ids.push(t.id);
+      const allEntries = Object.values(entriesByDate).flat();
+      for (const e of allEntries) {
+        if (e.topicId === topicId && topicIdSet.has(e.topicId) && taskCenters[e.id]) {
+          ids.push(e.id);
         }
       }
       return ids;
     };
 
     // Helper: collect visible day keys for a topic (for collapsed mode)
-    const getDayKeysForTopic = (topicId: DefaultTopicId): string[] => {
+    const getDayKeysForTopic = (topicId: string): string[] => {
       const dayKeys: string[] = [];
-      const seenDays = new Set<number>();
-      
-      for (const [dayStr, tasks] of Object.entries(tasksByDay)) {
-        const dayNumber = Number.parseInt(dayStr, 10);
-        if (seenDays.has(dayNumber)) continue;
-        
-        // Check if this day has tasks for this topic
-        const hasTopicTask = tasks.some((t) => t.topicId === topicId);
-        if (!hasTopicTask) continue;
+      const seen = new Set<string>();
 
-        // Find the dateKey for this dayNumber in dayCenters
-        for (const [dateKey, center] of Object.entries(dayCenters)) {
-          if (center.dayNumber === dayNumber) {
-            dayKeys.push(dateKey);
-            seenDays.add(dayNumber);
-            break;
-          }
+      for (const [dateKey, entries] of Object.entries(entriesByDate)) {
+        if (seen.has(dateKey)) continue;
+        const hasEntry = entries.some((e) => e.topicId === topicId);
+        if (!hasEntry) continue;
+
+        // Only include days that have a measured center
+        if (dayCenters[dateKey]) {
+          dayKeys.push(dateKey);
+          seen.add(dateKey);
         }
       }
       return dayKeys;
@@ -545,51 +561,34 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
 
     return activeTopics
       .map((id) => {
-        // Multi-selection: topic is "selected" if in selectedTopicIds array
+        const color = topicMap[id]?.color ?? "#6b7280";
         const isSelected = selectedTopicIds.includes(id);
         
         if (isSelected) {
-          // Selected mode: try wire to individual tasks first
-          const taskIds = getTaskIdsForTopic(id);
+          const taskIds = getEntryIdsForTopic(id);
           if (taskIds.length > 0) {
             return { 
               topicId: id, 
-              color: TOPICS[id].color, 
+              color, 
               taskIds, 
               dayKeys: null,
               mode: 'tasks' as const,
               isSingle: taskIds.length === 1 
             };
           }
-          // Fallback to days mode if no visible tasks yet (before render)
           const dayKeys = getDayKeysForTopic(id);
           return dayKeys.length > 0
-            ? { 
-                topicId: id, 
-                color: TOPICS[id].color, 
-                taskIds: null, 
-                dayKeys,
-                mode: 'days' as const,
-                isSingle: dayKeys.length === 1 
-              }
+            ? { topicId: id, color, taskIds: null, dayKeys, mode: 'days' as const, isSingle: dayKeys.length === 1 }
             : null;
         } else {
-          // Collapsed mode: wire to days
           const dayKeys = getDayKeysForTopic(id);
           return dayKeys.length > 0
-            ? { 
-                topicId: id, 
-                color: TOPICS[id].color, 
-                taskIds: null, 
-                dayKeys,
-                mode: 'days' as const,
-                isSingle: dayKeys.length === 1 
-              }
+            ? { topicId: id, color, taskIds: null, dayKeys, mode: 'days' as const, isSingle: dayKeys.length === 1 }
             : null;
         }
       })
       .filter((w): w is NonNullable<typeof w> => w !== null);
-  }, [activeTopics, tasksByDay, taskCenters, dayCenters, selectedTopicIds]);
+  }, [activeTopics, entriesByDate, taskCenters, dayCenters, selectedTopicIds, topicIdSet, topicMap]);
 
   // ---------------------------------------------------------------------------
   // Cache median Y per topic - updated when wireStructure/taskCenters/dayCenters change
@@ -622,7 +621,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // Returns task Ys for expanded topic, day Ys for collapsed topics
   // ---------------------------------------------------------------------------
   const getTargetYsForTopic = useCallback(
-    (topicId: DefaultTopicId): number[] => {
+    (topicId: string): number[] => {
       const wire = wireStructure.find(w => w.topicId === topicId);
       if (!wire) return [];
 
@@ -667,7 +666,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     el.setAttribute("r", String(r));
   };
 
-  const updateWiresForTopic = useCallback((topicId: DefaultTopicId) => {
+  const updateWiresForTopic = useCallback((topicId: string) => {
     const wire = wireStructure.find(w => w.topicId === topicId);
     const node = nodePosRef.current[topicId];
     if (!wire || !node) return;
@@ -773,7 +772,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
     const yMaxLane = boardSize.laneTop + boardSize.laneH - lanePad;
 
     // Helper: get anchor X (median of target Xs) for a topic
-    const getAnchorX = (topicId: DefaultTopicId): number | null => {
+    const getAnchorX = (topicId: string): number | null => {
       const wire = wireStructureRef.current.find(w => w.topicId === topicId);
       if (!wire) return null;
       
@@ -1053,7 +1052,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   // Pointer event handlers
   // ---------------------------------------------------------------------------
   const handlePointerDown = useCallback(
-    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const container = containerRef?.current;
       const node = nodePosRef.current[id];
       if (!container || !node) return;
@@ -1101,7 +1100,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   );
 
   const handlePointerMove = useCallback(
-    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       if (drag?.id !== id || drag?.pointerId !== e.pointerId) return;
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
@@ -1174,7 +1173,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
   );
 
   const handlePointerUp = useCallback(
-    (id: DefaultTopicId) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
       
       if (drag?.id === id && drag?.pointerId === e.pointerId) {
@@ -1359,7 +1358,7 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
             type="button"
             key={id}
             ref={(el) => { nodeElRef.current[id] = el; }}
-            aria-label={`${isSelected ? 'Deseleccionar' : 'Seleccionar'} topic ${TOPICS[id].name}`}
+            aria-label={`${isSelected ? 'Deselect' : 'Select'} topic ${topicMap[id]?.name ?? id}`}
             aria-pressed={isSelected}
             onMouseEnter={() => setHighlightedTopic(id)}
             onMouseLeave={() => setHighlightedTopic(null)}
@@ -1377,14 +1376,14 @@ export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopic
               top: node.y - node.r,
               width: node.r * 2,
               height: node.r * 2,
-              background: TOPICS[id].color,
+              background: topicMap[id]?.color ?? "#6b7280",
               touchAction: "none",
             }}
-            title={`${TOPICS[id].name} (${topicCounts[id]} tareas) - Click para ${isSelected ? 'deseleccionar' : 'seleccionar'}`}
+            title={`${topicMap[id]?.name ?? id} (${topicCounts[id] ?? 0} entries) - Click to ${isSelected ? 'deselect' : 'select'}`}
           >
             <div className="topic-label">
-              <div className="topic-name">{TOPICS[id].name}</div>
-              <div className="topic-count">{topicCounts[id]}</div>
+              <div className="topic-name">{topicMap[id]?.name ?? "?"}</div>
+              <div className="topic-count">{topicCounts[id] ?? 0}</div>
             </div>
           </button>
         );

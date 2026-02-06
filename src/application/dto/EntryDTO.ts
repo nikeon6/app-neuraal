@@ -38,4 +38,5 @@ export interface UpdateEntryDTO {
   content?: Record<string, unknown>;
   topicId?: string | null;
   completed?: boolean;
+  type?: "task" | "note";
 }

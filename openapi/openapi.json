@@ -154,6 +154,7 @@
           },
           "content": {
             "type": "object",
+            "additionalProperties": true,
             "description": "TipTap/ProseMirror JSON content"
           },
           "topicId": {
@@ -788,7 +789,8 @@
                     "maxLength": 120
                   },
                   "content": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                   },
                   "topicId": {
                     "type": [
@@ -861,7 +863,8 @@
                     "maxLength": 120
                   },
                   "content": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                   },
                   "topicId": {
                     "type": [
@@ -871,6 +874,14 @@
                   },
                   "completed": {
                     "type": "boolean"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "task",
+                      "note"
+                    ],
+                    "description": "Change entry type"
                   }
                 }
               }

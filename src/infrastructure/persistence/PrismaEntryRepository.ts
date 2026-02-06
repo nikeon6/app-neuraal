@@ -81,6 +81,7 @@ export class PrismaEntryRepository implements EntryRepository {
     await prisma.entry.update({
       where: { id: entry.id },
       data: {
+        type: entry.type.toString(),
         title: entry.title.toString(),
         content: entry.content.toJSON(),
         topicId: entry.topicId,

@@ -29,6 +29,8 @@ export interface EntryUpdateProps {
   content?: Record<string, unknown>;
   topicId?: string | null;
   completed?: boolean;
+  /** Change entry type between "task" and "note". */
+  type?: "task" | "note";
 }
 
 /**
@@ -220,13 +222,22 @@ export class Entry {
     const newTopicId =
       updates.topicId !== undefined ? updates.topicId : this.topicId;
 
-    // Handle completed
-    let newCompleted = this.completed;
-    if (updates.completed !== undefined) {
-      // Business rule: notes cannot have completed set
-      if (this.type.isNote()) {
-        return err("completed field cannot be set for notes");
+    // Handle type change
+    let newType = this.type;
+    if (updates.type !== undefined) {
+      const typeResult = EntryType.create(updates.type);
+      if (typeResult.isErr()) {
+        return err(typeResult.error);
       }
+      newType = typeResult.value;
+    }
+
+    // Handle completed — check against the NEW type (not the old one)
+    let newCompleted = this.completed;
+    if (newType.isNote()) {
+      // Business rule: notes never have completed set — reset to null
+      newCompleted = null;
+    } else if (updates.completed !== undefined) {
       newCompleted = updates.completed;
     }
 
@@ -235,7 +246,7 @@ export class Entry {
         this.id,
         this.userId,
         this.date,
-        this.type,
+        newType,
         newTitle,
         newContent,
         newTopicId,

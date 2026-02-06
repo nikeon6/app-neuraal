@@ -292,12 +292,41 @@ describe("Entry", () => {
       }
     });
 
-    it("should reject completed update on note", () => {
+    it("should ignore completed update on note (reset to null)", () => {
       const result = Entry.create(validNoteProps);
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const updateResult = result.value.withUpdates({ completed: true });
-        expect(updateResult.isErr()).toBe(true);
+        // Notes silently reset completed to null (not an error)
+        expect(updateResult.isOk()).toBe(true);
+        if (updateResult.isOk()) {
+          expect(updateResult.value.completed).toBeNull();
+        }
+      }
+    });
+
+    it("should allow changing type from task to note (resets completed)", () => {
+      const result = Entry.create(validTaskProps);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const updateResult = result.value.withUpdates({ type: "note" });
+        expect(updateResult.isOk()).toBe(true);
+        if (updateResult.isOk()) {
+          expect(updateResult.value.type.toString()).toBe("note");
+          expect(updateResult.value.completed).toBeNull();
+        }
+      }
+    });
+
+    it("should allow changing type from note to task", () => {
+      const result = Entry.create(validNoteProps);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const updateResult = result.value.withUpdates({ type: "task" });
+        expect(updateResult.isOk()).toBe(true);
+        if (updateResult.isOk()) {
+          expect(updateResult.value.type.toString()).toBe("task");
+        }
       }
     });
 
