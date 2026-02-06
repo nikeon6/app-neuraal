@@ -9,3 +9,9 @@ export {
   useEntriesForDates,
   entriesQueryKey,
 } from "./entries";
+export {
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
+  notificationsQueryKey,
+  getUnreadCount,
+} from "./notifications";

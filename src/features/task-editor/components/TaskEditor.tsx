@@ -24,11 +24,12 @@ import { useStore, selectDateKey } from "@/shared/store";
 import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery, entriesQueryKey } from "@/shared/api/queries";
-import { updateEntryAndInvalidate, deleteEntryAndInvalidate } from "@/shared/api/mutations";
+import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
 import * as entriesSdk from "@/shared/api/sdk/entries";
 import { ApiError } from "@/shared/api/apiClient";
 import { cn } from "@/shared/lib";
 import { ConfirmDialog } from "@/shared/ui";
+import { ReminderDialog } from "./ReminderDialog";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
@@ -282,6 +283,95 @@ export function TaskEditor({
     setIsDeleteDialogOpen(false);
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Summarize (async — result arrives via Notifications)
+  // ---------------------------------------------------------------------------
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const handleSummarize = useCallback(async () => {
+    if (isSummarizing) return;
+    setIsSummarizing(true);
+    try {
+      await summarizeEntryAndInvalidate(queryClient, entry.id);
+      // Summary is async (202). The result will arrive via notifications.
+      console.info("[TaskEditor] Summary requested. Check notifications for progress.");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        if (error.status === 404) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          onClose?.();
+        } else {
+          console.error("[TaskEditor] summarize failed:", error);
+        }
+      } else {
+        console.error("[TaskEditor] summarize failed:", error);
+      }
+    } finally {
+      setIsSummarizing(false);
+    }
+  }, [isSummarizing, queryClient, entry.id, dateKey, onClose]);
+
+  // ---------------------------------------------------------------------------
+  // Reminders (create / reschedule / cancel)
+  // ---------------------------------------------------------------------------
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [activeReminderId, setActiveReminderId] = useState<string | null>(null);
+  const [isReminderSaving, setIsReminderSaving] = useState(false);
+
+  const handleCreateReminder = useCallback(
+    async (scheduledAt: string, channel: "whatsapp" | "email" | "push" | "sms", message?: string) => {
+      setIsReminderSaving(true);
+      try {
+        const reminder = await createReminderAndInvalidate(queryClient, {
+          entryId: entry.id,
+          scheduledAt,
+          channel,
+          message: message ?? null,
+        });
+        setActiveReminderId(reminder.id);
+        setIsReminderDialogOpen(false);
+        console.info("[TaskEditor] Reminder scheduled:", reminder.id);
+      } catch (error) {
+        console.error("[TaskEditor] create reminder failed:", error);
+      } finally {
+        setIsReminderSaving(false);
+      }
+    },
+    [queryClient, entry.id]
+  );
+
+  const handleRescheduleReminder = useCallback(
+    async (scheduledAt: string) => {
+      if (!activeReminderId) return;
+      setIsReminderSaving(true);
+      try {
+        await updateReminderAndInvalidate(queryClient, activeReminderId, { scheduledAt });
+        setIsReminderDialogOpen(false);
+        console.info("[TaskEditor] Reminder rescheduled.");
+      } catch (error) {
+        console.error("[TaskEditor] reschedule reminder failed:", error);
+      } finally {
+        setIsReminderSaving(false);
+      }
+    },
+    [queryClient, activeReminderId]
+  );
+
+  const handleCancelReminder = useCallback(async () => {
+    if (!activeReminderId) return;
+    setIsReminderSaving(true);
+    try {
+      await updateReminderAndInvalidate(queryClient, activeReminderId, { status: "canceled" });
+      setActiveReminderId(null);
+      setIsReminderDialogOpen(false);
+      console.info("[TaskEditor] Reminder canceled.");
+    } catch (error) {
+      console.error("[TaskEditor] cancel reminder failed:", error);
+    } finally {
+      setIsReminderSaving(false);
+    }
+  }, [queryClient, activeReminderId]);
+
   const handleEditorClick = () => {
     setUIState((prev) => ({ ...prev, isExpanded: true }));
   };
@@ -501,20 +591,33 @@ export function TaskEditor({
             <button
               type="button"
               aria-label="Schedule reminder"
-              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
-              title="Schedule reminder"
+              className={cn(
+                "p-1.5 @[380px]:p-2 rounded-lg transition-all flex-shrink-0",
+                activeReminderId
+                  ? "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                  : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
+              )}
+              title={activeReminderId ? "Reminder scheduled (click to manage)" : "Schedule reminder"}
+              onClick={() => setIsReminderDialogOpen(true)}
             >
               <Bell className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
             </button>
 
-            {/* AI Button */}
+            {/* Summarize Button */}
             <button
               type="button"
-              aria-label="AI Brainstorming"
-              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
-              title="AI Brainstorming"
+              aria-label={isSummarizing ? "Summary in progress" : "Summarize with AI"}
+              className={cn(
+                "p-1.5 @[380px]:p-2 rounded-lg transition-all flex-shrink-0",
+                isSummarizing
+                  ? "bg-sky-500/15 text-sky-400 cursor-wait"
+                  : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
+              )}
+              title={isSummarizing ? "Summary in progress..." : "Summarize with AI"}
+              onClick={handleSummarize}
+              disabled={isSummarizing}
             >
-              <Brain className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
+              <Brain className={cn("w-4 h-4 @[380px]:w-5 @[380px]:h-5", isSummarizing && "animate-pulse")} />
             </button>
           </div>
         </div>
@@ -536,7 +639,7 @@ export function TaskEditor({
           aria-label="Content"
           value={content}
           onChange={handleContentChange}
-          placeholder="Note"
+          placeholder="Content"
           className={cn(
             "w-full bg-transparent border-none outline-none text-base text-white/80 placeholder:text-white/30 focus:placeholder:text-white/10 resize-none transition-all leading-relaxed",
             isExpanded ? "min-h-[100px]" : "h-[60px]"
@@ -647,6 +750,17 @@ export function TaskEditor({
         closeOnBackdrop={true}
         destructive={true}
         initialFocus="cancel"
+      />
+
+      {/* Reminder dialog */}
+      <ReminderDialog
+        open={isReminderDialogOpen}
+        onClose={() => setIsReminderDialogOpen(false)}
+        onCreate={handleCreateReminder}
+        onReschedule={handleRescheduleReminder}
+        onCancel={handleCancelReminder}
+        hasActiveReminder={!!activeReminderId}
+        isSaving={isReminderSaving}
       />
     </motion.div>
   );

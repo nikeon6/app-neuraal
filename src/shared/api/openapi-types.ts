@@ -378,7 +378,10 @@ export interface components {
             message: string;
             /** @enum {string} */
             status: "unread" | "read";
-            payload?: Record<string, never> | null;
+            /** @description Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type. */
+            payload?: {
+                [key: string]: unknown;
+            } | null;
             /** Format: date-time */
             createdAt: string;
         };

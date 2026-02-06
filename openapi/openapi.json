@@ -320,7 +320,9 @@
             "type": [
               "object",
               "null"
-            ]
+            ],
+            "additionalProperties": true,
+            "description": "Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type."
           },
           "createdAt": {
             "type": "string",

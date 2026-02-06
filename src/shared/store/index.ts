@@ -65,6 +65,10 @@ interface AppState {
 
   dashboardSection: DashboardSection;
   setDashboardSection: (section: DashboardSection) => void;
+
+  /** Entry ID to scroll to in TasksContainer (set by navigation, cleared after scroll) */
+  scrollToEntryId: string | null;
+  setScrollToEntryId: (entryId: string | null) => void;
 }
 
 // ============================================================================
@@ -147,6 +151,9 @@ export const useStore = create<AppState>()(
 
       dashboardSection: "daily" as DashboardSection,
       setDashboardSection: (section) => set({ dashboardSection: section }),
+
+      scrollToEntryId: null,
+      setScrollToEntryId: (entryId) => set({ scrollToEntryId: entryId }),
     }),
     {
       name: "neuraal-storage",

@@ -47,9 +47,16 @@ vi.mock("@/shared/api/queries", () => ({
   topicsQueryKey: ["topics"],
 }));
 
+const mockSummarizeEntryAndInvalidate = vi.fn();
+const mockCreateReminderAndInvalidate = vi.fn();
+const mockUpdateReminderAndInvalidate = vi.fn();
+
 vi.mock("@/shared/api/mutations", () => ({
   updateEntryAndInvalidate: (...args: unknown[]) => mockUpdateEntryAndInvalidate(...args),
   deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
+  summarizeEntryAndInvalidate: (...args: unknown[]) => mockSummarizeEntryAndInvalidate(...args),
+  createReminderAndInvalidate: (...args: unknown[]) => mockCreateReminderAndInvalidate(...args),
+  updateReminderAndInvalidate: (...args: unknown[]) => mockUpdateReminderAndInvalidate(...args),
 }));
 
 vi.mock("@/shared/api/sdk/entries", () => ({
@@ -199,9 +206,9 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("button", { name: /reminder/i })).toBeInTheDocument();
     });
 
-    it("should render brainstorming button", () => {
+    it("should render summarize button", () => {
       renderEditor();
-      expect(screen.getByRole("button", { name: /brainstorming/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /summarize/i })).toBeInTheDocument();
     });
   });
 
@@ -214,12 +221,26 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
     });
 
-    it("should call deleteEntryAndInvalidate when delete is clicked", async () => {
+    it("should call deleteEntryAndInvalidate when delete is confirmed", async () => {
       const user = userEvent.setup();
       renderEditor();
       await expandEditor(user);
 
-      await user.click(screen.getByRole("button", { name: /delete/i }));
+      // Click the delete button (aria-label "Delete") to open confirm dialog
+      await user.click(screen.getByTitle("Delete entry"));
+
+      // Wait for the confirm dialog to appear and click the confirm button.
+      // The ConfirmDialog renders a second "Delete" button with confirmText="Delete".
+      await waitFor(() => {
+        const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+        // At least 2: the original "Delete entry" button and the dialog "Delete" confirm
+        expect(allDeleteBtns.length).toBeGreaterThanOrEqual(2);
+      });
+
+      // The last "Delete" button is the confirm button in the dialog
+      const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+      const dialogConfirm = allDeleteBtns[allDeleteBtns.length - 1];
+      await user.click(dialogConfirm);
 
       await waitFor(() => {
         expect(mockDeleteEntryAndInvalidate).toHaveBeenCalledTimes(1);

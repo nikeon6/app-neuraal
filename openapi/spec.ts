@@ -150,7 +150,12 @@ const spec = {
           title: { type: "string" as const, maxLength: 100 },
           message: { type: "string" as const, maxLength: 500 },
           status: { type: "string" as const, enum: ["unread", "read"] },
-          payload: { type: ["object", "null"] as const },
+          payload: {
+            type: ["object", "null"] as const,
+            additionalProperties: true,
+            description:
+              "Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type.",
+          },
           createdAt: { type: "string" as const, format: "date-time" },
         },
       },

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useMemo, memo } from "react";
+import React, { useCallback, useRef, useMemo, memo, useEffect } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -284,6 +284,60 @@ export function TasksContainer() {
     },
     [containerRef]
   );
+
+  // ---------------------------------------------------------------------------
+  // Scroll-to-entry: when navigating from notification center, scroll to the
+  // target entry and briefly highlight it so the user knows which one it is.
+  // ---------------------------------------------------------------------------
+  const scrollToEntryId = useStore((s) => s.scrollToEntryId);
+  const setScrollToEntryId = useStore((s) => s.setScrollToEntryId);
+
+  useEffect(() => {
+    if (!scrollToEntryId) return;
+
+    // The entry may not be in the DOM yet (date change triggers a query refetch).
+    // Poll briefly for the element to appear, then scroll.
+    let attempts = 0;
+    const maxAttempts = 20; // ~2 seconds max
+    const intervalMs = 100;
+
+    const timer = setInterval(() => {
+      attempts++;
+      const container = containerRef.current as HTMLElement | null;
+      const el = document.querySelector(
+        `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`
+      ) as HTMLElement | null;
+
+      if (el && container) {
+        clearInterval(timer);
+
+        // Calculate scroll position within the container only (avoid scrollIntoView
+        // which also scrolls ancestor containers and breaks the page layout).
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const elRelativeTop = elRect.top - containerRect.top + container.scrollTop;
+        // Center the element vertically in the container
+        const targetScroll = elRelativeTop - containerRect.height / 2 + elRect.height / 2;
+
+        container.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: "smooth",
+        });
+
+        // Brief highlight flash
+        el.classList.add("scroll-highlight");
+        setTimeout(() => el.classList.remove("scroll-highlight"), 1800);
+
+        // Clear the store so it doesn't re-trigger
+        setScrollToEntryId(null);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(timer);
+        setScrollToEntryId(null);
+      }
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [scrollToEntryId, setScrollToEntryId, containerRef]);
 
   // Loading state
   if (isLoading && entries.length === 0) {

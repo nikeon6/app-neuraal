@@ -10,9 +10,18 @@
 import type { QueryClient } from "@tanstack/react-query";
 import * as topicsSdk from "./sdk/topics";
 import * as entriesSdk from "./sdk/entries";
-import type { CreateTopicBody, UpdateTopicBody, CreateEntryBody, UpdateEntryBody } from "./sdk/types";
+import * as remindersSdk from "./sdk/reminders";
+import type {
+  CreateTopicBody,
+  UpdateTopicBody,
+  CreateEntryBody,
+  UpdateEntryBody,
+  CreateReminderBody,
+  UpdateReminderBody,
+} from "./sdk/types";
 import { topicsQueryKey } from "./queries/topics";
 import { entriesQueryKey } from "./queries/entries";
+import { notificationsQueryKey } from "./queries/notifications";
 
 // ---- Topics ----
 
@@ -72,4 +81,37 @@ export async function deleteEntryAndInvalidate(
 ) {
   await entriesSdk.deleteEntry(id);
   await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
+// ---- Summarize ----
+
+export async function summarizeEntryAndInvalidate(
+  queryClient: QueryClient,
+  entryId: string
+) {
+  const result = await entriesSdk.summarizeEntry(entryId);
+  // Refresh notifications so the in-progress item shows up quickly
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return result;
+}
+
+// ---- Reminders ----
+
+export async function createReminderAndInvalidate(
+  queryClient: QueryClient,
+  input: CreateReminderBody
+) {
+  const reminder = await remindersSdk.createReminder(input);
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return reminder;
+}
+
+export async function updateReminderAndInvalidate(
+  queryClient: QueryClient,
+  id: string,
+  patch: UpdateReminderBody
+) {
+  const reminder = await remindersSdk.updateReminder(id, patch);
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return reminder;
 }
