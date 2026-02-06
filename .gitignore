@@ -51,3 +51,5 @@ coverage
 
 # Submodule (ignored)
 proyectos-base-ejemplo-mvps/planner-demo
+
+/src/generated/prisma

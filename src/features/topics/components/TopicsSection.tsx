@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import { Plus } from "lucide-react";
-import { useStore } from "@/shared/store";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTopicsQuery } from "@/shared/api/queries";
+import { deleteTopicAndInvalidate } from "@/shared/api/mutations";
 import { ConfirmDialog } from "@/shared/ui";
-import type { UserTopic } from "@/shared/types";
+import type { ApiTopic } from "@/shared/api/sdk";
 import { TopicPill } from "./TopicPill";
 import { CreateTopicDialog } from "./CreateTopicDialog";
 
@@ -13,15 +15,15 @@ import { CreateTopicDialog } from "./CreateTopicDialog";
 // ============================================================================
 
 export function TopicsSection() {
-  const topics = useStore((s) => s.topics);
-  const removeTopic = useStore((s) => s.removeTopic);
+  const queryClient = useQueryClient();
+  const { data: topics = [], isPending: isLoading } = useTopicsQuery();
 
   // Refs for focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   // Modal states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [topicToDelete, setTopicToDelete] = useState<UserTopic | null>(null);
+  const [topicToDelete, setTopicToDelete] = useState<ApiTopic | null>(null);
 
   // Handlers
   const handleOpenCreate = useCallback(() => {
@@ -32,16 +34,16 @@ export function TopicsSection() {
     setIsCreateOpen(false);
   }, []);
 
-  const handleDeleteClick = useCallback((topic: UserTopic) => {
+  const handleDeleteClick = useCallback((topic: ApiTopic) => {
     setTopicToDelete(topic);
   }, []);
 
   const handleConfirmDelete = useCallback(() => {
     if (topicToDelete) {
-      removeTopic(topicToDelete.id);
+      void deleteTopicAndInvalidate(queryClient, topicToDelete.id);
       setTopicToDelete(null);
     }
-  }, [topicToDelete, removeTopic]);
+  }, [topicToDelete, queryClient]);
 
   const handleCancelDelete = useCallback(() => {
     setTopicToDelete(null);
@@ -57,28 +59,30 @@ export function TopicsSection() {
       className="h-full flex flex-col"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-6 mb-6">
         <div>
           <h2 className="text-lg font-semibold text-white">Your Topics</h2>
           <p className="text-sm text-white/50">
-            {hasTopics
-              ? `${topics.length} topic${topics.length !== 1 ? "s" : ""}`
-              : "Organize your tasks by topic"}
+            {isLoading
+              ? "Loading topics..."
+              : hasTopics
+                ? `${topics.length} topic${topics.length !== 1 ? "s" : ""}`
+                : "Organize your tasks by topic"}
           </p>
         </div>
         <button
           ref={addButtonRef}
           type="button"
           onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/20 border border-sky-500/30 text-sky-300 font-medium text-sm hover:bg-sky-500/30 transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border backdrop-blur-sm bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_12px_-3px_rgba(56,189,248,0.25)] hover:from-sky-500/30 hover:to-indigo-500/25 hover:shadow-[0_0_16px_-3px_rgba(56,189,248,0.4)] hover:border-sky-400/50"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           Add topic
         </button>
       </div>
 
       {/* Topics list or empty state */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {hasTopics ? (
           <div className="flex flex-wrap gap-3">
             {topics.map((topic) => (
@@ -91,9 +95,6 @@ export function TopicsSection() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Plus className="w-8 h-8 text-white/20" />
-            </div>
             <p className="text-white/40 text-sm">
               No topics yet. Create your first topic to start organizing.
             </p>

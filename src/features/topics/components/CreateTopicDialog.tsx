@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useStore } from "@/shared/store";
-import type { UserTopic } from "@/shared/types";
+import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ApiTopic } from "@/shared/api/sdk";
+import { createTopicAndInvalidate } from "@/shared/api/mutations";
 import { cn } from "@/shared/lib/utils";
+
+// Maximum characters allowed for topic name
+const MAX_TOPIC_NAME_LENGTH = 18;
 
 // ============================================================================
 // Color Options for Topic Creation
@@ -26,7 +31,7 @@ const COLOR_OPTIONS = [
 export interface CreateTopicDialogProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly existingTopics: UserTopic[];
+  readonly existingTopics: ApiTopic[];
   readonly triggerRef: React.RefObject<HTMLButtonElement | null>;
 }
 
@@ -36,9 +41,10 @@ export function CreateTopicDialog({
   existingTopics,
   triggerRef,
 }: CreateTopicDialogProps) {
-  const addTopic = useStore((s) => s.addTopic);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when dialog opens
@@ -51,6 +57,7 @@ export function CreateTopicDialog({
   // Validation
   const trimmedName = name.trim();
   const isNameEmpty = trimmedName.length === 0;
+  const isTooLong = trimmedName.length > MAX_TOPIC_NAME_LENGTH;
   const isColorSelected = color !== null;
   const isDuplicate = useMemo(() => {
     const normalizedInput = trimmedName.toLowerCase();
@@ -59,7 +66,8 @@ export function CreateTopicDialog({
     );
   }, [trimmedName, existingTopics]);
 
-  const isValid = !isNameEmpty && !isDuplicate && isColorSelected;
+  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isSubmitting;
+  const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
     onClose();
@@ -70,17 +78,24 @@ export function CreateTopicDialog({
   }, [onClose, triggerRef]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       if (!isValid || !color) return;
 
-      addTopic({ name: trimmedName, color });
-      // Reset form and close
-      setName("");
-      setColor(null);
-      closeAndReturnFocus();
+      setIsSubmitting(true);
+      try {
+        await createTopicAndInvalidate(queryClient, { name: trimmedName, color });
+        // Reset form and close
+        setName("");
+        setColor(null);
+        closeAndReturnFocus();
+      } catch (error) {
+        console.error("[CreateTopicDialog] Failed to create topic:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [isValid, addTopic, trimmedName, color, closeAndReturnFocus]
+    [isValid, queryClient, trimmedName, color, closeAndReturnFocus]
   );
 
   const handleCancel = useCallback(() => {
@@ -100,9 +115,10 @@ export function CreateTopicDialog({
 
   if (!isOpen) return null;
 
-  return (
+  // Use portal to render at document.body level, avoiding stacking context issues
+  const dialogContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center"
       onKeyDown={handleKeyDown}
     >
       {/* Backdrop */}
@@ -129,23 +145,38 @@ export function CreateTopicDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name input */}
           <div className="space-y-2">
-            <label
-              htmlFor="topic-name"
-              className="block text-sm font-medium text-white/70"
-            >
-              Topic name
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="topic-name"
+                className="block text-sm font-medium text-white/70"
+              >
+                Topic name
+              </label>
+              <span
+                className={cn(
+                  "text-xs",
+                  charsRemaining < 0
+                    ? "text-red-400"
+                    : charsRemaining <= 5
+                      ? "text-amber-400"
+                      : "text-white/40"
+                )}
+              >
+                {name.length}/{MAX_TOPIC_NAME_LENGTH}
+              </span>
+            </div>
             <input
               ref={inputRef}
               id="topic-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={MAX_TOPIC_NAME_LENGTH}
               placeholder="Enter topic name..."
               className={cn(
                 "w-full px-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30",
                 "focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all",
-                isDuplicate
+                isDuplicate || isTooLong
                   ? "border-red-500/50"
                   : "border-white/10 focus:border-sky-500/50"
               )}
@@ -209,11 +240,15 @@ export function CreateTopicDialog({
                   : "bg-white/5 text-white/30 cursor-not-allowed"
               )}
             >
-              Create
+              {isSubmitting ? "Creating..." : "Create"}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
+
+  // Render via portal to escape stacking context
+  if (typeof document === "undefined") return null;
+  return createPortal(dialogContent, document.body);
 }

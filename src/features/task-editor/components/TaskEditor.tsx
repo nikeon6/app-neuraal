@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -19,50 +19,96 @@ import {
   ListTodo,
   StickyNote,
 } from "lucide-react";
-import { useStore } from "@/shared/store";
-import { TOPICS, TOPIC_IDS } from "@/shared/constants";
-import type { EntryId, DefaultTopicId, TopicMode, EntryType } from "@/shared/types";
-import { cn, getDefaultTopic } from "@/shared/lib";
+import { useQueryClient } from "@tanstack/react-query";
+import { useStore, selectDateKey } from "@/shared/store";
+import type { EntryType } from "@/shared/types";
+import type { ApiEntry } from "@/shared/api/sdk";
+import { useTopicsQuery, entriesQueryKey } from "@/shared/api/queries";
+import { updateEntryAndInvalidate, deleteEntryAndInvalidate } from "@/shared/api/mutations";
+import * as entriesSdk from "@/shared/api/sdk/entries";
+import { ApiError } from "@/shared/api/apiClient";
+import { cn } from "@/shared/lib";
+import { ConfirmDialog } from "@/shared/ui";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
+
+const AUTOSAVE_DEBOUNCE_MS = 1000;
+
+/** Sentinel value for "auto-classify" topic mode. Not a real topic ID. */
+const AUTO_TOPIC = "__auto__" as const;
 
 /**
  * Props for TaskEditor component.
+ *
+ * Receives the full ApiEntry object from the parent (TasksContainer).
+ * All edits trigger debounced API calls via the store.
  */
 interface TaskEditorProps {
-  /** Entry ID for editing existing entry */
-  entryId?: EntryId;
-  /** Initial title value */
-  initialTitle?: string;
-  /** Initial content value */
-  initialContent?: string;
-  /** Initial topic selection */
-  initialTopic?: DefaultTopicId | "auto";
-  /** Initial entry type (task or note) */
-  initialEntryType?: EntryType;
-  /** Initial completed state (for tasks) */
-  initialCompleted?: boolean;
-  /** Callback when editor is closed */
+  /** The entry being edited. */
+  entry: ApiEntry;
+  /** Callback when editor is closed / entry deleted. */
   onClose?: () => void;
 }
 
 export function TaskEditor({
-  entryId,
-  initialTitle = "",
-  initialContent = "",
-  initialTopic = "auto",
-  initialEntryType = "task",
-  initialCompleted = false,
+  entry,
   onClose,
 }: TaskEditorProps) {
-  const { selectedDay, addTask, removeTask } = useStore();
+  const queryClient = useQueryClient();
+  const dateKey = useStore(selectDateKey);
+  const { data: topics = [] } = useTopicsQuery();
 
-  // Form state (draft)
-  const [title, setTitle] = useState<string>(initialTitle);
-  const [content, setContent] = useState<string>(initialContent);
-  const [selectedTopic, setSelectedTopic] = useState<DefaultTopicId | "auto">(initialTopic);
-  const [topicMode, setTopicMode] = useState<TopicMode>(initialTopic === "auto" ? "auto" : "manual");
-  const [entryType, setEntryType] = useState<EntryType>(initialEntryType);
-  const [isCompleted, setIsCompleted] = useState<boolean>(initialCompleted);
+  // ---------------------------------------------------------------------------
+  // Form state (draft — initialized from entry props)
+  // ---------------------------------------------------------------------------
+  const [title, setTitle] = useState<string>(entry.title);
+
+  // Extract plain text from content JSON for the simple textarea
+  const extractContent = (): string => {
+    if (!entry.content || typeof entry.content !== "object") return "";
+    try {
+      const nodes = (entry.content as { content?: Array<{ content?: Array<{ text?: string }> }> }).content;
+      if (!Array.isArray(nodes)) return "";
+      return nodes
+        .flatMap((n) => n.content ?? [])
+        .map((c) => c.text ?? "")
+        .join(" ")
+        .trim();
+    } catch {
+      return "";
+    }
+  };
+  const [content, setContent] = useState<string>(extractContent);
+
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
+    entry.topicId ?? null
+  );
+  const [entryType, setEntryType] = useState<EntryType>(entry.type);
+  const [isCompleted, setIsCompleted] = useState<boolean>(entry.completed ?? false);
+
+  // ---------------------------------------------------------------------------
+  // Refs that mirror draft state — used inside setTimeout to always read the
+  // LATEST value, avoiding stale closures that caused topic/completed not saving.
+  // ---------------------------------------------------------------------------
+  const titleRef = useRef<HTMLInputElement>(null);
+  const initialContent = useMemo(extractContent, [entry.content]);
+  const draftRef = useRef({
+    title: entry.title,
+    content: initialContent,
+    selectedTopicId: entry.topicId ?? null as string | null,
+    entryType: entry.type as EntryType,
+    isCompleted: entry.completed ?? false,
+  });
+
+  // Keep draftRef in sync with state
+  useEffect(() => { draftRef.current.title = title; }, [title]);
+  useEffect(() => { draftRef.current.content = content; }, [content]);
+  useEffect(() => { draftRef.current.selectedTopicId = selectedTopicId; }, [selectedTopicId]);
+  useEffect(() => { draftRef.current.entryType = entryType; }, [entryType]);
+  useEffect(() => { draftRef.current.isCompleted = isCompleted; }, [isCompleted]);
+
+  // Track the current entry version for optimistic concurrency
+  const versionRef = useRef<number>(entry.version);
+  useEffect(() => { versionRef.current = entry.version; }, [entry.version]);
 
   // UI state
   const [uiState, setUIState] = useState<TaskEditorUIState>({
@@ -72,99 +118,180 @@ export function TaskEditor({
     isSaving: false,
     saveError: undefined,
   });
-  // Note: totalFileSize state removed - will be re-added when file attachments are implemented
 
-  // Destructure UI state for convenience
+  // Delete confirmation state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   const { isExpanded, isContentMenuOpen, isTopicMenuOpen, isSaving } = uiState;
 
-  // Refs
+  // DOM / timer refs
   const editorRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const contentMenuRef = useRef<HTMLDivElement>(null);
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastSavedHashRef = useRef<string>("");
 
-  // Auto-save with debounce
-  const triggerAutoSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  const topicMap = useMemo(() => {
+    const map = new Map<string, { name: string; color: string }>();
+    for (const t of topics) {
+      map.set(t.id, { name: t.name, color: t.color });
+    }
+    return map;
+  }, [topics]);
+
+  const runSave = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    const ac = new AbortController();
+    abortControllerRef.current = ac;
+
+    const draft = draftRef.current;
+    const topicIdToSend = draft.selectedTopicId === AUTO_TOPIC ? null : draft.selectedTopicId;
+    const contentJson = draft.content.trim()
+      ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: draft.content }] }] }
+      : {};
+
+    const payload = {
+      title: draft.title.trim() || entry.title,
+      content: contentJson as Record<string, unknown>,
+      topicId: topicIdToSend,
+      completed: draft.entryType === "task" ? draft.isCompleted : undefined,
+      type: draft.entryType as "task" | "note",
+      version: versionRef.current,
+    };
+
+    const hash = `${payload.title}|${JSON.stringify(payload.content)}|${payload.topicId}|${payload.type}|${payload.completed}`;
+    if (hash === lastSavedHashRef.current) {
+      setUIState((prev) => ({ ...prev, isSaving: false }));
+      if (draft.selectedTopicId === AUTO_TOPIC) {
+        try {
+          const res = await entriesSdk.autoTopicEntry(entry.id);
+          if (res.selectedTopicId) {
+            await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return;
     }
 
-    saveTimeoutRef.current = setTimeout(() => {
-      setUIState(prev => ({ ...prev, isSaving: true }));
-      // Simulate save delay
-      // TODO: Implement actual save with Entry type
-      setTimeout(() => {
-        setUIState(prev => ({ ...prev, isSaving: false }));
-      }, 500);
-    }, 1000);
-  }, []);
+    setUIState((prev) => ({ ...prev, isSaving: true }));
 
-  // Handle title change
+    try {
+      const result = await updateEntryAndInvalidate(queryClient, entry.id, dateKey, payload);
+      if (result) {
+        versionRef.current = result.version;
+        lastSavedHashRef.current = hash;
+      }
+      if (draft.selectedTopicId === AUTO_TOPIC) {
+        const res = await entriesSdk.autoTopicEntry(entry.id);
+        if (res.selectedTopicId) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+        }
+      }
+    } catch (error) {
+      if (ac.signal.aborted) return;
+      if (error instanceof ApiError) {
+        if (error.status === 401) console.warn("Not authenticated");
+        else if (error.status === 404) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          onClose?.();
+        } else if (error.status === 409) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          console.warn("Conflict (version). Refreshed entries.");
+        } else console.error("[TaskEditor] update failed:", error);
+      } else console.error("[TaskEditor] update failed:", error);
+    } finally {
+      if (!ac.signal.aborted) setUIState((prev) => ({ ...prev, isSaving: false }));
+    }
+  }, [entry.id, entry.title, dateKey, queryClient, onClose]);
+
+  const triggerAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(runSave, AUTOSAVE_DEBOUNCE_MS);
+  }, [runSave]);
+
+  const flushPendingSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+      void runSave();
+    }
+  }, [runSave]);
+
+  // ---- Handlers -----------------------------------------------------------
+
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
     triggerAutoSave();
   };
 
-  // Handle content change
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     triggerAutoSave();
-    // Auto-resize textarea
     if (contentRef.current) {
       contentRef.current.style.height = "auto";
       contentRef.current.style.height = contentRef.current.scrollHeight + "px";
     }
   };
 
-  // Handle topic selection
-  const handleTopicSelect = (topic: DefaultTopicId | "auto") => {
-    setSelectedTopic(topic);
-    setTopicMode(topic === "auto" ? "auto" : "manual");
-    setUIState(prev => ({ ...prev, isTopicMenuOpen: false }));
+  const handleTopicSelect = (topicId: string | null) => {
+    setSelectedTopicId(topicId);
+    setUIState((prev) => ({ ...prev, isTopicMenuOpen: false }));
     triggerAutoSave();
   };
 
-  // Handle entry type toggle
   const handleEntryTypeToggle = () => {
     const newType: EntryType = entryType === "task" ? "note" : "task";
     setEntryType(newType);
-    // Reset completed state when switching to note
     if (newType === "note") {
       setIsCompleted(false);
     }
     triggerAutoSave();
   };
 
-  // Handle toggle completed (for tasks only)
   const handleToggleCompleted = () => {
     if (entryType !== "task") return;
-    setIsCompleted(prev => !prev);
+    setIsCompleted((prev) => !prev);
     triggerAutoSave();
   };
 
-  // Handle delete
-  const handleDelete = () => {
-    if (entryId) {
-      removeTask(selectedDay, entryId);
+  // Handle delete - opens confirmation dialog
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm delete - actually removes the entry via API
+  const handleConfirmDelete = useCallback(async () => {
+    setIsDeleteDialogOpen(false);
+    try {
+      await deleteEntryAndInvalidate(queryClient, entry.id, dateKey);
+      onClose?.();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+        onClose?.();
+      } else console.error("[TaskEditor] delete failed:", error);
     }
-    onClose?.();
-  };
+  }, [queryClient, entry.id, dateKey, onClose]);
 
-  // Handle click inside editor - expand
+  // Cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+  }, []);
+
   const handleEditorClick = () => {
-    setUIState(prev => ({ ...prev, isExpanded: true }));
+    setUIState((prev) => ({ ...prev, isExpanded: true }));
   };
 
-  // Handle click outside editor - collapse
+  // Click outside → collapse
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        editorRef.current &&
-        !editorRef.current.contains(event.target as Node)
-      ) {
-        setUIState(prev => ({
+      if (editorRef.current && !editorRef.current.contains(event.target as Node)) {
+        flushPendingSave();
+        setUIState((prev) => ({
           ...prev,
           isExpanded: false,
           isContentMenuOpen: false,
@@ -172,17 +299,13 @@ export function TaskEditor({
         }));
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [flushPendingSave]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
 
@@ -194,65 +317,50 @@ export function TaskEditor({
     { id: "file", label: "Attach file", icon: Paperclip },
   ];
 
-  // Get current topic display info
-  const currentTopicDisplay = selectedTopic === "auto" 
-    ? { name: "Auto", color: "#8b5cf6" }
-    : (() => {
-        const topic = getDefaultTopic(selectedTopic);
-        return { name: topic?.name ?? "Unknown", color: topic?.color ?? "#6b7280" };
-      })();
+  // Current topic display info
+  const currentTopicDisplay = (() => {
+    if (selectedTopicId === AUTO_TOPIC) return { name: "Auto", color: "#8b5cf6" };
+    if (selectedTopicId === null) return { name: "No topic", color: "#6b7280" };
+    return topicMap.get(selectedTopicId) ?? { name: "Unknown", color: "#6b7280" };
+  })();
 
   return (
     <motion.div
       ref={editorRef}
       data-testid="task-editor"
+      data-task-id={entry.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       onClick={handleEditorClick}
       className="task-editor glass-panel rounded-2xl p-5 w-full @container"
     >
-      {/* Top Row: Title + Action Buttons
-          Container Queries (@container): layout responds to TaskEditor width, not viewport.
-          Threshold: 640px - below this, stacks vertically (buttons top-right, title below full-width).
-          Validated: 320/360/390px no overlap, intermediate widths no overlap, long titles OK. */}
+      {/* Top Row: Title + Action Buttons */}
       <div className="flex flex-col gap-3 mb-2 @[640px]:flex-row @[640px]:items-center @[640px]:justify-between @[640px]:gap-4">
-        {/* Left side: Complete button (task only) + Title
-            order-2 when stacked (below buttons), @[640px]:order-1 when wide (left side) */}
+        {/* Left side: Complete button + Title */}
         <div className="flex items-center gap-3 w-full min-w-0 order-2 @[640px]:order-1 @[640px]:flex-1 @[640px]:w-auto">
-          {/* Complete/Uncomplete button - only for tasks */}
           {entryType === "task" && (
             <button
               type="button"
               aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleCompleted();
-              }}
+              onClick={(e) => { e.stopPropagation(); handleToggleCompleted(); }}
               className={cn(
                 "p-1 rounded-lg transition-all flex-shrink-0",
-                isCompleted 
-                  ? "text-emerald-400 hover:text-emerald-300" 
+                isCompleted
+                  ? "text-emerald-400 hover:text-emerald-300"
                   : "text-white/40 hover:text-white/70"
               )}
               title={isCompleted ? "Mark as incomplete" : "Mark as complete"}
             >
-              {isCompleted ? (
-                <CheckCircle2 className="w-6 h-6" />
-              ) : (
-                <Circle className="w-6 h-6" />
-              )}
+              {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
             </button>
           )}
 
-          {/* Title Input - min-w-0 prevents flex overflow */}
           <div className="flex-1 min-w-0">
-            <label htmlFor="task-title" className="sr-only">
-              Title
-            </label>
+            <label htmlFor={`title-${entry.id}`} className="sr-only">Title</label>
             <input
               ref={titleRef}
-              id="task-title"
+              id={`title-${entry.id}`}
               type="text"
               aria-label="Title"
               value={title}
@@ -266,21 +374,16 @@ export function TaskEditor({
           </div>
         </div>
 
-        {/* Right side: Buttons ALWAYS aligned right (both stacked and wide modes)
-            order-1 when stacked (above title), @[640px]:order-2 when wide (right side) */}
+        {/* Right side: Buttons */}
         <div className="flex flex-col items-end gap-2 w-full @[640px]:w-auto order-1 @[640px]:order-2">
-          {/* Buttons Row - flex-wrap prevents overlap, justify-end ALWAYS for right alignment */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 @[380px]:gap-2 flex-wrap justify-end">
             {/* Entry Type Toggle */}
             <button
               type="button"
               aria-label={entryType === "task" ? "Switch to note" : "Switch to task"}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEntryTypeToggle();
-              }}
+              onClick={(e) => { e.stopPropagation(); handleEntryTypeToggle(); }}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all",
+                "flex items-center gap-1.5 px-2 @[420px]:px-3 py-1.5 rounded-lg text-sm transition-all flex-shrink-0",
                 entryType === "task"
                   ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
                   : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
@@ -289,37 +392,34 @@ export function TaskEditor({
             >
               {entryType === "task" ? (
                 <>
-                  <ListTodo className="w-4 h-4" />
-                  <span>Task</span>
+                  <ListTodo className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden @[420px]:inline">Task</span>
                 </>
               ) : (
                 <>
-                  <StickyNote className="w-4 h-4" />
-                  <span>Note</span>
+                  <StickyNote className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden @[420px]:inline">Note</span>
                 </>
               )}
             </button>
 
-            {/* Topic Selector Dropdown */}
-            <div className="relative" ref={topicMenuRef}>
+            {/* Topic Selector Dropdown — uses API topics */}
+            <div className="relative min-w-0" ref={topicMenuRef}>
               <button
                 type="button"
                 aria-label="Topic"
                 aria-haspopup="listbox"
                 aria-expanded={isTopicMenuOpen}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setUIState(prev => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen }));
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all"
+                onClick={(e) => { e.stopPropagation(); setUIState((prev) => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen })); }}
+                className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
               >
                 <div
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: currentTopicDisplay.color }}
                 />
-                <span>{currentTopicDisplay.name}</span>
-                {selectedTopic === "auto" && <Sparkles className="w-3 h-3 text-purple-400" />}
-                <ChevronDown className={cn("w-3 h-3 transition-transform", isTopicMenuOpen && "rotate-180")} />
+                <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
+                {selectedTopicId === AUTO_TOPIC && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
+                <ChevronDown className={cn("w-3 h-3 transition-transform flex-shrink-0", isTopicMenuOpen && "rotate-180")} />
               </button>
 
               <AnimatePresence>
@@ -336,90 +436,103 @@ export function TaskEditor({
                     {/* Auto option */}
                     <button
                       role="option"
-                      aria-selected={selectedTopic === "auto"}
+                      aria-selected={selectedTopicId === AUTO_TOPIC}
                       className={cn(
                         "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
-                        selectedTopic === "auto" 
-                          ? "bg-white/10 text-white" 
+                        selectedTopicId === AUTO_TOPIC
+                          ? "bg-white/10 text-white"
                           : "text-white/70 hover:text-white hover:bg-white/5"
                       )}
-                      onClick={() => handleTopicSelect("auto")}
+                      onClick={() => handleTopicSelect(AUTO_TOPIC)}
                     >
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: "#8b5cf6" }}
-                      />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8b5cf6" }} />
                       <span>Auto</span>
                       <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
                     </button>
 
-                    {/* Divider */}
-                    <div className="h-px bg-white/10 mx-2" />
+                    {/* No topic option */}
+                    <button
+                      role="option"
+                      aria-selected={selectedTopicId === null}
+                      className={cn(
+                        "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
+                        selectedTopicId === null
+                          ? "bg-white/10 text-white"
+                          : "text-white/70 hover:text-white hover:bg-white/5"
+                      )}
+                      onClick={() => handleTopicSelect(null)}
+                    >
+                      <div className="w-3 h-3 rounded-full bg-white/20" />
+                      <span>No topic</span>
+                    </button>
 
-                    {/* Topics */}
-                    {TOPIC_IDS.map((id) => (
+                    {topics.length > 0 && <div className="h-px bg-white/10 mx-2" />}
+
+                    {/* API topics */}
+                    {topics.map((t) => (
                       <button
-                        key={id}
+                        key={t.id}
                         role="option"
-                        aria-selected={selectedTopic === id}
+                        aria-selected={selectedTopicId === t.id}
                         className={cn(
                           "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
-                          selectedTopic === id 
-                            ? "bg-white/10 text-white" 
+                          selectedTopicId === t.id
+                            ? "bg-white/10 text-white"
                             : "text-white/70 hover:text-white hover:bg-white/5"
                         )}
-                        onClick={() => handleTopicSelect(id)}
+                        onClick={() => handleTopicSelect(t.id)}
                       >
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: TOPICS[id].color }}
-                        />
-                        <span>{TOPICS[id].name}</span>
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
+                        <span>{t.name}</span>
                       </button>
                     ))}
+
+                    {topics.length === 0 && (
+                      <div className="px-4 py-3 text-xs text-white/40">
+                        No topics yet. Create one in Topics section.
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Subconscious Button */}
+            {/* Reminder Button */}
             <button
               type="button"
-              aria-label="Subconscious - Schedule reminder"
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+              aria-label="Schedule reminder"
+              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
               title="Schedule reminder"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
             </button>
 
-            {/* Brainstorming Button */}
+            {/* AI Button */}
             <button
               type="button"
-              aria-label="Brainstorming"
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+              aria-label="AI Brainstorming"
+              className="p-1.5 @[380px]:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex-shrink-0"
               title="AI Brainstorming"
             >
-              <Brain className="w-5 h-5" />
+              <Brain className="w-4 h-4 @[380px]:w-5 @[380px]:h-5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Content Area - Auto-expanding */}
+      {/* Content Area */}
       <motion.div
-        animate={{ 
+        animate={{
           height: isExpanded ? "auto" : "80px",
-          minHeight: isExpanded ? "120px" : "80px"
+          minHeight: isExpanded ? "120px" : "80px",
         }}
         transition={{ duration: 0.2 }}
         className="overflow-hidden"
       >
-        <label htmlFor="task-content" className="sr-only">
-          Content
-        </label>
+        <label htmlFor={`content-${entry.id}`} className="sr-only">Content</label>
         <textarea
           ref={contentRef}
-          id="task-content"
+          id={`content-${entry.id}`}
           aria-label="Content"
           value={content}
           onChange={handleContentChange}
@@ -432,7 +545,7 @@ export function TaskEditor({
         />
       </motion.div>
 
-      {/* Bottom Toolbar - Only visible when expanded (NO border/line) */}
+      {/* Bottom Toolbar */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -442,19 +555,14 @@ export function TaskEditor({
             transition={{ duration: 0.2 }}
             className="flex items-center justify-between mt-4"
           >
-            {/* Left Buttons */}
             <div className="flex items-center gap-2">
-              {/* Content Dropdown */}
               <div className="relative" ref={contentMenuRef}>
                 <button
                   type="button"
                   aria-label="Add content"
                   aria-haspopup="menu"
                   aria-expanded={isContentMenuOpen}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUIState(prev => ({ ...prev, isContentMenuOpen: !prev.isContentMenuOpen }));
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setUIState((prev) => ({ ...prev, isContentMenuOpen: !prev.isContentMenuOpen })); }}
                   className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all flex items-center gap-1"
                 >
                   <Plus className="w-5 h-5" />
@@ -477,10 +585,7 @@ export function TaskEditor({
                           role="menuitem"
                           aria-label={item.label}
                           className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
-                          onClick={() => {
-                            setUIState(prev => ({ ...prev, isContentMenuOpen: false }));
-                            // TODO: Implement content insertion
-                          }}
+                          onClick={() => setUIState((prev) => ({ ...prev, isContentMenuOpen: false }))}
                         >
                           <item.icon className="w-4 h-4" />
                           <span>{item.label}</span>
@@ -491,7 +596,6 @@ export function TaskEditor({
                 </AnimatePresence>
               </div>
 
-              {/* Format Button */}
               <button
                 type="button"
                 aria-label="Format"
@@ -502,7 +606,6 @@ export function TaskEditor({
               </button>
             </div>
 
-            {/* Center - Auto-save Indicator */}
             <div
               data-testid="auto-save-indicator"
               className={cn(
@@ -513,19 +616,38 @@ export function TaskEditor({
               {isSaving ? "Saving..." : "Auto-saved"}
             </div>
 
-            {/* Right - Delete Button */}
             <button
               type="button"
               aria-label="Delete"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               className="p-2 rounded-lg bg-white/5 hover:bg-destructive/20 text-white/60 hover:text-destructive transition-all"
-              title="Delete task"
+              title="Delete entry"
             >
               <Trash2 className="w-5 h-5" />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={entryType === "task" ? "Delete task" : "Delete note"}
+        message={
+          <>
+            Are you sure you want to delete{" "}
+            <strong className="text-white">{title || (entryType === "task" ? "this task" : "this note")}</strong>?{" "}
+            This action cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        closeOnBackdrop={true}
+        destructive={true}
+        initialFocus="cancel"
+      />
     </motion.div>
   );
 }

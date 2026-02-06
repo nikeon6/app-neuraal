@@ -1,14 +1,14 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { UserTopic } from "@/shared/types";
+import type { ApiTopic } from "@/shared/api/sdk";
 
 // ============================================================================
 // TopicPill Component
 // ============================================================================
 
 export interface TopicPillProps {
-  readonly topic: UserTopic;
+  readonly topic: ApiTopic;
   readonly onDelete: () => void;
 }
 

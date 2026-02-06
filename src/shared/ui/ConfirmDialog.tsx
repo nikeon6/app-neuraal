@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -98,9 +99,9 @@ export function ConfirmDialog({
   const titleId = title ? "confirm-dialog-title" : undefined;
   const descId = "confirm-dialog-desc";
 
-  return (
+  const dialogContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center"
       onKeyDown={handleKeyDown}
     >
       {/* Backdrop */}
@@ -174,4 +175,8 @@ export function ConfirmDialog({
       </div>
     </div>
   );
+
+  // Render via portal to escape stacking context issues
+  if (typeof document === "undefined") return null;
+  return createPortal(dialogContent, document.body);
 }

@@ -61,9 +61,15 @@ The project owner prefers answering questions over receiving unwanted assumption
 
 Build an app where authenticated users can:
 - Access a dashboard and calendar views.
-- Create/edit tasks and notes.
+- Create/edit tasks and notes (entries).
+- Organize entries into user-defined **Topics** (categories).
 - Navigate tasks by day via a **right-side day list** (expandable).
-- Schedule task reminders processed asynchronously (BullMQ/Redis worker).
+- Attach files to entries (S3/MinIO presigned URL flow).
+- Schedule task reminders processed asynchronously (BullMQ/Redis worker + n8n).
+- **AI features**:
+  - Generate summaries of entries asynchronously (n8n + LLM).
+  - Auto-classify entries into topics via embedding similarity (Ollama + pgvector).
+- Receive in-app notifications for async operations (reminders, summaries).
 
 ---
 
@@ -74,45 +80,99 @@ Build an app where authenticated users can:
 - `application` can depend on `domain`, but not on concrete infrastructure.
 - `infrastructure` depends on `application` + `domain` and provides implementations.
 
-### Feature-Based Structure (The Scope Rule)
+### Backend Layers (Clean Architecture)
 
-The codebase uses a **feature-based architecture** with clear scopes:
+The backend follows strict Clean Architecture with these layers:
+
+| Layer | Location | Depends on | Contains |
+|-------|----------|------------|----------|
+| **Domain** | `src/domain/` | Nothing | Entities, Value Objects, core Result type |
+| **Application** | `src/application/` | Domain only | Use cases, ports (interfaces), DTOs, test doubles |
+| **Infrastructure** | `src/infrastructure/` | Application + Domain | Prisma repos, BullMQ, Ollama, n8n client, S3, auth |
+| **API (thin)** | `src/app/api/` | Infrastructure + Application | Next.js route handlers (wiring only) |
+
+**Backend folder structure:**
+```
+src/
+  domain/
+    core/             # Result type
+    entities/         # Entry, Topic, Reminder, Notification, EntrySummaryRequest...
+    value-objects/    # HexColor, ISODate, EmbeddingVector, SimilarityScore...
+  application/
+    core/             # UseCaseError
+    dto/              # TopicDTO, ReminderDTO, NotificationDTO, AttachmentDTO
+    ports/            # Repository interfaces, EmbeddingProviderPort, QueuePort...
+    use-cases/        # CreateEntry, AutoAssignTopicToEntry, RebuildTopicEmbedding...
+    test/             # InMemory repos, Fake ports (test doubles)
+  infrastructure/
+    auth/             # getAuthUserId (x-user-id → future JWT)
+    automation/       # N8NClient
+    config/           # AttachmentConfig
+    embedding/        # OllamaEmbeddingProvider
+    persistence/      # Prisma client, PrismaXxxRepository
+    queue/            # BullMQAdapter, reminderWorker, summaryWorker
+    storage/          # S3ObjectStorage
+  app/api/            # Next.js API route handlers (thin wiring layer)
+```
+
+### Frontend Layers (Feature-Based)
+
+The frontend uses a **feature-based architecture** with clear scopes:
 
 | Scope | Location | Visibility | Contains |
 |-------|----------|------------|----------|
-| **Global** | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI |
+| **Global** | `src/shared/` | Entire app | Types, utils, constants, store, hooks, UI, API client |
 | **Local** | `src/features/X/` | Only feature X | Feature-specific components/logic |
-| **Infra** | `src/infrastructure/` | Services layer | Sentry, API clients, external services |
 
-**Folder structure:**
+**Frontend folder structure:**
 ```
 src/
-  shared/           # Global scope
-    types/          # Domain types (Task, Note, Topic...)
-    lib/            # Utilities (cn, uid, clamp...)
-    constants/      # Business rules (TOPICS, DAYS...)
+  shared/
+    api/            # Centralized API client (apiFetch, helpers, OpenAPI types)
+    types/          # Shared frontend types
+    lib/            # Utilities (cn, uid, clamp, extractPlainText...)
+    constants/      # Business rules (TOPICS, DAYS, embedding config...)
     store/          # Global Zustand store
     hooks/          # Reusable custom hooks
     ui/             # Reusable UI components
-  features/         # Local scope (per feature)
+  features/
     dashboard/
     calendar/
-    tasks/
+    tasks-container/
+    task-editor/
     topics/
     layout/
-  infrastructure/   # External services
-  test/             # Test configuration
 ```
 
 ### Import rules
+
+**Backend:**
+- `domain/` → imports from `domain/` only (zero external deps)
+- `application/` → imports from `domain/` and `application/` only
+- `infrastructure/` → imports from `application/` + `domain/`
+- `app/api/` → imports from `infrastructure/` + `application/` (wiring)
+
+**Frontend:**
 - `shared/` → can import from `shared/` only
 - `features/X/` → can import from `shared/` and `features/X/` only
-- `infrastructure/` → can import from `shared/` only
 - **Never** import across features (`features/A/` → `features/B/`)
 - Use barrel exports (`index.ts`) for cleaner imports
 
+### Other project files
+```
+openapi/
+  spec.ts           # OpenAPI 3.1 source of truth
+  openapi.json      # Generated JSON (pnpm openapi:emit)
+scripts/
+  openapi/emit.ts   # Script to generate openapi.json
+prisma/
+  schema.prisma     # DB schema (+ pgvector via raw SQL)
+  migrations/       # Prisma migrations
+```
+
 ### Configuration
 - Only the infrastructure/config layer may read `process.env`.
+- API route handlers may read `process.env` for wiring (e.g., Ollama URL).
 - Environment variables must be validated at startup (Zod recommended).
 - Never hardcode secrets.
 
@@ -168,8 +228,15 @@ src/
 
 ---
 
-## 5) Authentication Rules (Two JWT Tokens)
+## 5) Authentication Rules
 
+### Current state (dev)
+- Temporary `x-user-id` header sent from the API client in development only.
+- Controlled by env `NEXT_PUBLIC_DEV_USER_ID` (empty or absent = no header).
+- Backend extracts user ID via `getAuthUserId(request)` helper.
+- HMAC-signed callbacks (n8n → API) do NOT use `x-user-id`; they verify `X-Signature`.
+
+### Target state (future JWT)
 Implement auth with:
 - **Access token**: short TTL
 - **Refresh token**: long TTL, rotation recommended
@@ -187,12 +254,28 @@ If any security tradeoff is unclear, ask before implementing.
 
 ---
 
-## 6) Worker / Reminders Rules (BullMQ)
+## 6) Workers & Async Processing (BullMQ + n8n)
 
+### BullMQ Workers
+- Two queues: `reminders` and `summaries`, each with a dedicated worker.
+- Run workers with: `pnpm worker:reminders` / `pnpm worker:summaries`.
 - Reminder scheduling must be reliable and idempotent.
 - Jobs should include a stable identifier to avoid duplicates.
 - Failures must be observable (Sentry logging / structured logs).
 - Do not block API requests with long-running tasks; enqueue work instead.
+
+### n8n Integration
+- n8n orchestrates external async workflows (e.g., AI summary generation).
+- Communication: Worker → n8n webhook (HMAC-signed) → n8n processes → callback to API (HMAC-signed).
+- Callbacks to the API use HMAC signature verification, NOT x-user-id.
+- n8n workflows must be documented (inputs, outputs, callbacks).
+
+### AI Features (Ollama)
+- **Embeddings**: Ollama (`nomic-embed-text-v2-moe`) generates 768-dim vectors for topics and entries.
+- **Auto-topic**: Cosine similarity via pgvector finds the best matching topic.
+- **Summaries**: Async flow via BullMQ → n8n → LLM → callback.
+- Embedding operations are synchronous (API waits for Ollama response).
+- Summary generation is asynchronous (202 Accepted, notification on completion).
 
 ---
 
@@ -267,8 +350,26 @@ pnpm test:coverage  # With coverage report
 ## 10) Documentation Rules (Docs-as-Code)
 
 - Update docs in the **same PR** when behavior/API changes.
-- APIs must be documented with OpenAPI/Swagger.
-- Architectural decisions must be recorded as ADRs when they affect future evolution.
+- APIs must be documented with OpenAPI (see section 10b below).
+- Architectural decisions must be recorded as ADRs (`docs/adr/`) when they affect future evolution.
+- Update AGENTS.md and README.md when introducing new architectural patterns or tools.
+
+### 10b) OpenAPI Specification
+
+The project has a **single-source OpenAPI 3.1 spec** in `openapi/spec.ts`.
+
+**Workflow:**
+```bash
+pnpm openapi:emit      # spec.ts → openapi/openapi.json
+pnpm openapi:types     # openapi.json → src/shared/api/openapi-types.ts (auto-generated)
+pnpm openapi:generate  # Both steps combined
+```
+
+**Rules:**
+- When adding/modifying an API endpoint, update `openapi/spec.ts` in the same PR.
+- Never edit `openapi/openapi.json` or `openapi-types.ts` by hand — they are generated.
+- The spec is served at runtime via `GET /api/openapi.json` (no auth required).
+- Security schemes: `DevUserIdHeader` (current dev auth) + `BearerAuth` (future JWT).
 
 ---
 
@@ -304,8 +405,11 @@ A feature is done when:
 ## 13) If You Need Clarification
 
 Ask concise questions about:
-- Data model (task fields, note linking, reminder rules)
+- Data model (entry fields, topic linking, reminder rules)
 - Mobile behavior of calendar/day sidebar
 - Token storage strategy (cookies vs alternatives)
 - API shape and naming conventions
+- Embedding model/dimension changes
+- n8n workflow design (webhooks, callbacks, HMAC)
+- OpenAPI spec coverage when adding new endpoints
 - Whether a feature is MVP vs post-MVP
