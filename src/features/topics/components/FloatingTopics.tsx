@@ -9,6 +9,8 @@ import React, {
   useEffect,
 } from "react";
 import { useStore } from "@/shared/store";
+import type { ApiEntry } from "@/shared/api/sdk";
+import { useTopicsQuery } from "@/shared/api/queries";
 import type {
   TopicNodeCenter,
   TaskCenter,
@@ -80,6 +82,8 @@ function applyMinTrunkHysteresis(
 interface FloatingTopicsProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   laneRef?: React.RefObject<HTMLDivElement | null>;
+  /** Entries by date (from TanStack Query, e.g. useEntriesForDates). */
+  entriesByDate: Record<string, ApiEntry[]>;
 }
 
 interface DragState {
@@ -103,12 +107,15 @@ interface NodePosition {
 // ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef, laneRef }: Readonly<FloatingTopicsProps>) {
+export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonly<FloatingTopicsProps>) {
   // ---------------------------------------------------------------------------
-  // Store selectors (optimized - only subscribe to what we need)
+  // Data from TanStack Query
   // ---------------------------------------------------------------------------
-  const entriesByDate = useStore((s) => s.entriesByDate);
-  const topics = useStore((s) => s.topics);
+  const { data: topics = [] } = useTopicsQuery();
+
+  // ---------------------------------------------------------------------------
+  // Store (UI state only)
+  // ---------------------------------------------------------------------------
   const topicPositions = useStore((s) => s.topicPositions);
   const setTopicPosition = useStore((s) => s.setTopicPosition);
   const highlightedTopic = useStore((s) => s.highlightedTopic);

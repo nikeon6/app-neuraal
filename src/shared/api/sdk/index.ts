@@ -31,10 +31,15 @@
  *    - [ ] Expanding a day shows entry pills with correct topic colors
  *    - [ ] Mobile horizontal calendar shows dots for days with entries
  *
- * 4. **Error scenarios**
+ * 4. **AUTO topic**
+ *    - [ ] Set entry topic to "Auto", edit content, wait for autosave → auto-topic runs; topic may be assigned
+ *    - [ ] Blur editor (click outside) → pending save flushes; AUTO runs if applicable
+ *
+ * 5. **Error scenarios**
  *    - [ ] Stop backend → UI shows console errors, doesn't crash
- *    - [ ] Create entry with backend stopped → error logged, UI recovers
- *    - [ ] 409 conflict (stale version) → entries reload for that date
+ *    - [ ] 401 → "Not authenticated" (dev: ensure x-user-id)
+ *    - [ ] 404 on update/delete → entries refetched, editor closed if entry gone
+ *    - [ ] 409 conflict (stale version) → entries refetched
  */
 
 // Types

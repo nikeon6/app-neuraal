@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useRef } from "react";
 import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/shared/store";
+import { useTopicsQuery } from "@/shared/api/queries";
+import { deleteTopicAndInvalidate } from "@/shared/api/mutations";
 import { ConfirmDialog } from "@/shared/ui";
 import type { ApiTopic } from "@/shared/api/sdk";
 import { TopicPill } from "./TopicPill";
@@ -13,9 +16,8 @@ import { CreateTopicDialog } from "./CreateTopicDialog";
 // ============================================================================
 
 export function TopicsSection() {
-  const topics = useStore((s) => s.topics);
-  const isLoading = useStore((s) => s.isLoadingTopics);
-  const apiDeleteTopic = useStore((s) => s.apiDeleteTopic);
+  const queryClient = useQueryClient();
+  const { data: topics = [], isPending: isLoading } = useTopicsQuery();
 
   // Refs for focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -39,10 +41,10 @@ export function TopicsSection() {
 
   const handleConfirmDelete = useCallback(() => {
     if (topicToDelete) {
-      apiDeleteTopic(topicToDelete.id);
+      void deleteTopicAndInvalidate(queryClient, topicToDelete.id);
       setTopicToDelete(null);
     }
-  }, [topicToDelete, apiDeleteTopic]);
+  }, [topicToDelete, queryClient]);
 
   const handleCancelDelete = useCallback(() => {
     setTopicToDelete(null);

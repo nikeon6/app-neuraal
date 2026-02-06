@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useStore } from "@/shared/store";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ApiTopic } from "@/shared/api/sdk";
+import { createTopicAndInvalidate } from "@/shared/api/mutations";
 import { cn } from "@/shared/lib/utils";
 
 // ============================================================================
@@ -36,7 +37,7 @@ export function CreateTopicDialog({
   existingTopics,
   triggerRef,
 }: CreateTopicDialogProps) {
-  const apiCreateTopic = useStore((s) => s.apiCreateTopic);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,7 +78,7 @@ export function CreateTopicDialog({
 
       setIsSubmitting(true);
       try {
-        await apiCreateTopic({ name: trimmedName, color });
+        await createTopicAndInvalidate(queryClient, { name: trimmedName, color });
         // Reset form and close
         setName("");
         setColor(null);
@@ -88,7 +89,7 @@ export function CreateTopicDialog({
         setIsSubmitting(false);
       }
     },
-    [isValid, apiCreateTopic, trimmedName, color, closeAndReturnFocus]
+    [isValid, queryClient, trimmedName, color, closeAndReturnFocus]
   );
 
   const handleCancel = useCallback(() => {

@@ -1,44 +1,14 @@
 /**
- * Hook to load entries for the currently selected date.
- *
- * Automatically fetches when `selectedDate` changes.
- * Also triggers a background fetch for the full month so the
- * calendar and floating topics have data.
- *
- * @example
- * const { entries, isLoading, dateKey } = useEntries();
+ * Hook to get entries for the currently selected date from TanStack Query.
+ * Prefer useEntriesByDateQuery(dateKey) from @/shared/api/queries when you need the full query result.
  */
 "use client";
 
-import { useEffect } from "react";
 import { useStore, selectDateKey } from "@/shared/store";
+import { useEntriesByDateQuery } from "@/shared/api/queries";
 
 export function useEntries() {
-  const selectedDate = useStore((s) => s.selectedDate);
   const dateKey = useStore(selectDateKey);
-  const entriesByDate = useStore((s) => s.entriesByDate);
-  const loadingDates = useStore((s) => s.loadingDates);
-  const fetchEntriesByDate = useStore((s) => s.fetchEntriesByDate);
-  const fetchMonthEntries = useStore((s) => s.fetchMonthEntries);
-
-  const entries = entriesByDate[dateKey] || [];
-  const isLoading = loadingDates.includes(dateKey);
-
-  // Fetch entries for the selected date
-  useEffect(() => {
-    if (!(dateKey in entriesByDate) && !loadingDates.includes(dateKey)) {
-      fetchEntriesByDate(dateKey);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateKey]);
-
-  // Fetch the full month in the background (for calendar pills + floating topics)
-  useEffect(() => {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth() + 1;
-    fetchMonthEntries(year, month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate.getFullYear(), selectedDate.getMonth()]);
-
+  const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
   return { entries, isLoading, dateKey };
 }

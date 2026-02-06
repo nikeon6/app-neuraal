@@ -3,47 +3,45 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/shared/store";
 import { cn } from "@/shared/lib";
 import type { ISODate } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
+import { useTopicsQuery } from "@/shared/api/queries";
+import { deleteEntryAndInvalidate } from "@/shared/api/mutations";
 
 /**
  * VerticalCalendar - Responsive calendar sidebar
- * 
+ *
  * MOBILE (<lg): Compact mode
- *   - Horizontal scrollable row of days
- *   - Only shows day number + dot indicator if has entries
- *   - No entry list visible
- * 
  * DESKTOP (lg+): Collapsed/Expanded mode
- *   - Collapsed (default): Only day info, no entry pills
- *   - Expanded: When topics are selected, shows entry pills for visible days
- *   - Wires connect to day anchors (collapsed) or entry pills (expanded)
  */
-export function VerticalCalendar() {
+interface VerticalCalendarProps {
+  /** Entries by date (from TanStack Query). */
+  entriesByDate: Record<string, ApiEntry[]>;
+}
+
+export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarProps>) {
+  const queryClient = useQueryClient();
   const {
     selectedDate,
     setSelectedDay,
     setSelectedDate,
-    entriesByDate,
-    apiDeleteEntry,
     selectedTopicIds,
     expandedDayKeys,
     expandDay,
     collapseDay,
-    topics,
   } = useStore();
 
+  const { data: topics = [] } = useTopicsQuery();
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  // Track visible days for lazy rendering of entry pills
   const [visibleDays, setVisibleDays] = useState<Set<string>>(new Set());
   const visibleDaysRef = useRef<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Topic color lookup
   const topicColorMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const t of topics) {
@@ -127,9 +125,9 @@ export function VerticalCalendar() {
   const handleRemoveEntry = useCallback(
     (e: React.MouseEvent, dateKey: string, entryId: string) => {
       e.stopPropagation();
-      apiDeleteEntry(entryId, dateKey);
+      void deleteEntryAndInvalidate(queryClient, entryId, dateKey);
     },
-    [apiDeleteEntry]
+    [queryClient]
   );
 
   // Handle day click: expand/collapse
@@ -141,18 +139,18 @@ export function VerticalCalendar() {
 
       if (isExpanded) {
         if (isSelected) {
-          collapseDay(dateKey);
+          collapseDay(dateKey, entriesByDate);
         } else {
           setSelectedDate(day);
           setSelectedDay(day.getDate());
         }
       } else {
-        expandDay(dateKey);
+        expandDay(dateKey, entriesByDate);
         setSelectedDate(day);
         setSelectedDay(day.getDate());
       }
     },
-    [expandedDayKeys, selectedDate, setSelectedDate, setSelectedDay, expandDay, collapseDay]
+    [expandedDayKeys, selectedDate, setSelectedDate, setSelectedDay, expandDay, collapseDay, entriesByDate]
   );
 
   // Simple click for mobile

@@ -3,7 +3,10 @@
 import React, { useCallback, useRef, useMemo, memo } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
-import { useStore, selectDateKey, selectCurrentEntries } from "@/shared/store";
+import { useQueryClient } from "@tanstack/react-query";
+import { useStore, selectDateKey } from "@/shared/store";
+import { useEntriesByDateQuery, useTopicsQuery } from "@/shared/api/queries";
+import { createEntryAndInvalidate } from "@/shared/api/mutations";
 import { TaskEditor } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
@@ -185,13 +188,10 @@ function ReorderableTaskItem({
 // ============================================================================
 
 export function TasksContainer() {
+  const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
-  const entries = useStore(selectCurrentEntries);
-  const loadingDates = useStore((s) => s.loadingDates);
-  const apiCreateEntry = useStore((s) => s.apiCreateEntry);
-  const topics = useStore((s) => s.topics);
-
-  const isLoading = loadingDates.includes(dateKey);
+  const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
+  const { data: topics = [] } = useTopicsQuery();
 
   // Create a map for quick entry lookup by ID
   const entryMap = useMemo(() => {
@@ -236,10 +236,9 @@ export function TasksContainer() {
 
   // Handle add new entry
   const handleAddTask = useCallback(async () => {
-    // Pick the first topic if available, otherwise no topic
     const defaultTopicId = topics.length > 0 ? topics[0].id : undefined;
 
-    await apiCreateEntry({
+    await createEntryAndInvalidate(queryClient, {
       date: dateKey,
       type: "task",
       title: "New task",
@@ -247,7 +246,6 @@ export function TasksContainer() {
       topicId: defaultTopicId ?? null,
     });
 
-    // Auto-scroll to bottom after adding
     setTimeout(() => {
       if (containerRef.current) {
         containerRef.current.scrollTo({
@@ -256,7 +254,7 @@ export function TasksContainer() {
         });
       }
     }, 100);
-  }, [dateKey, apiCreateEntry, topics, containerRef]);
+  }, [dateKey, queryClient, topics, containerRef]);
 
   // Handle TaskEditor expansion - auto-scroll to show expanded content
   const handleTaskExpand = useCallback(

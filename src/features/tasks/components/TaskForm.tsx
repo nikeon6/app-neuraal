@@ -2,17 +2,18 @@
 
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
+import { useTopicsQuery } from "@/shared/api/queries";
+import { createEntryAndInvalidate } from "@/shared/api/mutations";
 
 /**
  * TaskForm — Quick-add form for creating new entries via the API.
- *
- * Uses API topics from the store instead of hardcoded constants.
  */
 export function TaskForm() {
+  const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
-  const apiCreateEntry = useStore((s) => s.apiCreateEntry);
-  const topics = useStore((s) => s.topics);
+  const { data: topics = [] } = useTopicsQuery();
 
   const [newTitle, setNewTitle] = useState("");
   const [newTopicId, setNewTopicId] = useState<string>("");
@@ -25,7 +26,7 @@ export function TaskForm() {
 
       setIsSubmitting(true);
       try {
-        await apiCreateEntry({
+        await createEntryAndInvalidate(queryClient, {
           date: dateKey,
           type: "task",
           title: newTitle.trim(),
@@ -39,7 +40,7 @@ export function TaskForm() {
         setIsSubmitting(false);
       }
     },
-    [dateKey, newTitle, newTopicId, apiCreateEntry, isSubmitting]
+    [dateKey, newTitle, newTopicId, queryClient, isSubmitting]
   );
 
   return (

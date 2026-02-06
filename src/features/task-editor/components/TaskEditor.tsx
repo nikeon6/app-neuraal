@@ -19,11 +19,18 @@ import {
   ListTodo,
   StickyNote,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
+import { useTopicsQuery, entriesQueryKey } from "@/shared/api/queries";
+import { updateEntryAndInvalidate, deleteEntryAndInvalidate } from "@/shared/api/mutations";
+import * as entriesSdk from "@/shared/api/sdk/entries";
+import { ApiError } from "@/shared/api/apiClient";
 import { cn } from "@/shared/lib";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
+
+const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 /** Sentinel value for "auto-classify" topic mode. Not a real topic ID. */
 const AUTO_TOPIC = "__auto__" as const;
@@ -45,10 +52,9 @@ export function TaskEditor({
   entry,
   onClose,
 }: TaskEditorProps) {
+  const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
-  const apiUpdateEntry = useStore((s) => s.apiUpdateEntry);
-  const apiDeleteEntry = useStore((s) => s.apiDeleteEntry);
-  const topics = useStore((s) => s.topics);
+  const { data: topics = [] } = useTopicsQuery();
 
   // ---------------------------------------------------------------------------
   // Form state (draft — initialized from entry props)
@@ -119,8 +125,9 @@ export function TaskEditor({
   const contentMenuRef = useRef<HTMLDivElement>(null);
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastSavedHashRef = useRef<string>("");
 
-  // Topic lookup for display
   const topicMap = useMemo(() => {
     const map = new Map<string, { name: string; color: string }>();
     for (const t of topics) {
@@ -129,45 +136,85 @@ export function TaskEditor({
     return map;
   }, [topics]);
 
-  // ---------------------------------------------------------------------------
-  // Auto-save via API — reads from draftRef so the timeout always uses the
-  // latest values even if component re-rendered between schedule and execution.
-  // ---------------------------------------------------------------------------
-  const triggerAutoSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  const runSave = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    const ac = new AbortController();
+    abortControllerRef.current = ac;
+
+    const draft = draftRef.current;
+    const topicIdToSend = draft.selectedTopicId === AUTO_TOPIC ? null : draft.selectedTopicId;
+    const contentJson = draft.content.trim()
+      ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: draft.content }] }] }
+      : {};
+
+    const payload = {
+      title: draft.title.trim() || entry.title,
+      content: contentJson as Record<string, unknown>,
+      topicId: topicIdToSend,
+      completed: draft.entryType === "task" ? draft.isCompleted : undefined,
+      type: draft.entryType as "task" | "note",
+      version: versionRef.current,
+    };
+
+    const hash = `${payload.title}|${JSON.stringify(payload.content)}|${payload.topicId}|${payload.type}|${payload.completed}`;
+    if (hash === lastSavedHashRef.current) {
+      setUIState((prev) => ({ ...prev, isSaving: false }));
+      if (draft.selectedTopicId === AUTO_TOPIC) {
+        try {
+          const res = await entriesSdk.autoTopicEntry(entry.id);
+          if (res.selectedTopicId) {
+            await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return;
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      setUIState((prev) => ({ ...prev, isSaving: true }));
+    setUIState((prev) => ({ ...prev, isSaving: true }));
 
-      // Read LATEST draft values from ref (not stale closure)
-      const draft = draftRef.current;
-
-      // Determine the topicId to send
-      const topicIdToSend = draft.selectedTopicId === AUTO_TOPIC ? null : draft.selectedTopicId;
-
-      // Wrap plain text into minimal ProseMirror-like JSON
-      const contentJson = draft.content.trim()
-        ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: draft.content }] }] }
-        : {};
-
-      const result = await apiUpdateEntry(entry.id, dateKey, {
-        title: draft.title.trim() || entry.title,
-        content: contentJson as Record<string, unknown>,
-        topicId: topicIdToSend,
-        completed: draft.entryType === "task" ? draft.isCompleted : undefined,
-        type: draft.entryType as "task" | "note",
-        version: versionRef.current,
-      });
-
+    try {
+      const result = await updateEntryAndInvalidate(queryClient, entry.id, dateKey, payload);
       if (result) {
         versionRef.current = result.version;
+        lastSavedHashRef.current = hash;
       }
+      if (draft.selectedTopicId === AUTO_TOPIC) {
+        const res = await entriesSdk.autoTopicEntry(entry.id);
+        if (res.selectedTopicId) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+        }
+      }
+    } catch (error) {
+      if (ac.signal.aborted) return;
+      if (error instanceof ApiError) {
+        if (error.status === 401) console.warn("Not authenticated");
+        else if (error.status === 404) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          onClose?.();
+        } else if (error.status === 409) {
+          await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+          console.warn("Conflict (version). Refreshed entries.");
+        } else console.error("[TaskEditor] update failed:", error);
+      } else console.error("[TaskEditor] update failed:", error);
+    } finally {
+      if (!ac.signal.aborted) setUIState((prev) => ({ ...prev, isSaving: false }));
+    }
+  }, [entry.id, entry.title, dateKey, queryClient, onClose]);
 
-      setUIState((prev) => ({ ...prev, isSaving: false }));
-    }, 1000);
-  }, [entry.id, entry.title, dateKey, apiUpdateEntry]);
+  const triggerAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(runSave, AUTOSAVE_DEBOUNCE_MS);
+  }, [runSave]);
+
+  const flushPendingSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+      void runSave();
+    }
+  }, [runSave]);
 
   // ---- Handlers -----------------------------------------------------------
 
@@ -206,10 +253,17 @@ export function TaskEditor({
     triggerAutoSave();
   };
 
-  const handleDelete = async () => {
-    await apiDeleteEntry(entry.id, dateKey);
-    onClose?.();
-  };
+  const handleDelete = useCallback(async () => {
+    try {
+      await deleteEntryAndInvalidate(queryClient, entry.id, dateKey);
+      onClose?.();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+        onClose?.();
+      } else console.error("[TaskEditor] delete failed:", error);
+    }
+  }, [queryClient, entry.id, dateKey, onClose]);
 
   const handleEditorClick = () => {
     setUIState((prev) => ({ ...prev, isExpanded: true }));
@@ -219,6 +273,7 @@ export function TaskEditor({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (editorRef.current && !editorRef.current.contains(event.target as Node)) {
+        flushPendingSave();
         setUIState((prev) => ({
           ...prev,
           isExpanded: false,
@@ -229,9 +284,8 @@ export function TaskEditor({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [flushPendingSave]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
