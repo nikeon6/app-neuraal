@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DeleteAttachment } from "@/application/use-cases/DeleteAttachment";
+import { DeleteAttachment } from "@/application/use-cases/attachments/DeleteAttachment";
 import { PrismaAttachmentRepository } from "@/infrastructure/persistence/PrismaAttachmentRepository";
 import { S3ObjectStorage } from "@/infrastructure/storage/S3ObjectStorage";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";

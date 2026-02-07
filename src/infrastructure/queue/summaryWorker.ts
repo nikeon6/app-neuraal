@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { ProcessEntrySummaryJob } from "../../application/use-cases/ProcessEntrySummaryJob";
+import { ProcessEntrySummaryJob } from "../../application/use-cases/summaries/ProcessEntrySummaryJob";
 import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
 import { PrismaSummaryRequestRepository } from "../persistence/PrismaSummaryRequestRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";

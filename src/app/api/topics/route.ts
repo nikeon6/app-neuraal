@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateTopic } from "@/application/use-cases/CreateTopic";
-import { ListTopics } from "@/application/use-cases/ListTopics";
+import { CreateTopic } from "@/application/use-cases/topics/CreateTopic";
+import { ListTopics } from "@/application/use-cases/topics/ListTopics";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 

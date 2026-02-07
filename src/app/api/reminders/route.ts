@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateReminder } from "@/application/use-cases/CreateReminder";
+import { CreateReminder } from "@/application/use-cases/reminders/CreateReminder";
 import { PrismaReminderRepository } from "@/infrastructure/persistence/PrismaReminderRepository";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { BullMQAdapter } from "@/infrastructure/queue/BullMQAdapter";

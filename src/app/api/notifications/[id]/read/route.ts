@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MarkNotificationRead } from "@/application/use-cases/MarkNotificationRead";
+import { MarkNotificationRead } from "@/application/use-cases/notifications/MarkNotificationRead";
 import { PrismaNotificationRepository } from "@/infrastructure/persistence/PrismaNotificationRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 
