@@ -73,30 +73,20 @@ export class ProcessReminderJob {
       });
     }
 
-    // 5. Call automation service
-    const automationResult = await this.automationPort.sendReminder({
-      reminderId: reminder.id,
-      userId: reminder.userId,
-      entryId: reminder.entryId,
-      scheduledAt: reminder.scheduledAt.toString(),
-      channel: reminder.channel.toString(),
-      message: reminder.message,
-    });
-
+    const channel = reminder.channel.toString();
     const now = new Date();
 
-    if (automationResult.success) {
-      // 6. Success → mark sent
+    // 5. Push channel = in-app only. Skip n8n, just mark sent + create notification.
+    if (channel === "push") {
       const sentReminder = reminder.markSent();
       await this.reminderRepository.update(sentReminder);
 
-      // Create success notification
       const notificationResult = Notification.create({
         id: this.generateId(),
         userId: reminder.userId,
         type: "REMINDER_SENT",
         title: "Reminder Sent",
-        message: `Your reminder was sent via ${reminder.channel.toString()}`,
+        message: reminder.message || "You have a scheduled reminder",
         status: "unread",
         payload: { reminderId: reminder.id, entryId: reminder.entryId },
         createdAt: now,
@@ -106,22 +96,51 @@ export class ProcessReminderJob {
         await this.notificationRepository.create(notificationResult.value);
       }
 
-      return ok({
-        processed: true,
-        status: "sent",
+      return ok({ processed: true, status: "sent" as const });
+    }
+
+    // 6. External channels (email, whatsapp) → call automation service (n8n)
+    const automationResult = await this.automationPort.sendReminder({
+      reminderId: reminder.id,
+      userId: reminder.userId,
+      entryId: reminder.entryId,
+      scheduledAt: reminder.scheduledAt.toString(),
+      channel,
+      message: reminder.message,
+    });
+
+    if (automationResult.success) {
+      // 7a. Success → mark sent
+      const sentReminder = reminder.markSent();
+      await this.reminderRepository.update(sentReminder);
+
+      const notificationResult = Notification.create({
+        id: this.generateId(),
+        userId: reminder.userId,
+        type: "REMINDER_SENT",
+        title: "Reminder Sent",
+        message: `Your reminder was sent via ${channel}`,
+        status: "unread",
+        payload: { reminderId: reminder.id, entryId: reminder.entryId },
+        createdAt: now,
       });
+
+      if (notificationResult.isOk()) {
+        await this.notificationRepository.create(notificationResult.value);
+      }
+
+      return ok({ processed: true, status: "sent" as const });
     } else {
-      // 7. Failure → mark failed
+      // 7b. Failure → mark failed
       const failedReminder = reminder.markFailed();
       await this.reminderRepository.update(failedReminder);
 
-      // Create failure notification
       const notificationResult = Notification.create({
         id: this.generateId(),
         userId: reminder.userId,
         type: "REMINDER_FAILED",
         title: "Reminder Failed",
-        message: `Failed to send reminder via ${reminder.channel.toString()}: ${automationResult.error || "Unknown error"}`,
+        message: `Failed to send reminder via ${channel}: ${automationResult.error || "Unknown error"}`,
         status: "unread",
         payload: { 
           reminderId: reminder.id, 
@@ -137,7 +156,7 @@ export class ProcessReminderJob {
 
       return ok({
         processed: true,
-        status: "failed",
+        status: "failed" as const,
         reason: automationResult.error,
       });
     }

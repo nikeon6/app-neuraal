@@ -17,14 +17,15 @@ describe("ProcessReminderJob", () => {
 
   const createTestReminder = async (
     status: string = "pending",
-    scheduledAt: string = originalScheduledAt
+    scheduledAt: string = originalScheduledAt,
+    channel: string = "whatsapp"
   ) => {
     const reminderResult = Reminder.create({
       id: reminderId,
       userId,
       entryId: "entry-123",
       scheduledAt,
-      channel: "whatsapp",
+      channel,
       message: "Test reminder",
       status,
       createdAt: new Date(),
@@ -148,6 +149,74 @@ describe("ProcessReminderJob", () => {
       const notifications = notificationRepository.getAll();
       expect(notifications).toHaveLength(1);
       expect(notifications[0].type.isReminderFailed()).toBe(true);
+    });
+  });
+
+  describe("push channel (in-app only, no n8n)", () => {
+    it("should NOT call automation service for push channel", async () => {
+      await createTestReminder("pending", originalScheduledAt, "push");
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      expect(automationPort.getSentPayloads()).toHaveLength(0);
+    });
+
+    it("should mark reminder as sent for push channel", async () => {
+      await createTestReminder("pending", originalScheduledAt, "push");
+
+      const result = await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.processed).toBe(true);
+        expect(result.value.status).toBe("sent");
+      }
+
+      const reminder = await reminderRepository.findById(reminderId);
+      expect(reminder?.status.isSent()).toBe(true);
+    });
+
+    it("should create REMINDER_SENT notification for push channel", async () => {
+      await createTestReminder("pending", originalScheduledAt, "push");
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      const notifications = notificationRepository.getAll();
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0].type.isReminderSent()).toBe(true);
+    });
+
+    it("should still call automation for email channel", async () => {
+      await createTestReminder("pending", originalScheduledAt, "email");
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      expect(automationPort.getSentPayloads()).toHaveLength(1);
+      expect(automationPort.getLastSentPayload()?.channel).toBe("email");
+    });
+
+    it("should still call automation for whatsapp channel", async () => {
+      await createTestReminder("pending", originalScheduledAt, "whatsapp");
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      expect(automationPort.getSentPayloads()).toHaveLength(1);
+      expect(automationPort.getLastSentPayload()?.channel).toBe("whatsapp");
     });
   });
 

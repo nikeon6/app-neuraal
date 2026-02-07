@@ -349,7 +349,14 @@ export function TaskEditor({
         setIsReminderDialogOpen(false);
         console.info("[TaskEditor] Reminder rescheduled.");
       } catch (error) {
-        console.error("[TaskEditor] reschedule reminder failed:", error);
+        // If the reminder was already sent/processed, clear the local state
+        if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
+          console.warn("[TaskEditor] Reminder already sent or processed, clearing local state.");
+          setActiveReminderId(null);
+          setIsReminderDialogOpen(false);
+        } else {
+          console.error("[TaskEditor] reschedule reminder failed:", error);
+        }
       } finally {
         setIsReminderSaving(false);
       }
@@ -366,7 +373,14 @@ export function TaskEditor({
       setIsReminderDialogOpen(false);
       console.info("[TaskEditor] Reminder canceled.");
     } catch (error) {
-      console.error("[TaskEditor] cancel reminder failed:", error);
+      // If the reminder was already sent/processed, clear the local state
+      if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
+        console.warn("[TaskEditor] Reminder already sent or processed, clearing local state.");
+        setActiveReminderId(null);
+        setIsReminderDialogOpen(false);
+      } else {
+        console.error("[TaskEditor] cancel reminder failed:", error);
+      }
     } finally {
       setIsReminderSaving(false);
     }
@@ -376,18 +390,26 @@ export function TaskEditor({
     setUIState((prev) => ({ ...prev, isExpanded: true }));
   };
 
-  // Click outside → collapse
+  // Click outside → collapse (but ignore clicks on portal-rendered dialogs)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editorRef.current && !editorRef.current.contains(event.target as Node)) {
-        flushPendingSave();
-        setUIState((prev) => ({
-          ...prev,
-          isExpanded: false,
-          isContentMenuOpen: false,
-          isTopicMenuOpen: false,
-        }));
-      }
+      const target = event.target as Node;
+
+      // Don't collapse if clicking inside the editor itself
+      if (editorRef.current && editorRef.current.contains(target)) return;
+
+      // Don't collapse if clicking inside a portal-rendered dialog (ReminderDialog,
+      // ConfirmDialog, etc.) — these are outside the editor DOM but still "ours"
+      const targetEl = target instanceof HTMLElement ? target : target.parentElement;
+      if (targetEl?.closest("[role='dialog'], [role='alertdialog'], [data-dialog-backdrop]")) return;
+
+      flushPendingSave();
+      setUIState((prev) => ({
+        ...prev,
+        isExpanded: false,
+        isContentMenuOpen: false,
+        isTopicMenuOpen: false,
+      }));
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);

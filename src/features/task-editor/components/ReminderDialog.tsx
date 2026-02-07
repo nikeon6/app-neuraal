@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Clock, Bell, Trash2 } from "lucide-react";
+import {
+  X,
+  Clock,
+  Bell,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "@/shared/lib";
 
 // ---------------------------------------------------------------------------
@@ -17,7 +25,11 @@ export interface ReminderDialogProps {
   /** Close the dialog */
   onClose: () => void;
   /** Create a new reminder */
-  onCreate: (scheduledAt: string, channel: ReminderChannel, message?: string) => void;
+  onCreate: (
+    scheduledAt: string,
+    channel: ReminderChannel,
+    message?: string
+  ) => void;
   /** Reschedule an existing reminder (only if activeReminderId is set) */
   onReschedule?: (scheduledAt: string) => void;
   /** Cancel an existing reminder */
@@ -29,40 +41,342 @@ export interface ReminderDialogProps {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Constants
 // ---------------------------------------------------------------------------
 
 const CHANNELS: { id: ReminderChannel; label: string }[] = [
   { id: "push", label: "Push" },
   { id: "email", label: "Email" },
   { id: "whatsapp", label: "WhatsApp" },
-  { id: "sms", label: "SMS" },
 ];
 
-/** Build the default datetime-local value: tomorrow at 09:00 in local time. */
-function defaultDateTime(): string {
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, 10, ... 55
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Build the default date: tomorrow */
+function defaultDate(): Date {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   d.setHours(9, 0, 0, 0);
-  // datetime-local needs "YYYY-MM-DDTHH:mm"
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return d;
 }
 
-/** Convert datetime-local string (local) to ISO UTC string. */
-function toIsoUtc(dtLocal: string): string {
-  return new Date(dtLocal).toISOString();
+/** Convert Date + hour + minute to ISO UTC string. */
+function toIsoUtc(date: Date, hour: number, minute: number): string {
+  const d = new Date(date);
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+/** Get days of a month organized into weeks (Mon-start). */
+function getMonthGrid(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  // Day of week: 0=Sun, 1=Mon, ... We want Mon=0
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const daysInMonth = lastDay.getDate();
+  const cells: (number | null)[] = [];
+
+  // Blank cells before first day
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  // Days of the month
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  // Pad to complete the last week
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return cells;
+}
+
+/** Pad number to 2 digits */
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// ScrollPicker Sub-component — custom styled replacement for native <select>
+// ---------------------------------------------------------------------------
+
+interface ScrollPickerProps {
+  values: number[];
+  selected: number;
+  onChange: (value: number) => void;
+  label: string;
+}
+
+function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPickerProps>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const selectedRef = React.useRef<HTMLButtonElement>(null);
+
+  // Scroll to selected item when dropdown opens
+  React.useEffect(() => {
+    if (isOpen && selectedRef.current) {
+      selectedRef.current.scrollIntoView({ block: "center" });
+    }
+  }, [isOpen]);
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!isOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-label={label}
+        className={cn(
+          "bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white min-w-[3rem] text-center",
+          "hover:bg-white/10 transition-colors",
+          isOpen && "ring-1 ring-sky-400/50 border-sky-400/30"
+        )}
+      >
+        {pad2(selected)}
+      </button>
+      {isOpen && (
+        <div
+          className={cn(
+            "absolute bottom-full mb-1 left-1/2 -translate-x-1/2",
+            "w-14 max-h-[160px] overflow-y-auto custom-scrollbar",
+            "bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
+            "py-1 z-10"
+          )}
+        >
+          {values.map((v) => (
+            <button
+              key={v}
+              ref={v === selected ? selectedRef : undefined}
+              type="button"
+              onClick={() => {
+                onChange(v);
+                setIsOpen(false);
+              }}
+              className={cn(
+                "w-full py-1.5 text-xs font-medium text-center transition-colors",
+                v === selected
+                  ? "bg-sky-500/20 text-sky-300"
+                  : "text-white/50 hover:bg-white/10 hover:text-white/80"
+              )}
+            >
+              {pad2(v)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DateTimePicker Sub-component
+// ---------------------------------------------------------------------------
+
+interface DateTimePickerProps {
+  selectedDate: Date;
+  hour: number;
+  minute: number;
+  onDateChange: (date: Date) => void;
+  onHourChange: (h: number) => void;
+  onMinuteChange: (m: number) => void;
+}
+
+function DateTimePicker({
+  selectedDate,
+  hour,
+  minute,
+  onDateChange,
+  onHourChange,
+  onMinuteChange,
+}: Readonly<DateTimePickerProps>) {
+  const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
+
+  const grid = useMemo(
+    () => getMonthGrid(viewYear, viewMonth),
+    [viewYear, viewMonth]
+  );
+
+  const today = useMemo(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
+  }, []);
+
+  const selDay = selectedDate.getDate();
+  const selMonth = selectedDate.getMonth();
+  const selYear = selectedDate.getFullYear();
+
+  const prevMonth = useCallback(() => {
+    setViewMonth((m) => {
+      if (m === 0) {
+        setViewYear((y) => y - 1);
+        return 11;
+      }
+      return m - 1;
+    });
+  }, []);
+
+  const nextMonth = useCallback(() => {
+    setViewMonth((m) => {
+      if (m === 11) {
+        setViewYear((y) => y + 1);
+        return 0;
+      }
+      return m + 1;
+    });
+  }, []);
+
+  const handleDayClick = useCallback(
+    (day: number) => {
+      const d = new Date(viewYear, viewMonth, day);
+      onDateChange(d);
+    },
+    [viewYear, viewMonth, onDateChange]
+  );
+
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleString("en", {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="space-y-3">
+      {/* Calendar header */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-sm font-medium text-white/80">{monthLabel}</span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+          aria-label="Next month"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Weekday header */}
+      <div className="grid grid-cols-7 gap-0.5 text-center">
+        {WEEKDAY_LABELS.map((wd) => (
+          <span key={wd} className="text-[10px] text-white/30 font-medium">
+            {wd}
+          </span>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {grid.map((day, i) => {
+          if (day === null) {
+            return <div key={`blank-w${Math.floor(i / 7)}-d${i % 7}`} className="h-8" />;
+          }
+
+          const isSelected =
+            day === selDay &&
+            viewMonth === selMonth &&
+            viewYear === selYear;
+          const isToday =
+            day === today.day &&
+            viewMonth === today.month &&
+            viewYear === today.year;
+
+          let dayStyle =
+            "text-white/50 hover:bg-white/10 hover:text-white/80 border border-transparent";
+          if (isSelected) {
+            dayStyle =
+              "bg-sky-500/30 text-sky-300 border border-sky-400/30";
+          } else if (isToday) {
+            dayStyle = "bg-white/5 text-white border border-white/10";
+          }
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => handleDayClick(day)}
+              className={cn(
+                "h-8 rounded-lg text-xs font-medium transition-all",
+                dayStyle
+              )}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Time picker */}
+      <div className="flex items-center gap-2 pt-2">
+        <Clock className="w-4 h-4 text-white/30 flex-shrink-0" />
+        <div className="flex items-center gap-1">
+          {/* Hour scroll picker */}
+          <ScrollPicker
+            values={HOURS}
+            selected={hour}
+            onChange={onHourChange}
+            label="Hour"
+          />
+          <span className="text-white/30 font-bold text-sm">:</span>
+          {/* Minute scroll picker */}
+          <ScrollPicker
+            values={MINUTES}
+            selected={minute}
+            onChange={onMinuteChange}
+            label="Minute"
+          />
+        </div>
+        <span className="text-[10px] text-white/25 ml-auto">
+          {new Date(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate(),
+            hour,
+            minute
+          ).toLocaleDateString("en", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })}{" "}
+          {pad2(hour)}:{pad2(minute)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReminderDialog Component
 // ---------------------------------------------------------------------------
 
 /**
  * ReminderDialog — modal for creating/rescheduling/canceling a reminder.
  *
- * Minimal MVP dialog (no external modal lib). Uses a backdrop overlay and
- * Framer Motion for entrance/exit animation.
+ * Rendered via createPortal to escape stacking context issues from
+ * parent transforms (Framer Motion). Uses a custom calendar picker
+ * that matches the dark theme.
  */
 export function ReminderDialog({
   open,
@@ -72,22 +386,28 @@ export function ReminderDialog({
   onCancel,
   hasActiveReminder,
   isSaving,
-}: ReminderDialogProps) {
-  const [dateTime, setDateTime] = useState(defaultDateTime);
+}: Readonly<ReminderDialogProps>) {
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [hour, setHour] = useState(9);
+  const [minute, setMinute] = useState(0);
   const [channel, setChannel] = useState<ReminderChannel>("push");
-  const [message, setMessage] = useState("");
+  // Message kept as internal state for future use (field hidden in MVP)
+  const message = "";
 
   const handleCreate = useCallback(() => {
-    const iso = toIsoUtc(dateTime);
+    const iso = toIsoUtc(selectedDate, hour, minute);
     onCreate(iso, channel, message.trim() || undefined);
-  }, [dateTime, channel, message, onCreate]);
+  }, [selectedDate, hour, minute, channel, message, onCreate]);
 
   const handleReschedule = useCallback(() => {
-    const iso = toIsoUtc(dateTime);
+    const iso = toIsoUtc(selectedDate, hour, minute);
     onReschedule?.(iso);
-  }, [dateTime, onReschedule]);
+  }, [selectedDate, hour, minute, onReschedule]);
 
-  return (
+  if (!open) return null;
+  if (typeof document === "undefined") return null;
+
+  const dialogContent = (
     <AnimatePresence>
       {open && (
         <>
@@ -97,6 +417,7 @@ export function ReminderDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+            data-dialog-backdrop=""
             onClick={onClose}
           />
 
@@ -132,25 +453,24 @@ export function ReminderDialog({
             </div>
 
             {/* Date/Time picker */}
-            <label className="block mb-3">
-              <span className="text-xs text-white/50 mb-1 block">Date & Time</span>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                <input
-                  type="datetime-local"
-                  value={dateTime}
-                  onChange={(e) => setDateTime(e.target.value)}
-                  className={cn(
-                    "w-full pl-10 pr-3 py-2.5 rounded-xl text-sm text-white bg-white/5 border border-white/10",
-                    "focus:outline-none focus:ring-1 focus:ring-sky-400/50 focus:border-sky-400/30",
-                    "[color-scheme:dark]"
-                  )}
+            <div className="mb-3">
+              <span className="text-xs text-white/50 mb-2 block">
+                Date & Time
+              </span>
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3">
+                <DateTimePicker
+                  selectedDate={selectedDate}
+                  hour={hour}
+                  minute={minute}
+                  onDateChange={setSelectedDate}
+                  onHourChange={setHour}
+                  onMinuteChange={setMinute}
                 />
               </div>
-            </label>
+            </div>
 
             {/* Channel selector */}
-            <label className="block mb-3">
+            <label className="block mb-5">
               <span className="text-xs text-white/50 mb-1 block">Channel</span>
               <div className="flex gap-1.5 flex-wrap">
                 {CHANNELS.map((ch) => (
@@ -169,22 +489,6 @@ export function ReminderDialog({
                   </button>
                 ))}
               </div>
-            </label>
-
-            {/* Message (optional) */}
-            <label className="block mb-4">
-              <span className="text-xs text-white/50 mb-1 block">Message (optional)</span>
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Reminder message..."
-                maxLength={200}
-                className={cn(
-                  "w-full px-3 py-2.5 rounded-xl text-sm text-white bg-white/5 border border-white/10 placeholder:text-white/20",
-                  "focus:outline-none focus:ring-1 focus:ring-sky-400/50 focus:border-sky-400/30"
-                )}
-              />
             </label>
 
             {/* Actions */}
@@ -239,4 +543,6 @@ export function ReminderDialog({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(dialogContent, document.body);
 }
