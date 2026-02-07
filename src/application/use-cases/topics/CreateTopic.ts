@@ -57,9 +57,7 @@ export class CreateTopic {
 
     const topic = topicResult.value;
 
-    // TODO: when backend is ready: request embedding generation for this topic
-
-    // Save to repository
+    // Save to repository (embedding generation is handled by the API route layer)
     await this.topicRepository.save(topic);
 
     // Return DTO

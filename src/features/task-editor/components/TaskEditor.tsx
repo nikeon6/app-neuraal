@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -50,6 +51,174 @@ interface TaskEditorProps {
   onClose?: () => void;
 }
 
+// ============================================================================
+// TopicDropdown — portal-rendered to escape parent overflow clipping
+// ============================================================================
+interface TopicDropdownProps {
+  topicMenuRef: React.RefObject<HTMLDivElement | null>;
+  isTopicMenuOpen: boolean;
+  onToggle: () => void;
+  currentTopicDisplay: { name: string; color: string };
+  selectedTopicId: string | null;
+  topics: Array<{ id: string; name: string; color: string }>;
+  onSelect: (topicId: string | null) => void;
+}
+
+function TopicDropdown({
+  topicMenuRef,
+  isTopicMenuOpen,
+  onToggle,
+  currentTopicDisplay,
+  selectedTopicId,
+  topics,
+  onSelect,
+}: TopicDropdownProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  // Recalculate position when menu opens or on scroll/resize
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setPanelPos({
+      top: rect.bottom + 8,
+      left: rect.left,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isTopicMenuOpen) return;
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isTopicMenuOpen, updatePosition]);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isTopicMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      onToggle();
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isTopicMenuOpen, onToggle]);
+
+  return (
+    <div className="relative min-w-0" ref={topicMenuRef}>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="Topic"
+        aria-haspopup="listbox"
+        aria-expanded={isTopicMenuOpen}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
+      >
+        <div
+          className="w-3 h-3 rounded-full flex-shrink-0"
+          style={{ backgroundColor: currentTopicDisplay.color }}
+        />
+        <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
+        {selectedTopicId === AUTO_TOPIC && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
+        <ChevronDown className={cn("w-3 h-3 transition-transform flex-shrink-0", isTopicMenuOpen && "rotate-180")} />
+      </button>
+
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {isTopicMenuOpen && (
+              <motion.div
+                ref={panelRef}
+                role="listbox"
+                aria-label="Select topic"
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                style={{
+                  position: "fixed",
+                  top: panelPos.top,
+                  left: panelPos.left,
+                  zIndex: 9999,
+                }}
+                className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[160px]"
+              >
+                {/* Auto option */}
+                <button
+                  role="option"
+                  aria-selected={selectedTopicId === AUTO_TOPIC}
+                  className={cn(
+                    "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
+                    selectedTopicId === AUTO_TOPIC
+                      ? "bg-white/10 text-white"
+                      : "text-white/70 hover:text-white hover:bg-white/5"
+                  )}
+                  onClick={() => onSelect(AUTO_TOPIC)}
+                >
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8b5cf6" }} />
+                  <span>Auto</span>
+                  <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
+                </button>
+
+                {/* No topic option */}
+                <button
+                  role="option"
+                  aria-selected={selectedTopicId === null}
+                  className={cn(
+                    "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
+                    selectedTopicId === null
+                      ? "bg-white/10 text-white"
+                      : "text-white/70 hover:text-white hover:bg-white/5"
+                  )}
+                  onClick={() => onSelect(null)}
+                >
+                  <div className="w-3 h-3 rounded-full bg-white/20" />
+                  <span>No topic</span>
+                </button>
+
+                {topics.length > 0 && <div className="h-px bg-white/10 mx-2" />}
+
+                {/* API topics */}
+                {topics.map((t) => (
+                  <button
+                    key={t.id}
+                    role="option"
+                    aria-selected={selectedTopicId === t.id}
+                    className={cn(
+                      "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
+                      selectedTopicId === t.id
+                        ? "bg-white/10 text-white"
+                        : "text-white/70 hover:text-white hover:bg-white/5"
+                    )}
+                    onClick={() => onSelect(t.id)}
+                  >
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
+                    <span>{t.name}</span>
+                  </button>
+                ))}
+
+                {topics.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-white/40">
+                    No topics yet. Create one in Topics section.
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+    </div>
+  );
+}
+
 export function TaskEditor({
   entry,
   onClose,
@@ -81,7 +250,7 @@ export function TaskEditor({
   const [content, setContent] = useState<string>(extractContent);
 
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
-    entry.topicId ?? null
+    entry.topicId ?? AUTO_TOPIC
   );
   const [entryType, setEntryType] = useState<EntryType>(entry.type);
   const [isCompleted, setIsCompleted] = useState<boolean>(entry.completed ?? false);
@@ -95,7 +264,7 @@ export function TaskEditor({
   const draftRef = useRef({
     title: entry.title,
     content: initialContent,
-    selectedTopicId: entry.topicId ?? null as string | null,
+    selectedTopicId: (entry.topicId ?? AUTO_TOPIC) as string | null,
     entryType: entry.type as EntryType,
     isCompleted: entry.completed ?? false,
   });
@@ -169,6 +338,7 @@ export function TaskEditor({
         try {
           const res = await entriesSdk.autoTopicEntry(entry.id);
           if (res.selectedTopicId) {
+            setSelectedTopicId(res.selectedTopicId);
             await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
           }
         } catch {
@@ -189,6 +359,7 @@ export function TaskEditor({
       if (draft.selectedTopicId === AUTO_TOPIC) {
         const res = await entriesSdk.autoTopicEntry(entry.id);
         if (res.selectedTopicId) {
+          setSelectedTopicId(res.selectedTopicId);
           await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
         }
       }
@@ -401,7 +572,7 @@ export function TaskEditor({
       // Don't collapse if clicking inside a portal-rendered dialog (ReminderDialog,
       // ConfirmDialog, etc.) — these are outside the editor DOM but still "ours"
       const targetEl = target instanceof HTMLElement ? target : target.parentElement;
-      if (targetEl?.closest("[role='dialog'], [role='alertdialog'], [data-dialog-backdrop]")) return;
+      if (targetEl?.closest("[role='dialog'], [role='alertdialog'], [data-dialog-backdrop], [role='listbox']")) return;
 
       flushPendingSave();
       setUIState((prev) => ({
@@ -515,99 +686,16 @@ export function TaskEditor({
               )}
             </button>
 
-            {/* Topic Selector Dropdown — uses API topics */}
-            <div className="relative min-w-0" ref={topicMenuRef}>
-              <button
-                type="button"
-                aria-label="Topic"
-                aria-haspopup="listbox"
-                aria-expanded={isTopicMenuOpen}
-                onClick={(e) => { e.stopPropagation(); setUIState((prev) => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen })); }}
-                className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: currentTopicDisplay.color }}
-                />
-                <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
-                {selectedTopicId === AUTO_TOPIC && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
-                <ChevronDown className={cn("w-3 h-3 transition-transform flex-shrink-0", isTopicMenuOpen && "rotate-180")} />
-              </button>
-
-              <AnimatePresence>
-                {isTopicMenuOpen && (
-                  <motion.div
-                    role="listbox"
-                    aria-label="Select topic"
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full right-0 mt-2 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[160px] z-50"
-                  >
-                    {/* Auto option */}
-                    <button
-                      role="option"
-                      aria-selected={selectedTopicId === AUTO_TOPIC}
-                      className={cn(
-                        "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
-                        selectedTopicId === AUTO_TOPIC
-                          ? "bg-white/10 text-white"
-                          : "text-white/70 hover:text-white hover:bg-white/5"
-                      )}
-                      onClick={() => handleTopicSelect(AUTO_TOPIC)}
-                    >
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8b5cf6" }} />
-                      <span>Auto</span>
-                      <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
-                    </button>
-
-                    {/* No topic option */}
-                    <button
-                      role="option"
-                      aria-selected={selectedTopicId === null}
-                      className={cn(
-                        "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
-                        selectedTopicId === null
-                          ? "bg-white/10 text-white"
-                          : "text-white/70 hover:text-white hover:bg-white/5"
-                      )}
-                      onClick={() => handleTopicSelect(null)}
-                    >
-                      <div className="w-3 h-3 rounded-full bg-white/20" />
-                      <span>No topic</span>
-                    </button>
-
-                    {topics.length > 0 && <div className="h-px bg-white/10 mx-2" />}
-
-                    {/* API topics */}
-                    {topics.map((t) => (
-                      <button
-                        key={t.id}
-                        role="option"
-                        aria-selected={selectedTopicId === t.id}
-                        className={cn(
-                          "w-full px-4 py-3 flex items-center gap-3 text-sm transition-all",
-                          selectedTopicId === t.id
-                            ? "bg-white/10 text-white"
-                            : "text-white/70 hover:text-white hover:bg-white/5"
-                        )}
-                        onClick={() => handleTopicSelect(t.id)}
-                      >
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
-                        <span>{t.name}</span>
-                      </button>
-                    ))}
-
-                    {topics.length === 0 && (
-                      <div className="px-4 py-3 text-xs text-white/40">
-                        No topics yet. Create one in Topics section.
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Topic Selector Dropdown — uses API topics, rendered via portal */}
+            <TopicDropdown
+              topicMenuRef={topicMenuRef}
+              isTopicMenuOpen={isTopicMenuOpen}
+              onToggle={() => setUIState((prev) => ({ ...prev, isTopicMenuOpen: !prev.isTopicMenuOpen }))}
+              currentTopicDisplay={currentTopicDisplay}
+              selectedTopicId={selectedTopicId}
+              topics={topics}
+              onSelect={handleTopicSelect}
+            />
 
             {/* Reminder Button */}
             <button

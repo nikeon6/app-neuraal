@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { UpdateTopic } from "@/application/use-cases/topics/UpdateTopic";
 import { DeleteTopic } from "@/application/use-cases/topics/DeleteTopic";
+import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTopicEmbedding";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
+import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
+import {
+  DEFAULT_EMBEDDING_DIM,
+} from "@/shared/constants/embedding";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -68,6 +73,24 @@ export async function PATCH(
     }
 
     return NextResponse.json({ error: { code, message } }, { status: statusCode });
+  }
+
+  // If the name changed, regenerate the topic embedding (fire-and-forget).
+  if (name) {
+    const embeddingProvider = new OllamaEmbeddingProvider({
+      baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+      model: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+    });
+    const embeddingDim = process.env.EMBEDDING_DIM
+      ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
+      : DEFAULT_EMBEDDING_DIM;
+    const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
+      embeddingDim,
+      embeddingModel: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+    });
+    rebuildUseCase.execute({ userId, topicId }).catch((err) => {
+      console.error(`[PATCH /api/topics/${topicId}] Failed to regenerate embedding:`, err);
+    });
   }
 
   return NextResponse.json({ topic: result.value }, { status: 200 });

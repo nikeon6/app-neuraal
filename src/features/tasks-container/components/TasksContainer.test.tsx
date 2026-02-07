@@ -258,7 +258,7 @@ describe("TasksContainer", () => {
       });
     });
 
-    it("should assign first topic as default when topics exist", async () => {
+    it("should assign null topicId (Auto mode) when topics exist", async () => {
       const user = userEvent.setup();
       renderWithProviders(<TasksContainer />);
 
@@ -266,7 +266,7 @@ describe("TasksContainer", () => {
 
       await waitFor(() => {
         const callArgs = mockCreateEntryAndInvalidate.mock.calls[0];
-        expect(callArgs[1].topicId).toBe("topic-work");
+        expect(callArgs[1].topicId).toBeNull();
       });
     });
 

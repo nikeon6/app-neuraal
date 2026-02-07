@@ -5,7 +5,7 @@ import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
-import { useEntriesByDateQuery, useTopicsQuery } from "@/shared/api/queries";
+import { useEntriesByDateQuery } from "@/shared/api/queries";
 import { createEntryAndInvalidate } from "@/shared/api/mutations";
 import { TaskEditor } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
@@ -191,8 +191,6 @@ export function TasksContainer() {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
   const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
-  const { data: topics = [] } = useTopicsQuery();
-
   // Create a map for quick entry lookup by ID
   const entryMap = useMemo(() => {
     const map = new Map<string, ApiEntry>();
@@ -234,16 +232,14 @@ export function TasksContainer() {
     commitOrder();
   }, [stopAutoScroll, commitOrder]);
 
-  // Handle add new entry
+  // Handle add new entry — topic defaults to null so TaskEditor shows "Auto"
   const handleAddTask = useCallback(async () => {
-    const defaultTopicId = topics.length > 0 ? topics[0].id : undefined;
-
     await createEntryAndInvalidate(queryClient, {
       date: dateKey,
       type: "task",
       title: "New task",
       content: {} as Record<string, never>,
-      topicId: defaultTopicId ?? null,
+      topicId: null,
     });
 
     setTimeout(() => {
@@ -254,7 +250,7 @@ export function TasksContainer() {
         });
       }
     }, 100);
-  }, [dateKey, queryClient, topics, containerRef]);
+  }, [dateKey, queryClient, containerRef]);
 
   // Handle TaskEditor expansion - auto-scroll to show expanded content
   const handleTaskExpand = useCallback(
