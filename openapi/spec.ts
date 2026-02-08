@@ -104,6 +104,7 @@ const spec = {
           topicId: { type: ["string", "null"] as const },
           completed: { type: ["boolean", "null"] as const, description: "null for notes" },
           version: { type: "integer" as const, minimum: 1 },
+          sortOrder: { type: "integer" as const, minimum: 0, description: "Display order within a day. Lower values appear first." },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
           summary: { type: ["string", "null"] as const },
@@ -470,6 +471,45 @@ const spec = {
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "404": { $ref: "#/components/responses/NotFound" },
+        },
+      },
+    },
+
+    "/api/entries/reorder": {
+      patch: {
+        tags: ["Entries"],
+        summary: "Reorder entries for a date",
+        operationId: "reorderEntries",
+        description:
+          "Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["date", "orderedIds"],
+                properties: {
+                  date: {
+                    type: "string" as const,
+                    pattern: String.raw`^\d{4}-\d{2}-\d{2}$`,
+                    example: "2025-06-15",
+                  },
+                  orderedIds: {
+                    type: "array" as const,
+                    items: { type: "string" as const, format: "uuid" },
+                    description:
+                      "Entry IDs in desired display order (index 0 = first).",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "204": { description: "Entries reordered successfully" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
         },
       },
     },

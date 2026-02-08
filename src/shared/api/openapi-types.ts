@@ -99,6 +99,26 @@ export interface paths {
         patch: operations["updateEntry"];
         trace?: never;
     };
+    "/api/entries/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder entries for a date
+         * @description Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).
+         */
+        patch: operations["reorderEntries"];
+        trace?: never;
+    };
     "/api/entries/{id}/summarize": {
         parameters: {
             query?: never;
@@ -340,6 +360,8 @@ export interface components {
             /** @description null for notes */
             completed?: boolean | null;
             version: number;
+            /** @description Display order within a day. Lower values appear first. */
+            sortOrder?: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -742,6 +764,35 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    reorderEntries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 2025-06-15 */
+                    date: string;
+                    /** @description Entry IDs in desired display order (index 0 = first). */
+                    orderedIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Entries reordered successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     requestEntrySummary: {

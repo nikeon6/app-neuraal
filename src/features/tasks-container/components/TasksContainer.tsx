@@ -6,7 +6,7 @@ import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import { useEntriesByDateQuery } from "@/shared/api/queries";
-import { createEntryAndInvalidate } from "@/shared/api/mutations";
+import { createEntryAndInvalidate, reorderEntriesAndInvalidate } from "@/shared/api/mutations";
 import { TaskEditor } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
@@ -202,9 +202,12 @@ export function TasksContainer() {
   const { orderedIds, setOrderedIds, commitOrder } = useOrderedTaskIds({
     tasks: entries,
     selectedDay: dateKey,
-    onReorder: () => {
-      // TODO: Implement server-side reorder if needed.
-      // For now, reorder is local-only during a session.
+    onReorder: (_day, newOrder) => {
+      reorderEntriesAndInvalidate(queryClient, dateKey, newOrder).catch(
+        (error) => {
+          console.error("[TasksContainer] Failed to persist entry order:", error);
+        }
+      );
     },
   });
 

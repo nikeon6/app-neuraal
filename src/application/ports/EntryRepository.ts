@@ -46,4 +46,14 @@ export interface EntryRepository {
    * Used by auto-topic assignment.
    */
   updateTopic(entryId: string, topicId: string | null): Promise<void>;
+
+  /**
+   * Bulk-updates sort_order for entries on a given user+date.
+   * orderedIds[0] gets sortOrder=0, orderedIds[1] gets sortOrder=1, etc.
+   */
+  reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[]
+  ): Promise<void>;
 }

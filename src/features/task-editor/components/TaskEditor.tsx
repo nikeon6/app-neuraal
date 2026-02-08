@@ -458,15 +458,36 @@ export function TaskEditor({
   // Summarize (async — result arrives via Notifications)
   // ---------------------------------------------------------------------------
   const [isSummarizing, setIsSummarizing] = useState(false);
+  // Track the summaryUpdatedAt at the time of clicking summarize,
+  // so we know when the summary has actually arrived from the callback.
+  const summaryRequestedAtRef = useRef<string | null>(null);
+
+  // When the entry's summaryUpdatedAt changes after we requested a summary,
+  // clear the "thinking" state.
+  useEffect(() => {
+    if (!summaryRequestedAtRef.current) return;
+    if (
+      entry.summaryUpdatedAt &&
+      entry.summaryUpdatedAt > summaryRequestedAtRef.current
+    ) {
+      summaryRequestedAtRef.current = null;
+      setIsSummarizing(false);
+    }
+  }, [entry.summaryUpdatedAt]);
 
   const handleSummarize = useCallback(async () => {
     if (isSummarizing) return;
     setIsSummarizing(true);
+    summaryRequestedAtRef.current = new Date().toISOString();
     try {
       await summarizeEntryAndInvalidate(queryClient, entry.id);
-      // Summary is async (202). The result will arrive via notifications.
-      console.info("[TaskEditor] Summary requested. Check notifications for progress.");
+      // Summary is async (202). Keep isSummarizing=true until the
+      // entry.summaryUpdatedAt changes (detected by the effect above).
+      console.info("[TaskEditor] Summary requested. Waiting for result...");
     } catch (error) {
+      // On error, clear thinking state immediately
+      setIsSummarizing(false);
+      summaryRequestedAtRef.current = null;
       if (error instanceof ApiError) {
         if (error.status === 404) {
           await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
@@ -477,8 +498,6 @@ export function TaskEditor({
       } else {
         console.error("[TaskEditor] summarize failed:", error);
       }
-    } finally {
-      setIsSummarizing(false);
     }
   }, [isSummarizing, queryClient, entry.id, dateKey, onClose]);
 
@@ -757,6 +776,31 @@ export function TaskEditor({
           style={{ overflow: "hidden" }}
         />
       </motion.div>
+
+      {/* AI Summary Section */}
+      <AnimatePresence>
+        {entry.summary && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="mt-3"
+          >
+            <div className="bg-sky-500/[0.07] border border-sky-500/15 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-4 h-4 text-sky-400" />
+                <span className="text-xs font-semibold text-sky-400 uppercase tracking-wide">
+                  AI Summary
+                </span>
+              </div>
+              <p className="text-sm text-white/75 leading-relaxed whitespace-pre-wrap">
+                {entry.summary}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Toolbar */}
       <AnimatePresence>

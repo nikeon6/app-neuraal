@@ -27,8 +27,12 @@ export class PrismaEntryRepository implements EntryRepository {
       topicId: record.topicId,
       completed: record.completed,
       version: record.version,
+      sortOrder: record.sortOrder,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      summary: record.summary,
+      summaryFormat: record.summaryFormat,
+      summaryUpdatedAt: record.summaryUpdatedAt,
     });
 
     return result.isOk() ? result.value : null;
@@ -37,7 +41,7 @@ export class PrismaEntryRepository implements EntryRepository {
   async findByUserAndDate(userId: string, date: string): Promise<Entry[]> {
     const records = await prisma.entry.findMany({
       where: { userId, date },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
 
     return records
@@ -52,8 +56,12 @@ export class PrismaEntryRepository implements EntryRepository {
           topicId: record.topicId,
           completed: record.completed,
           version: record.version,
+          sortOrder: record.sortOrder,
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
+          summary: record.summary,
+          summaryFormat: record.summaryFormat,
+          summaryUpdatedAt: record.summaryUpdatedAt,
         });
         return result.isOk() ? result.value : null;
       })
@@ -72,6 +80,7 @@ export class PrismaEntryRepository implements EntryRepository {
         topicId: entry.topicId,
         completed: entry.completed,
         version: entry.version,
+        sortOrder: entry.sortOrder,
         createdAt: entry.createdAt,
       },
     });
@@ -117,5 +126,20 @@ export class PrismaEntryRepository implements EntryRepository {
       where: { id: entryId },
       data: { topicId },
     });
+  }
+
+  async reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[]
+  ): Promise<void> {
+    await prisma.$transaction(
+      orderedIds.map((id, index) =>
+        prisma.entry.updateMany({
+          where: { id, userId, date },
+          data: { sortOrder: index },
+        })
+      )
+    );
   }
 }

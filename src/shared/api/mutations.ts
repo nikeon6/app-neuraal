@@ -83,6 +83,19 @@ export async function deleteEntryAndInvalidate(
   await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
 }
 
+// ---- Reorder ----
+
+export async function reorderEntriesAndInvalidate(
+  queryClient: QueryClient,
+  dateKey: string,
+  orderedIds: string[]
+) {
+  await entriesSdk.reorderEntries(dateKey, orderedIds);
+  // No cache invalidation needed: local order is already correct.
+  // Optionally invalidate for safety on next refetch:
+  await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
 // ---- Summarize ----
 
 export async function summarizeEntryAndInvalidate(

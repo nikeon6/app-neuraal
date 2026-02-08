@@ -17,8 +17,14 @@ export interface EntryProps {
   topicId: string | null;
   completed: boolean | null;
   version: number;
+  /** Display order within a day. Lower values appear first. */
+  sortOrder?: number;
   createdAt: Date;
   updatedAt: Date;
+  /** AI-generated summary (set by callback, read-only in entity). */
+  summary?: string | null;
+  summaryFormat?: string | null;
+  summaryUpdatedAt?: Date | null;
 }
 
 /**
@@ -49,8 +55,13 @@ export class Entry {
   readonly topicId: string | null;
   readonly completed: boolean | null;
   readonly version: number;
+  readonly sortOrder: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  /** AI-generated summary text (set by callback handler). */
+  readonly summary: string | null;
+  readonly summaryFormat: string | null;
+  readonly summaryUpdatedAt: Date | null;
 
   private constructor(
     id: string,
@@ -62,8 +73,12 @@ export class Entry {
     topicId: string | null,
     completed: boolean | null,
     version: number,
+    sortOrder: number,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
+    summary: string | null,
+    summaryFormat: string | null,
+    summaryUpdatedAt: Date | null
   ) {
     this.id = id;
     this.userId = userId;
@@ -74,8 +89,12 @@ export class Entry {
     this.topicId = topicId;
     this.completed = completed;
     this.version = version;
+    this.sortOrder = sortOrder;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.summary = summary;
+    this.summaryFormat = summaryFormat;
+    this.summaryUpdatedAt = summaryUpdatedAt;
   }
 
   /**
@@ -137,8 +156,12 @@ export class Entry {
         props.topicId,
         props.completed,
         props.version,
+        props.sortOrder ?? 0,
         props.createdAt,
-        props.updatedAt
+        props.updatedAt,
+        props.summary ?? null,
+        props.summaryFormat ?? null,
+        props.summaryUpdatedAt ?? null
       )
     );
   }
@@ -156,8 +179,12 @@ export class Entry {
     topicId: string | null;
     completed: boolean | null;
     version: number;
+    sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
+    summary: string | null;
+    summaryFormat: string | null;
+    summaryUpdatedAt: Date | null;
   } {
     return {
       id: this.id,
@@ -169,8 +196,12 @@ export class Entry {
       topicId: this.topicId,
       completed: this.completed,
       version: this.version,
+      sortOrder: this.sortOrder,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      summary: this.summary,
+      summaryFormat: this.summaryFormat,
+      summaryUpdatedAt: this.summaryUpdatedAt,
     };
   }
 
@@ -188,8 +219,12 @@ export class Entry {
       this.topicId,
       this.completed,
       this.version + 1,
+      this.sortOrder,
       this.createdAt,
-      new Date()
+      new Date(),
+      this.summary,
+      this.summaryFormat,
+      this.summaryUpdatedAt
     );
   }
 
@@ -252,8 +287,12 @@ export class Entry {
         newTopicId,
         newCompleted,
         this.version,
+        this.sortOrder,
         this.createdAt,
-        new Date()
+        new Date(),
+        this.summary,
+        this.summaryFormat,
+        this.summaryUpdatedAt
       )
     );
   }

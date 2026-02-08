@@ -50,6 +50,7 @@ model Entry {
   topicId   String?  @map("topic_id")
   completed Boolean? // null for notes, true/false for tasks
   version   Int      @default(1)
+  sortOrder Int      @default(0) @map("sort_order") // Lower values appear first; 0 = top
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

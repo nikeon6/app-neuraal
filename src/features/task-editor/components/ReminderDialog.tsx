@@ -74,6 +74,22 @@ function toIsoUtc(date: Date, hour: number, minute: number): string {
   return d.toISOString();
 }
 
+/** Check if a date+hour+minute combination is in the past. */
+function isInThePast(date: Date, hour: number, minute: number): boolean {
+  const d = new Date(date);
+  d.setHours(hour, minute, 0, 0);
+  return d.getTime() <= Date.now();
+}
+
+/** Check if a calendar day is strictly before today. */
+function isDayBeforeToday(year: number, month: number, day: number): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const candidate = new Date(year, month, day);
+  candidate.setHours(0, 0, 0, 0);
+  return candidate.getTime() < today.getTime();
+}
+
 /** Get days of a month organized into weeks (Mon-start). */
 function getMonthGrid(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
@@ -294,6 +310,7 @@ function DateTimePicker({
             return <div key={`blank-w${Math.floor(i / 7)}-d${i % 7}`} className="h-8" />;
           }
 
+          const isPast = isDayBeforeToday(viewYear, viewMonth, day);
           const isSelected =
             day === selDay &&
             viewMonth === selMonth &&
@@ -305,7 +322,10 @@ function DateTimePicker({
 
           let dayStyle =
             "text-white/50 hover:bg-white/10 hover:text-white/80 border border-transparent";
-          if (isSelected) {
+          if (isPast) {
+            dayStyle =
+              "text-white/15 border border-transparent cursor-not-allowed";
+          } else if (isSelected) {
             dayStyle =
               "bg-sky-500/30 text-sky-300 border border-sky-400/30";
           } else if (isToday) {
@@ -316,7 +336,9 @@ function DateTimePicker({
             <button
               key={day}
               type="button"
-              onClick={() => handleDayClick(day)}
+              onClick={() => !isPast && handleDayClick(day)}
+              disabled={isPast}
+              aria-disabled={isPast}
               className={cn(
                 "h-8 rounded-lg text-xs font-medium transition-all",
                 dayStyle
@@ -391,15 +413,26 @@ export function ReminderDialog({
   const [hour, setHour] = useState(9);
   const [minute, setMinute] = useState(0);
   const [channel, setChannel] = useState<ReminderChannel>("push");
+  const [validationError, setValidationError] = useState<string | null>(null);
   // Message kept as internal state for future use (field hidden in MVP)
   const message = "";
 
   const handleCreate = useCallback(() => {
+    if (isInThePast(selectedDate, hour, minute)) {
+      setValidationError("The selected date and time is in the past. Please choose a future time.");
+      return;
+    }
+    setValidationError(null);
     const iso = toIsoUtc(selectedDate, hour, minute);
     onCreate(iso, channel, message.trim() || undefined);
   }, [selectedDate, hour, minute, channel, message, onCreate]);
 
   const handleReschedule = useCallback(() => {
+    if (isInThePast(selectedDate, hour, minute)) {
+      setValidationError("The selected date and time is in the past. Please choose a future time.");
+      return;
+    }
+    setValidationError(null);
     const iso = toIsoUtc(selectedDate, hour, minute);
     onReschedule?.(iso);
   }, [selectedDate, hour, minute, onReschedule]);
@@ -462,9 +495,9 @@ export function ReminderDialog({
                   selectedDate={selectedDate}
                   hour={hour}
                   minute={minute}
-                  onDateChange={setSelectedDate}
-                  onHourChange={setHour}
-                  onMinuteChange={setMinute}
+                  onDateChange={(d) => { setSelectedDate(d); setValidationError(null); }}
+                  onHourChange={(h) => { setHour(h); setValidationError(null); }}
+                  onMinuteChange={(m) => { setMinute(m); setValidationError(null); }}
                 />
               </div>
             </div>
@@ -490,6 +523,13 @@ export function ReminderDialog({
                 ))}
               </div>
             </label>
+
+            {/* Validation error */}
+            {validationError && (
+              <p className="text-xs text-red-400 mb-3" role="alert">
+                {validationError}
+              </p>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-2">

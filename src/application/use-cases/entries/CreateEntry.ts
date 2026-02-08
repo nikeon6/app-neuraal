@@ -78,8 +78,12 @@ export class CreateEntry {
       topicId: entry.topicId,
       completed: entry.completed,
       version: entry.version,
+      sortOrder: entry.sortOrder,
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
+      summary: entry.summary,
+      summaryFormat: entry.summaryFormat,
+      summaryUpdatedAt: entry.summaryUpdatedAt?.toISOString() ?? null,
     });
   }
 }
