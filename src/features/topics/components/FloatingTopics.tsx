@@ -36,13 +36,14 @@ const JUNCTION_PULL_LEFT = 120;
 const JUNCTION_LANE_OFFSET = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
+const JUNCTION_TO_NODE_BLEND_Y_STACK = 0.40; // Blend for Y in mobile stack mode — lower = junction closer to calendar
 const JUNCTION_TO_NODE_BLEND_X_STACK = 0.70; // Blend for X in mobile stack mode (how much junction X follows node)
 // Min-trunk hysteresis: prevent junction from snapping to lane center when anchor is close to node
 const MIN_TRUNK = 32;
 const DIR_HYSTERESIS = 10;
 const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
-const NODE_SCALE_STACK = 0.82; // Scale factor for topic nodes in mobile stack mode
+const NODE_SCALE_STACK = 0.59; // Scale factor for topic nodes in mobile stack mode
 
 // Junction dot (neuron point) parameters
 const DOT_RADIUS_BASE = 4.5;
@@ -84,6 +85,8 @@ interface FloatingTopicsProps {
   laneRef?: React.RefObject<HTMLDivElement | null>;
   /** Entries by date (from TanStack Query, e.g. useEntriesForDates). */
   entriesByDate: Record<string, ApiEntry[]>;
+  /** Compact mode for landscape mobile — smaller nodes and wires. */
+  compact?: boolean;
 }
 
 interface DragState {
@@ -96,6 +99,7 @@ interface DragState {
   startX: number;
   startY: number;
   hasMoved: boolean; // Track if user actually dragged vs just clicked
+  isTouch: boolean;  // Touch inputs need larger drag threshold
 }
 
 interface NodePosition {
@@ -107,7 +111,7 @@ interface NodePosition {
 // ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonly<FloatingTopicsProps>) {
+export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact = false }: Readonly<FloatingTopicsProps>) {
   // ---------------------------------------------------------------------------
   // Data from TanStack Query
   // ---------------------------------------------------------------------------
@@ -200,6 +204,10 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // Persistent push direction per topic (for minTrunk logic in stack mode)
   // Prevents snap/discontinuity when crossing the center of the lane
   const pushDirRef = useRef<Partial<Record<string, 1 | -1>>>({});
+  
+  // Compact ref for imperative callbacks
+  const compactRef = useRef(compact);
+  compactRef.current = compact;
 
   // ---------------------------------------------------------------------------
   // Derived data (memoized)
@@ -247,9 +255,9 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     for (let idx = 0; idx < activeTopics.length; idx++) {
       const id = activeTopics[idx];
       const count = topicCounts[id] ?? 0;
-      // Scale radius down in mobile stack mode for smaller bubbles
+      // Scale radius down in mobile stack mode or compact (landscape) for smaller bubbles
       const baseR = Math.min(65, 20 + count * 8);
-      const r = isStackLayout ? baseR * NODE_SCALE_STACK : baseR;
+      const r = (isStackLayout || compact) ? baseR * NODE_SCALE_STACK : baseR;
 
       // Cycle through default anchors for positioning
       const anchor = DEFAULT_ANCHORS[idx % DEFAULT_ANCHORS.length];
@@ -276,7 +284,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     }
 
     return centers;
-  }, [activeTopics, boardSize, topicCounts, topicPositions, isStackLayout]);
+  }, [activeTopics, boardSize, topicCounts, topicPositions, isStackLayout, compact]);
 
   // ---------------------------------------------------------------------------
   // Initialize/sync nodePosRef from baseTopicCenters AND update DOM
@@ -343,9 +351,9 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       laneH,
     });
 
-    // Measure task pills from VerticalCalendar (inside aside)
+    // Measure task pills from VerticalCalendar (inside aside ONLY, not TasksContainer)
     const taskCenterMap: Record<string, TaskCenter> = {};
-    const taskPills = container.querySelectorAll('[data-task-id]');
+    const taskPills = aside?.querySelectorAll('[data-task-id]') ?? [];
 
     taskPills.forEach((el) => {
       const taskId = (el as HTMLElement).dataset.taskId;
@@ -394,9 +402,15 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         if (!isVisible) return;
       }
 
-      // Anchor point: CENTER of the day element (works for both mobile buttons and desktop rows)
-      const x = r.left - containerRect.left + r.width / 2;
-      const y = r.top - containerRect.top + r.height / 2;
+      // Anchor point depends on layout mode:
+      // Desktop (grid): LEFT EDGE X, center Y — branches arrive from the left of the calendar
+      // Mobile (stack): center X, TOP EDGE Y — branches arrive from the top of the calendar
+      const x = isStack
+        ? r.left - containerRect.left + r.width / 2   // mobile: center X
+        : r.left - containerRect.left;                 // desktop: left edge X
+      const y = isStack
+        ? r.top - containerRect.top                    // mobile: top edge Y
+        : r.top - containerRect.top + r.height / 2;   // desktop: center Y
 
       if (y > 0 && y < containerRect.height && x > 0) {
         dayCenterMap[dateKey] = { x, y, dayNumber: Number.parseInt(dayNumberStr, 10) };
@@ -451,23 +465,31 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       ro.observe(aside);
     }
 
-    // Find tasks scroll container and observe it too
+    // Observe tasks scroll container for size changes (task add/remove)
+    // but NOT scroll — task pills we care about are inside aside, not here
     const tasksScrollEl = container.querySelector('.tasks-scrollbar');
     if (tasksScrollEl) {
       ro.observe(tasksScrollEl);
-      tasksScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
-    // Also observe scroll in calendar (both desktop vertical and mobile horizontal)
-    const calendarScrollEl = aside?.querySelector('.overflow-y-auto') || aside;
-    if (calendarScrollEl) {
-      calendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    // Observe scroll in ALL scrollable children of aside (desktop vertical, mobile horizontal, compact vertical)
+    // Query by computed overflow style to be Tailwind-version-agnostic
+    const calendarScrollEls: Element[] = [];
+    if (aside) {
+      aside.querySelectorAll('*').forEach((el) => {
+        const style = getComputedStyle(el);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+            style.overflowX === 'auto' || style.overflowX === 'scroll') {
+          calendarScrollEls.push(el);
+        }
+      });
+      // Fallback: listen on aside itself
+      if (calendarScrollEls.length === 0) {
+        calendarScrollEls.push(aside);
+      }
     }
-    
-    // Mobile calendar horizontal scroll (overflow-x-auto container)
-    const mobileCalendarScrollEl = aside?.querySelector('.overflow-x-auto');
-    if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-      mobileCalendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    for (const el of calendarScrollEls) {
+      el.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
     // Window resize as backup
@@ -503,17 +525,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         vv.removeEventListener("resize", handleResize);
         vv.removeEventListener("scroll", handleResize);
       }
-      if (tasksScrollEl) {
-        tasksScrollEl.removeEventListener("scroll", scheduleRecalc);
-      }
-      if (calendarScrollEl) {
-        calendarScrollEl.removeEventListener("scroll", scheduleRecalc);
-      }
-      if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-        mobileCalendarScrollEl.removeEventListener("scroll", scheduleRecalc);
+      for (const el of calendarScrollEls) {
+        el.removeEventListener("scroll", scheduleRecalc);
       }
     };
-  }, [recalc, scheduleRecalc, containerRef, laneRef]);
+  }, [recalc, scheduleRecalc, containerRef, laneRef, compact]);
 
   useEffect(() => {
     const timeout = setTimeout(scheduleRecalc, 100);
@@ -726,9 +742,10 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       setPathD(`branch-${topicId}-${id}`, quadPath(j.x, j.y, x, y, branchCurve));
     });
 
-    // Update junction dot position (scaled in stack mode - isStack already declared above)
-    const dotR = isStack ? DOT_RADIUS_BASE * NODE_SCALE_STACK : DOT_RADIUS_BASE;
-    const haloR = isStack ? HALO_RADIUS_BASE * NODE_SCALE_STACK : HALO_RADIUS_BASE;
+    // Update junction dot position (scaled in stack/compact mode)
+    const shouldScale = isStack || compactRef.current;
+    const dotR = shouldScale ? DOT_RADIUS_BASE * NODE_SCALE_STACK : DOT_RADIUS_BASE;
+    const haloR = shouldScale ? HALO_RADIUS_BASE * NODE_SCALE_STACK : HALO_RADIUS_BASE;
     setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, haloR);
     setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, dotR);
   }, [wireStructure, taskCenters, dayCenters]);
@@ -821,11 +838,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
 
         junctionTargetXRef.current[id] = { x: desiredX };
         
-        // Calculate target Y
+        // Calculate target Y (use stack-specific blend to push junction closer to calendar)
         const ys = getTargetYsForTopic(id);
         const medY = ys.length > 0 ? median(ys) : node.y;
         const targetY = clamp(
-          medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
+          medY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) + node.y * JUNCTION_TO_NODE_BLEND_Y_STACK,
           yMinLane,
           yMaxLane
         );
@@ -1010,7 +1027,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           const yMax = boardSize.laneTop + boardSize.laneH - lanePad;
           const medY = topicMedianYRef.current[topicId];
           const desiredY = medY != null 
-            ? clamp(medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND, yMin, yMax)
+            ? clamp(medY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) + node.y * JUNCTION_TO_NODE_BLEND_Y_STACK, yMin, yMax)
             : clamp(boardSize.laneTop + boardSize.laneH * 0.5, yMin, yMax);
           j.y = j.y + (desiredY - j.y) * 0.15; // Slower Y easing in stack
           
@@ -1096,6 +1113,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         startX: px,
         startY: py,
         hasMoved: false,
+        isTouch: e.pointerType === "touch",
       };
 
       latestPointerRef.current = { x: px, y: py };
@@ -1117,10 +1135,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       const px = e.clientX - drag.containerRect.left;
       const py = e.clientY - drag.containerRect.top;
 
-      // Check if user has moved enough to be considered a drag (5px threshold)
+      // Check if user has moved enough to be considered a drag
+      // Touch inputs need a larger threshold (15px) because finger taps are imprecise
+      const dragThreshold = drag.isTouch ? 15 : 5;
       const dx = Math.abs(px - drag.startX);
       const dy = Math.abs(py - drag.startY);
-      if (dx > 5 || dy > 5) {
+      if (dx > dragThreshold || dy > dragThreshold) {
         drag.hasMoved = true;
       }
       
@@ -1200,6 +1220,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           toggleTopicSelection(id);
         }
 
+        // On touch, clear highlightedTopic since onMouseLeave doesn't fire reliably
+        // This prevents the dimming logic from keeping the last tapped topic "highlighted"
+        if (drag.isTouch) {
+          setHighlightedTopic(null);
+        }
+
         dragRef.current = null;
         latestPointerRef.current = null;
       }
@@ -1208,7 +1234,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     },
-    [setTopicPosition, stopDragLoop, toggleTopicSelection]
+    [setTopicPosition, stopDragLoop, toggleTopicSelection, setHighlightedTopic]
   );
 
   // ---------------------------------------------------------------------------
@@ -1252,7 +1278,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           const branchOpacity = dim ? 0.04 : 0.3;
           
           // Scale stroke widths in stack mode for proportional visuals
-          const wireScale = isStackLayout ? 0.85 : 1;
+          const wireScale = (isStackLayout || compact) ? 0.85 : 1;
           
           // Get the branch IDs based on mode
           const branchIds = wire.mode === 'tasks' ? (wire.taskIds || []) : (wire.dayKeys || []);
@@ -1367,8 +1393,8 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
             ref={(el) => { nodeElRef.current[id] = el; }}
             aria-label={`${isSelected ? 'Deselect' : 'Select'} topic ${topicMap[id]?.name ?? id}`}
             aria-pressed={isSelected}
-            onMouseEnter={() => setHighlightedTopic(id)}
-            onMouseLeave={() => setHighlightedTopic(null)}
+            onMouseEnter={() => { if (!isStackLayout) setHighlightedTopic(id); }}
+            onMouseLeave={() => { if (!isStackLayout) setHighlightedTopic(null); }}
             onPointerDown={handlePointerDown(id)}
             onPointerMove={handlePointerMove(id)}
             onPointerUp={handlePointerUp(id)}

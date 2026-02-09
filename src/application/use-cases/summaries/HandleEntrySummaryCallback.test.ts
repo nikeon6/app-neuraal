@@ -325,6 +325,35 @@ describe("HandleEntrySummaryCallback", () => {
       }
     });
 
+    it("should reject mismatched entryId in payload", async () => {
+      await createTestEntry();
+      await createTestRequest();
+
+      const timestamp = Date.now().toString();
+      const payload = {
+        requestId,
+        userId,
+        entryId: "different-entry-id", // Does not match the request's entryId
+        summary: "Summary text",
+        format: "markdown" as const,
+      };
+      const body = JSON.stringify(payload);
+      const signature = generateSignature(timestamp, body);
+
+      const result = await useCase.execute({
+        rawBody: body,
+        timestamp,
+        signature,
+        payload,
+      });
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.code).toBe("VALIDATION_ERROR");
+        expect(result.error.message).toContain("Entry ID mismatch");
+      }
+    });
+
     it("should reject invalid summary format", async () => {
       await createTestEntry();
       await createTestRequest();
