@@ -45,15 +45,32 @@ vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
   entriesQueryKey: (dateKey: string) => ["entries", dateKey],
   topicsQueryKey: ["topics"],
+  useEntryAttachmentsQuery: () => ({ data: undefined, isLoading: false }),
+  attachmentsQueryKey: (entryId: string) => ["attachments", entryId],
 }));
+
+const mockSummarizeEntryAndInvalidate = vi.fn();
+const mockCreateReminderAndInvalidate = vi.fn();
+const mockUpdateReminderAndInvalidate = vi.fn();
 
 vi.mock("@/shared/api/mutations", () => ({
   updateEntryAndInvalidate: (...args: unknown[]) => mockUpdateEntryAndInvalidate(...args),
   deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
+  summarizeEntryAndInvalidate: (...args: unknown[]) => mockSummarizeEntryAndInvalidate(...args),
+  createReminderAndInvalidate: (...args: unknown[]) => mockCreateReminderAndInvalidate(...args),
+  updateReminderAndInvalidate: (...args: unknown[]) => mockUpdateReminderAndInvalidate(...args),
 }));
 
 vi.mock("@/shared/api/sdk/entries", () => ({
   autoTopicEntry: vi.fn().mockResolvedValue({ entryId: "entry-test", selectedTopicId: null, score: null }),
+}));
+
+vi.mock("@/shared/api/sdk/attachments", () => ({
+  initUpload: vi.fn(),
+  completeUpload: vi.fn(),
+  getDownloadUrl: vi.fn(),
+  listByEntry: vi.fn(),
+  deleteAttachment: vi.fn(),
 }));
 
 vi.mock("@/shared/store", () => ({
@@ -114,9 +131,9 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("textbox", { name: /title/i })).toBeInTheDocument();
     });
 
-    it("should render content area", () => {
+    it("should render content area (Tiptap editor)", () => {
       renderEditor();
-      expect(screen.getByRole("textbox", { name: /content/i })).toBeInTheDocument();
+      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
     });
 
     it("should render topic selector", () => {
@@ -199,9 +216,9 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("button", { name: /reminder/i })).toBeInTheDocument();
     });
 
-    it("should render brainstorming button", () => {
+    it("should render summarize button", () => {
       renderEditor();
-      expect(screen.getByRole("button", { name: /brainstorming/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /summarize/i })).toBeInTheDocument();
     });
   });
 
@@ -214,12 +231,26 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
     });
 
-    it("should call deleteEntryAndInvalidate when delete is clicked", async () => {
+    it("should call deleteEntryAndInvalidate when delete is confirmed", async () => {
       const user = userEvent.setup();
       renderEditor();
       await expandEditor(user);
 
-      await user.click(screen.getByRole("button", { name: /delete/i }));
+      // Click the delete button (aria-label "Delete") to open confirm dialog
+      await user.click(screen.getByTitle("Delete entry"));
+
+      // Wait for the confirm dialog to appear and click the confirm button.
+      // The ConfirmDialog renders a second "Delete" button with confirmText="Delete".
+      await waitFor(() => {
+        const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+        // At least 2: the original "Delete entry" button and the dialog "Delete" confirm
+        expect(allDeleteBtns.length).toBeGreaterThanOrEqual(2);
+      });
+
+      // The last "Delete" button is the confirm button in the dialog
+      const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+      const dialogConfirm = allDeleteBtns[allDeleteBtns.length - 1];
+      await user.click(dialogConfirm);
 
       await waitFor(() => {
         expect(mockDeleteEntryAndInvalidate).toHaveBeenCalledTimes(1);
@@ -245,21 +276,29 @@ describe("TaskEditor", () => {
     });
   });
 
-  describe("Content Area", () => {
-    it("should allow typing in content area", async () => {
-      const user = userEvent.setup();
+  describe("Content Area (Tiptap)", () => {
+    it("should render Tiptap editor as the content area", () => {
       renderEditor();
-
-      const contentArea = screen.getByRole("textbox", { name: /content/i });
-      await user.type(contentArea, "My task content here");
-
-      expect(contentArea).toHaveValue("My task content here");
+      const tiptapEditor = screen.getByTestId("tiptap-editor");
+      expect(tiptapEditor).toBeInTheDocument();
+      // Should contain a contenteditable element
+      const proseMirror = tiptapEditor.querySelector("[contenteditable]");
+      expect(proseMirror).not.toBeNull();
     });
 
-    it("should be a textarea element", () => {
-      renderEditor();
-      const contentArea = screen.getByRole("textbox", { name: /content/i });
-      expect(contentArea.tagName.toLowerCase()).toBe("textarea");
+    it("should render content from entry JSON", async () => {
+      renderEditor({
+        content: {
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "Existing content" }] },
+          ],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Existing content")).toBeInTheDocument();
+      });
     });
   });
 
@@ -361,11 +400,11 @@ describe("TaskEditor", () => {
   });
 
   describe("Accessibility", () => {
-    it("should have proper labels for all inputs", () => {
+    it("should have proper labels for title and topic", () => {
       renderEditor();
 
       expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      expect(screen.getByRole("textbox", { name: /content/i })).toBeInTheDocument();
+      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /topic/i })).toBeInTheDocument();
     });
   });

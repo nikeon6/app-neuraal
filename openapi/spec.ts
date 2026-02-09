@@ -104,6 +104,7 @@ const spec = {
           topicId: { type: ["string", "null"] as const },
           completed: { type: ["boolean", "null"] as const, description: "null for notes" },
           version: { type: "integer" as const, minimum: 1 },
+          sortOrder: { type: "integer" as const, minimum: 0, description: "Display order within a day. Lower values appear first." },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
           summary: { type: ["string", "null"] as const },
@@ -150,7 +151,12 @@ const spec = {
           title: { type: "string" as const, maxLength: 100 },
           message: { type: "string" as const, maxLength: 500 },
           status: { type: "string" as const, enum: ["unread", "read"] },
-          payload: { type: ["object", "null"] as const },
+          payload: {
+            type: ["object", "null"] as const,
+            additionalProperties: true,
+            description:
+              "Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type.",
+          },
           createdAt: { type: "string" as const, format: "date-time" },
         },
       },
@@ -469,6 +475,45 @@ const spec = {
       },
     },
 
+    "/api/entries/reorder": {
+      patch: {
+        tags: ["Entries"],
+        summary: "Reorder entries for a date",
+        operationId: "reorderEntries",
+        description:
+          "Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["date", "orderedIds"],
+                properties: {
+                  date: {
+                    type: "string" as const,
+                    pattern: String.raw`^\d{4}-\d{2}-\d{2}$`,
+                    example: "2025-06-15",
+                  },
+                  orderedIds: {
+                    type: "array" as const,
+                    items: { type: "string" as const, format: "uuid" },
+                    description:
+                      "Entry IDs in desired display order (index 0 = first).",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "204": { description: "Entries reordered successfully" },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
     "/api/entries/{id}/summarize": {
       post: {
         tags: ["Entries"],
@@ -548,6 +593,51 @@ const spec = {
           "401": { $ref: "#/components/responses/Unauthorized" },
           "404": { $ref: "#/components/responses/NotFound" },
           "500": { $ref: "#/components/responses/InternalError" },
+        },
+      },
+    },
+
+    "/api/entries/{id}/attachments": {
+      get: {
+        tags: ["Attachments"],
+        summary: "List attachments for an entry",
+        operationId: "listEntryAttachments",
+        parameters: [{ $ref: "#/components/parameters/ResourceId" }],
+        responses: {
+          "200": {
+            description: "List of attachments with usage/quota info",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["attachments", "usage"],
+                  properties: {
+                    attachments: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Attachment" },
+                    },
+                    usage: {
+                      type: "object" as const,
+                      required: [
+                        "entryBytesUsed",
+                        "entryLimitBytes",
+                        "userBytesUsed",
+                        "userLimitBytes",
+                      ],
+                      properties: {
+                        entryBytesUsed: { type: "integer" as const },
+                        entryLimitBytes: { type: "integer" as const },
+                        userBytesUsed: { type: "integer" as const },
+                        userLimitBytes: { type: "integer" as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
         },
       },
     },

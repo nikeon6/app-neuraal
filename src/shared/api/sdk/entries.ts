@@ -83,6 +83,21 @@ export async function summarizeEntry(
 }
 
 // ---------------------------------------------------------------------------
+// Reorder
+// ---------------------------------------------------------------------------
+
+/**
+ * PATCH /api/entries/reorder — bulk-updates display order for a given date.
+ * Returns 204 No Content on success.
+ */
+export async function reorderEntries(
+  date: string,
+  orderedIds: string[]
+): Promise<void> {
+  await patch("/api/entries/reorder", { date, orderedIds });
+}
+
+// ---------------------------------------------------------------------------
 // Auto-topic
 // ---------------------------------------------------------------------------
 

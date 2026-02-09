@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Calendar,
-  Bell,
   LayoutGrid,
   StickyNote,
   Users,
@@ -31,8 +30,8 @@ export interface DashboardHeaderProps {
   onChangeSection: (section: DashboardSection) => void;
   /** Currently selected date (for daily view title) */
   selectedDate: Date;
-  /** Optional callback for notifications button */
-  onNotificationsClick?: () => void;
+  /** Slot for the notifications widget (rendered in the nav bar). */
+  notificationSlot?: React.ReactNode;
 }
 
 // ============================================================================
@@ -77,7 +76,7 @@ export function DashboardHeader({
   section,
   onChangeSection,
   selectedDate,
-  onNotificationsClick,
+  notificationSlot,
 }: DashboardHeaderProps) {
   const isDaily = section === "daily";
   const currentLabel = SECTION_LABELS[section];
@@ -131,24 +130,8 @@ export function DashboardHeader({
           );
         })}
 
-        {/* Notifications button (icon-only) */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={onNotificationsClick}
-          className={cn(
-            "relative flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0",
-            "border backdrop-blur-sm",
-            "bg-white/5 text-white/50 border-white/10",
-            "hover:bg-white/10 hover:border-white/15 hover:text-white/80"
-          )}
-        >
-          <Bell className="w-4 h-4" />
-          {/* Optional: notification badge dot (hidden by default) */}
-          {/* Uncomment when notifications are implemented:
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-400 border border-background" />
-          */}
-        </button>
+        {/* Notification widget slot (injected by Dashboard to avoid cross-feature imports) */}
+        {notificationSlot}
       </nav>
 
       {/* Kicker (small label) + Title - changes based on section */}

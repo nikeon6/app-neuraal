@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   HandleEntrySummaryCallback,
   EntrySummaryCallbackPayload,
-} from "@/application/use-cases/HandleEntrySummaryCallback";
+} from "@/application/use-cases/summaries/HandleEntrySummaryCallback";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { PrismaSummaryRequestRepository } from "@/infrastructure/persistence/PrismaSummaryRequestRepository";
 import { PrismaNotificationRepository } from "@/infrastructure/persistence/PrismaNotificationRepository";

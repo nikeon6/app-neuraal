@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GetAttachmentDownloadUrl } from "@/application/use-cases/GetAttachmentDownloadUrl";
+import { GetAttachmentDownloadUrl } from "@/application/use-cases/attachments/GetAttachmentDownloadUrl";
 import { PrismaAttachmentRepository } from "@/infrastructure/persistence/PrismaAttachmentRepository";
 import { S3ObjectStorage } from "@/infrastructure/storage/S3ObjectStorage";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";

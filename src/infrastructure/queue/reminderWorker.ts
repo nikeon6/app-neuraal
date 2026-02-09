@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { ProcessReminderJob } from "../../application/use-cases/ProcessReminderJob";
+import { ProcessReminderJob } from "../../application/use-cases/reminders/ProcessReminderJob";
 import { PrismaReminderRepository } from "../persistence/PrismaReminderRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";

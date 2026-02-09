@@ -174,6 +174,11 @@
             "type": "integer",
             "minimum": 1
           },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Display order within a day. Lower values appear first."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -320,7 +325,9 @@
             "type": [
               "object",
               "null"
-            ]
+            ],
+            "additionalProperties": true,
+            "description": "Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type."
           },
           "createdAt": {
             "type": "string",
@@ -948,6 +955,56 @@
         }
       }
     },
+    "/api/entries/reorder": {
+      "patch": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "Reorder entries for a date",
+        "operationId": "reorderEntries",
+        "description": "Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date",
+                  "orderedIds"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "example": "2025-06-15"
+                  },
+                  "orderedIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "description": "Entry IDs in desired display order (index 0 = first)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Entries reordered successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/api/entries/{id}/summarize": {
       "post": {
         "tags": [
@@ -1083,6 +1140,73 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/entries/{id}/attachments": {
+      "get": {
+        "tags": [
+          "Attachments"
+        ],
+        "summary": "List attachments for an entry",
+        "operationId": "listEntryAttachments",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of attachments with usage/quota info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "attachments",
+                    "usage"
+                  ],
+                  "properties": {
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Attachment"
+                      }
+                    },
+                    "usage": {
+                      "type": "object",
+                      "required": [
+                        "entryBytesUsed",
+                        "entryLimitBytes",
+                        "userBytesUsed",
+                        "userLimitBytes"
+                      ],
+                      "properties": {
+                        "entryBytesUsed": {
+                          "type": "integer"
+                        },
+                        "entryLimitBytes": {
+                          "type": "integer"
+                        },
+                        "userBytesUsed": {
+                          "type": "integer"
+                        },
+                        "userLimitBytes": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }

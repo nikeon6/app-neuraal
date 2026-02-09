@@ -111,10 +111,10 @@ services:
       # Disable telemetry for local dev
       N8N_DIAGNOSTICS_ENABLED: "false"
       # LangSmith (LangChain) - preparado
-      LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+      LANGCHAIN_ENDPOINT: "https://eu.api.smith.langchain.com"
       LANGCHAIN_TRACING_V2: "true"
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
-      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-neuraal-dev}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
       LANGCHAIN_CALLBACKS_BACKGROUND: "true"
       # Environment variables
       N8N_ENV_VARS_ENABLED: "N8N_WEBHOOK_SECRET,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT"
@@ -172,6 +172,30 @@ services:
       exit 0;
       "
 
+  # ==========================================================================
+  # WAHA - WhatsApp HTTP API (self-hosted)
+  # Dashboard: http://localhost:3009
+  # Swagger:   http://localhost:3009/api/docs
+  # ==========================================================================
+  # waha:
+    # image: devlikeapro/waha
+    # container_name: neuraal-waha
+    # restart: always
+    # ports:
+      # - "3009:3000"
+    # environment:
+      # API Key for requests from code or Swagger
+      # WAHA_API_KEY: f07c98acf04c4f4eac21dc94aca9e2d6
+      # Disable dashboard/swagger passwords for local dev (WAHA Core regenerates them on every start)
+      # WAHA_DASHBOARD_NO_PASSWORD: "True"
+      # WHATSAPP_SWAGGER_NO_PASSWORD: "True"
+      # Recommended engine for virtual numbers (lighter)
+      # WHATSAPP_DEFAULT_ENGINE: NOWEB
+      # Restart all sessions automatically after container restart
+      # WHATSAPP_RESTART_ALL_SESSIONS: "True"
+    # volumes:
+      # - neuraal_waha_sessions:/app/.sessions
+
 # ==========================================================================
 # Named volumes for data persistence
 # ==========================================================================
@@ -181,3 +205,4 @@ volumes:
   neuraal_minio_data:
   neuraal_n8n_data:
   neuraal_ollama_data:
+  neuraal_waha_sessions:

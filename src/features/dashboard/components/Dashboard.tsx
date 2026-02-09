@@ -3,12 +3,14 @@
 import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
-import { useEntriesForDates } from "@/shared/api/queries";
+import { useEntriesForDates, useSummaryDoneWatcher } from "@/shared/api/queries";
+import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
+import { NotificationCenter } from "@/features/notifications";
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
@@ -55,6 +57,8 @@ export function Dashboard() {
     expandedDayKeys,
     dashboardSection,
     setDashboardSection,
+    setSelectedDate,
+    setScrollToEntryId,
   } = useStore();
 
   // Month date keys for calendar and floating topics (data from TanStack Query)
@@ -66,6 +70,10 @@ export function Dashboard() {
   }, [selectedDate]);
 
   const { entriesByDate } = useEntriesForDates(monthDateKeys);
+
+  // Watch for SUMMARY_DONE notifications and auto-refresh entries
+  const currentDateKey = useStore(selectDateKey);
+  useSummaryDoneWatcher(currentDateKey);
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +117,34 @@ export function Dashboard() {
       window.removeEventListener("orientationchange", updateHeight);
     };
   }, []);
+
+  // Navigate to an entry when user clicks "Go to entry" in the notification center.
+  // Searches the current month's cached entries and switches the date + section.
+  const handleNavigateToEntry = useCallback(
+    (entryId: string) => {
+      // Search in the cached entriesByDate for the entry
+      for (const [dateKey, entries] of Object.entries(entriesByDate)) {
+        const found = entries.find((e) => e.id === entryId);
+        if (found) {
+          // Navigate to that day
+          const [year, month, day] = dateKey.split("-").map(Number);
+          setSelectedDate(new Date(year, month - 1, day));
+          // Ensure we are on the daily view
+          if (dashboardSection !== "daily") {
+            setDashboardSection("daily");
+          }
+          // Request TasksContainer to scroll to this entry
+          setScrollToEntryId(entryId);
+          return;
+        }
+      }
+      // If entry not found in cache, just switch to daily (user can find it manually)
+      if (dashboardSection !== "daily") {
+        setDashboardSection("daily");
+      }
+    },
+    [entriesByDate, setSelectedDate, dashboardSection, setDashboardSection, setScrollToEntryId]
+  );
 
   // Handle click on the lane (bubbles board) - clearSelection when clicking empty space
   const handleLaneClick = useCallback(
@@ -168,9 +204,7 @@ export function Dashboard() {
           section={dashboardSection}
           onChangeSection={setDashboardSection}
           selectedDate={selectedDate}
-          onNotificationsClick={() => {
-            // TODO: Implement notifications panel
-          }}
+          notificationSlot={<NotificationCenter onNavigateToEntry={handleNavigateToEntry} />}
         />
 
         {/* Content area - shows different content based on section */}

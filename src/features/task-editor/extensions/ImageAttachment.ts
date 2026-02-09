@@ -1,0 +1,51 @@
+import Image from "@tiptap/extension-image";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { ImageAttachmentComponent } from "./ImageAttachmentComponent";
+
+/**
+ * ImageAttachment — extends the default Tiptap Image extension
+ * to persist `attachmentId` in the ProseMirror schema so it survives
+ * JSON serialization (getJSON / setContent).
+ *
+ * Also adds a React NodeView with delete and OCR buttons.
+ */
+export const ImageAttachment = Image.extend({
+  name: "image",
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      attachmentId: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.attachmentId ?? null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.attachmentId) return {};
+          return { "data-attachment-id": attributes.attachmentId };
+        },
+      },
+      uploading: {
+        default: false,
+        // Don't render uploading state to HTML — it's transient
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageAttachmentComponent, {
+      // Allow mouse events on buttons inside the NodeView to pass through
+      stopEvent: ({ event }) => {
+        if (
+          event.type === "mousedown" ||
+          event.type === "mouseup" ||
+          event.type === "click"
+        ) {
+          const target = event.target as HTMLElement;
+          if (target.closest("button")) return true;
+        }
+        return false;
+      },
+    });
+  },
+});

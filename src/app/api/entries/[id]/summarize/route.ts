@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RequestEntrySummary } from "@/application/use-cases/RequestEntrySummary";
+import { RequestEntrySummary } from "@/application/use-cases/summaries/RequestEntrySummary";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { PrismaNotificationRepository } from "@/infrastructure/persistence/PrismaNotificationRepository";
 import { PrismaSummaryRequestRepository } from "@/infrastructure/persistence/PrismaSummaryRequestRepository";

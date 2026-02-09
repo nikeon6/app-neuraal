@@ -25,6 +25,7 @@ export class S3ObjectStorage implements ObjectStoragePort {
     this.client = new S3Client({
       region: config.region,
       ...(config.endpoint && { endpoint: config.endpoint }),
+      forcePathStyle: config.forcePathStyle,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,

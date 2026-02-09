@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateEntry } from "@/application/use-cases/CreateEntry";
-import { ListEntriesByDate } from "@/application/use-cases/ListEntriesByDate";
+import { CreateEntry } from "@/application/use-cases/entries/CreateEntry";
+import { ListEntriesByDate } from "@/application/use-cases/entries/ListEntriesByDate";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 

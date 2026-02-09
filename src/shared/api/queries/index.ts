@@ -9,3 +9,11 @@ export {
   useEntriesForDates,
   entriesQueryKey,
 } from "./entries";
+export {
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useSummaryDoneWatcher,
+  notificationsQueryKey,
+  getUnreadCount,
+} from "./notifications";
+export { useEntryAttachmentsQuery, attachmentsQueryKey } from "./attachments";

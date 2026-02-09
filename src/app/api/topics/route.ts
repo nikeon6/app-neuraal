@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateTopic } from "@/application/use-cases/CreateTopic";
-import { ListTopics } from "@/application/use-cases/ListTopics";
+import { CreateTopic } from "@/application/use-cases/topics/CreateTopic";
+import { ListTopics } from "@/application/use-cases/topics/ListTopics";
+import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTopicEmbedding";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
+import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
+import {
+  DEFAULT_EMBEDDING_DIM,
+} from "@/shared/constants/embedding";
 
 /**
  * GET /api/topics
@@ -96,5 +101,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: { code, message } }, { status: statusCode });
   }
 
-  return NextResponse.json({ topic: result.value }, { status: 201 });
+  // Fire-and-forget: generate embedding for the new topic.
+  // If it fails, the topic is still created — embedding can be rebuilt later.
+  const topic = result.value;
+  const embeddingProvider = new OllamaEmbeddingProvider({
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+    model: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+  });
+  const embeddingDim = process.env.EMBEDDING_DIM
+    ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
+    : DEFAULT_EMBEDDING_DIM;
+  const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
+    embeddingDim,
+    embeddingModel: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+  });
+  rebuildUseCase.execute({ userId, topicId: topic.id }).catch((err) => {
+    console.error(`[POST /api/topics] Failed to generate embedding for topic ${topic.id}:`, err);
+  });
+
+  return NextResponse.json({ topic }, { status: 201 });
 }

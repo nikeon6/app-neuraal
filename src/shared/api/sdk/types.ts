@@ -54,6 +54,14 @@ export type AutoTopicBody = NonNullable<
   operations["autoAssignTopic"]["requestBody"]
 >["content"]["application/json"];
 
+/** Request body for creating a reminder. */
+export type CreateReminderBody =
+  operations["createReminder"]["requestBody"]["content"]["application/json"];
+
+/** Request body for updating a reminder (reschedule / cancel). */
+export type UpdateReminderBody =
+  operations["updateReminder"]["requestBody"]["content"]["application/json"];
+
 // ---------------------------------------------------------------------------
 // Response helpers (extract the success JSON payload from an operation)
 // ---------------------------------------------------------------------------

@@ -69,6 +69,44 @@ export class InMemoryEntryRepository implements EntryRepository {
     }
   }
 
+  async reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[]
+  ): Promise<void> {
+    // Simulate updating sortOrder for each entry
+    for (let i = 0; i < orderedIds.length; i++) {
+      const entry = this.entries.find(
+        (e) => e.id === orderedIds[i] && e.userId === userId && e.date.toString() === date
+      );
+      if (entry) {
+        // Re-create with updated sortOrder via Entry.create
+        const { Entry } = await import("@/domain/entities/Entry");
+        const updated = Entry.create({
+          id: entry.id,
+          userId: entry.userId,
+          date: entry.date.toString(),
+          type: entry.type.toString() as "task" | "note",
+          title: entry.title.toString(),
+          content: entry.content.toJSON(),
+          topicId: entry.topicId,
+          completed: entry.completed,
+          version: entry.version,
+          sortOrder: i,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+          summary: entry.summary,
+          summaryFormat: entry.summaryFormat,
+          summaryUpdatedAt: entry.summaryUpdatedAt,
+        });
+        if (updated.isOk()) {
+          const index = this.entries.findIndex((e) => e.id === orderedIds[i]);
+          this.entries[index] = updated.value;
+        }
+      }
+    }
+  }
+
   /**
    * Helper for tests: get the current topicId of an entry.
    */

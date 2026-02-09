@@ -55,6 +55,8 @@ export type {
   CreateEntryBody,
   UpdateEntryBody,
   AutoTopicBody,
+  CreateReminderBody,
+  UpdateReminderBody,
 } from "./types";
 
 // Topics
@@ -75,3 +77,30 @@ export {
   summarizeEntry,
   autoTopicEntry,
 } from "./entries";
+
+// Notifications
+export {
+  listNotifications,
+  markNotificationRead,
+} from "./notifications";
+
+// Reminders
+export {
+  createReminder,
+  updateReminder,
+} from "./reminders";
+
+// Attachments
+export {
+  listByEntry as listAttachmentsByEntry,
+  initUpload as initAttachmentUpload,
+  completeUpload as completeAttachmentUpload,
+  deleteAttachment,
+  getDownloadUrl as getAttachmentDownloadUrl,
+} from "./attachments";
+
+export type {
+  ListAttachmentsResponse,
+  InitUploadResponse,
+  InitUploadInput,
+} from "./attachments";

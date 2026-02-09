@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AutoAssignTopicToEntry } from "@/application/use-cases/AutoAssignTopicToEntry";
+import { AutoAssignTopicToEntry } from "@/application/use-cases/topics/AutoAssignTopicToEntry";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";

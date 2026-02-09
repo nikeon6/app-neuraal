@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RebuildTopicEmbedding } from "@/application/use-cases/RebuildTopicEmbedding";
+import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTopicEmbedding";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";

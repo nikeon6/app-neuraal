@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useCallback, useRef, useMemo, memo } from "react";
+import React, { useCallback, useRef, useMemo, memo, useEffect } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
-import { useEntriesByDateQuery, useTopicsQuery } from "@/shared/api/queries";
-import { createEntryAndInvalidate } from "@/shared/api/mutations";
+import { useEntriesByDateQuery } from "@/shared/api/queries";
+import { createEntryAndInvalidate, reorderEntriesAndInvalidate } from "@/shared/api/mutations";
 import { TaskEditor } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
@@ -49,12 +49,28 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
   isDragDisabled,
 }: TaskEditorWrapperProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastKnownHeightRef = useRef(0);
 
-  // Handle TaskEditor expansion - notify parent for auto-scroll
+  // Initialize height tracking after mount
+  useEffect(() => {
+    if (wrapperRef.current) {
+      lastKnownHeightRef.current = wrapperRef.current.offsetHeight;
+    }
+  }, []);
+
+  // Handle TaskEditor expansion - only notify parent when height actually
+  // increases (i.e., the editor expanded). This prevents scroll jumps when
+  // clicking inside an already-expanded editor with images/videos.
   const handleEditorClick = useCallback(() => {
-    // Small delay to let TaskEditor expand first
     setTimeout(() => {
-      if (wrapperRef.current) {
+      if (!wrapperRef.current) return;
+
+      const newHeight = wrapperRef.current.offsetHeight;
+      const heightGrew = newHeight > lastKnownHeightRef.current + 40;
+      lastKnownHeightRef.current = newHeight;
+
+      // Only auto-scroll when the editor actually expanded
+      if (heightGrew) {
         onExpand(wrapperRef.current);
       }
     }, 250);
@@ -191,8 +207,6 @@ export function TasksContainer() {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
   const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
-  const { data: topics = [] } = useTopicsQuery();
-
   // Create a map for quick entry lookup by ID
   const entryMap = useMemo(() => {
     const map = new Map<string, ApiEntry>();
@@ -204,9 +218,12 @@ export function TasksContainer() {
   const { orderedIds, setOrderedIds, commitOrder } = useOrderedTaskIds({
     tasks: entries,
     selectedDay: dateKey,
-    onReorder: () => {
-      // TODO: Implement server-side reorder if needed.
-      // For now, reorder is local-only during a session.
+    onReorder: (_day, newOrder) => {
+      reorderEntriesAndInvalidate(queryClient, dateKey, newOrder).catch(
+        (error) => {
+          console.error("[TasksContainer] Failed to persist entry order:", error);
+        }
+      );
     },
   });
 
@@ -234,16 +251,14 @@ export function TasksContainer() {
     commitOrder();
   }, [stopAutoScroll, commitOrder]);
 
-  // Handle add new entry
+  // Handle add new entry — topic defaults to null so TaskEditor shows "Auto"
   const handleAddTask = useCallback(async () => {
-    const defaultTopicId = topics.length > 0 ? topics[0].id : undefined;
-
     await createEntryAndInvalidate(queryClient, {
       date: dateKey,
       type: "task",
       title: "New task",
       content: {} as Record<string, never>,
-      topicId: defaultTopicId ?? null,
+      topicId: null,
     });
 
     setTimeout(() => {
@@ -254,7 +269,7 @@ export function TasksContainer() {
         });
       }
     }, 100);
-  }, [dateKey, queryClient, topics, containerRef]);
+  }, [dateKey, queryClient, containerRef]);
 
   // Handle TaskEditor expansion - auto-scroll to show expanded content
   const handleTaskExpand = useCallback(
@@ -284,6 +299,60 @@ export function TasksContainer() {
     },
     [containerRef]
   );
+
+  // ---------------------------------------------------------------------------
+  // Scroll-to-entry: when navigating from notification center, scroll to the
+  // target entry and briefly highlight it so the user knows which one it is.
+  // ---------------------------------------------------------------------------
+  const scrollToEntryId = useStore((s) => s.scrollToEntryId);
+  const setScrollToEntryId = useStore((s) => s.setScrollToEntryId);
+
+  useEffect(() => {
+    if (!scrollToEntryId) return;
+
+    // The entry may not be in the DOM yet (date change triggers a query refetch).
+    // Poll briefly for the element to appear, then scroll.
+    let attempts = 0;
+    const maxAttempts = 20; // ~2 seconds max
+    const intervalMs = 100;
+
+    const timer = setInterval(() => {
+      attempts++;
+      const container = containerRef.current as HTMLElement | null;
+      const el = document.querySelector(
+        `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`
+      ) as HTMLElement | null;
+
+      if (el && container) {
+        clearInterval(timer);
+
+        // Calculate scroll position within the container only (avoid scrollIntoView
+        // which also scrolls ancestor containers and breaks the page layout).
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const elRelativeTop = elRect.top - containerRect.top + container.scrollTop;
+        // Center the element vertically in the container
+        const targetScroll = elRelativeTop - containerRect.height / 2 + elRect.height / 2;
+
+        container.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: "smooth",
+        });
+
+        // Brief highlight flash
+        el.classList.add("scroll-highlight");
+        setTimeout(() => el.classList.remove("scroll-highlight"), 1800);
+
+        // Clear the store so it doesn't re-trigger
+        setScrollToEntryId(null);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(timer);
+        setScrollToEntryId(null);
+      }
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [scrollToEntryId, setScrollToEntryId, containerRef]);
 
   // Loading state
   if (isLoading && entries.length === 0) {

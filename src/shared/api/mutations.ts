@@ -10,9 +10,20 @@
 import type { QueryClient } from "@tanstack/react-query";
 import * as topicsSdk from "./sdk/topics";
 import * as entriesSdk from "./sdk/entries";
-import type { CreateTopicBody, UpdateTopicBody, CreateEntryBody, UpdateEntryBody } from "./sdk/types";
+import * as remindersSdk from "./sdk/reminders";
+import * as attachmentsSdk from "./sdk/attachments";
+import type {
+  CreateTopicBody,
+  UpdateTopicBody,
+  CreateEntryBody,
+  UpdateEntryBody,
+  CreateReminderBody,
+  UpdateReminderBody,
+} from "./sdk/types";
 import { topicsQueryKey } from "./queries/topics";
 import { entriesQueryKey } from "./queries/entries";
+import { notificationsQueryKey } from "./queries/notifications";
+import { attachmentsQueryKey } from "./queries/attachments";
 
 // ---- Topics ----
 
@@ -72,4 +83,63 @@ export async function deleteEntryAndInvalidate(
 ) {
   await entriesSdk.deleteEntry(id);
   await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
+// ---- Reorder ----
+
+export async function reorderEntriesAndInvalidate(
+  queryClient: QueryClient,
+  dateKey: string,
+  orderedIds: string[]
+) {
+  await entriesSdk.reorderEntries(dateKey, orderedIds);
+  // No cache invalidation needed: local order is already correct.
+  // Optionally invalidate for safety on next refetch:
+  await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
+// ---- Summarize ----
+
+export async function summarizeEntryAndInvalidate(
+  queryClient: QueryClient,
+  entryId: string
+) {
+  const result = await entriesSdk.summarizeEntry(entryId);
+  // Refresh notifications so the in-progress item shows up quickly
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return result;
+}
+
+// ---- Reminders ----
+
+export async function createReminderAndInvalidate(
+  queryClient: QueryClient,
+  input: CreateReminderBody
+) {
+  const reminder = await remindersSdk.createReminder(input);
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return reminder;
+}
+
+export async function updateReminderAndInvalidate(
+  queryClient: QueryClient,
+  id: string,
+  patch: UpdateReminderBody
+) {
+  const reminder = await remindersSdk.updateReminder(id, patch);
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return reminder;
+}
+
+// ---- Attachments ----
+
+export async function deleteAttachmentAndInvalidate(
+  queryClient: QueryClient,
+  attachmentId: string,
+  entryId: string
+) {
+  await attachmentsSdk.deleteAttachment(attachmentId);
+  await queryClient.invalidateQueries({
+    queryKey: attachmentsQueryKey(entryId),
+  });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UpdateEntry } from "@/application/use-cases/UpdateEntry";
-import { DeleteEntry } from "@/application/use-cases/DeleteEntry";
+import { UpdateEntry } from "@/application/use-cases/entries/UpdateEntry";
+import { DeleteEntry } from "@/application/use-cases/entries/DeleteEntry";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 

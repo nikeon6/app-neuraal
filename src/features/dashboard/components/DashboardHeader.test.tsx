@@ -34,13 +34,10 @@ vi.mock("framer-motion", () => ({
 // ============================================================================
 
 const mockOnChangeSection = vi.fn();
-const mockOnNotificationsClick = vi.fn();
-
 const defaultProps: DashboardHeaderProps = {
   section: "daily",
   onChangeSection: mockOnChangeSection,
   selectedDate: new Date(2026, 1, 4), // February 4, 2026
-  onNotificationsClick: mockOnNotificationsClick,
 };
 
 // ============================================================================
@@ -155,33 +152,20 @@ describe("DashboardHeader", () => {
     });
   });
 
-  describe("Notifications Button", () => {
-    it("renders notifications button with aria-label", () => {
-      renderHeader();
+  describe("Notification Slot", () => {
+    it("renders the notificationSlot when provided", () => {
+      renderHeader({
+        notificationSlot: <button type="button" aria-label="Notifications">Bell</button>,
+      });
 
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      expect(notificationsBtn).toBeInTheDocument();
-      expect(notificationsBtn).toHaveAttribute("aria-label", "Notifications");
+      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
     });
 
-    it("calls onNotificationsClick when clicked", async () => {
-      const user = userEvent.setup();
-      renderHeader();
+    it("renders nothing in the slot area when no notificationSlot is provided", () => {
+      renderHeader({ notificationSlot: undefined });
 
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      await user.click(notificationsBtn);
-
-      expect(mockOnNotificationsClick).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not throw when onNotificationsClick is not provided", async () => {
-      const user = userEvent.setup();
-      renderHeader({ onNotificationsClick: undefined });
-
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      
-      // Should not throw
-      await expect(user.click(notificationsBtn)).resolves.not.toThrow();
+      // No notifications button should be present
+      expect(screen.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument();
     });
   });
 
