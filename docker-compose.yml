@@ -173,9 +173,7 @@ services:
       "
 
   # ==========================================================================
-  # WAHA - WhatsApp HTTP API (self-hosted)
-  # Dashboard: http://localhost:3009
-  # Swagger:   http://localhost:3009/api/docs
+  # WAHA - WhatsApp HTTP API (self-hosted) [DEPRECATED - replaced by Evolution API]
   # ==========================================================================
   # waha:
     # image: devlikeapro/waha
@@ -184,17 +182,77 @@ services:
     # ports:
       # - "3009:3000"
     # environment:
-      # API Key for requests from code or Swagger
       # WAHA_API_KEY: f07c98acf04c4f4eac21dc94aca9e2d6
-      # Disable dashboard/swagger passwords for local dev (WAHA Core regenerates them on every start)
       # WAHA_DASHBOARD_NO_PASSWORD: "True"
       # WHATSAPP_SWAGGER_NO_PASSWORD: "True"
-      # Recommended engine for virtual numbers (lighter)
       # WHATSAPP_DEFAULT_ENGINE: NOWEB
-      # Restart all sessions automatically after container restart
       # WHATSAPP_RESTART_ALL_SESSIONS: "True"
     # volumes:
       # - neuraal_waha_sessions:/app/.sessions
+
+  # ==========================================================================
+  # Evolution DB Init - One-shot container to create the evolution database
+  # in the shared PostgreSQL instance (runs only once per volume lifecycle)
+  # ==========================================================================
+  evolution-db-init:
+    image: pgvector/pgvector:pg16
+    container_name: neuraal-evolution-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      PGPASSWORD=neuraal_password psql -h postgres -U neuraal -tc
+      \"SELECT 1 FROM pg_database WHERE datname = 'evolution'\"
+      | grep -q 1
+      || PGPASSWORD=neuraal_password createdb -h postgres -U neuraal evolution;
+      echo 'Database evolution is ready';
+      exit 0;
+      "
+
+  # ==========================================================================
+  # Evolution API - Multi-channel messaging (WhatsApp, Telegram, etc.)
+  # Dashboard: http://localhost:8080
+  # Swagger:   http://localhost:8080/docs
+  # ==========================================================================
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.2.3
+    container_name: neuraal-evolution-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      evolution-db-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      # Authentication
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+
+      # Database (PostgreSQL) — shared Postgres instance, dedicated "evolution" database
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://neuraal:neuraal_password@postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+
+      # Cache Redis — shared Redis instance with dedicated prefix
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+    volumes:
+      - neuraal_evolution_instances:/evolution/instances
 
 # ==========================================================================
 # Named volumes for data persistence
@@ -206,3 +264,4 @@ volumes:
   neuraal_n8n_data:
   neuraal_ollama_data:
   neuraal_waha_sessions:
+  neuraal_evolution_instances:
