@@ -42,6 +42,11 @@ export interface EntryRepository {
   ): Promise<void>;
 
   /**
+   * Clears the AI-generated summary from an entry.
+   */
+  clearSummary(entryId: string): Promise<void>;
+
+  /**
    * Updates the topicId of an entry.
    * Used by auto-topic assignment.
    */

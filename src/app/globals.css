@@ -361,3 +361,92 @@
     min-height: 50px;
   }
 }
+
+/* ============================================================================
+   AI Summary Markdown Styles
+   ============================================================================ */
+.summary-markdown h1,
+.summary-markdown h2,
+.summary-markdown h3 {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.75em;
+  margin-bottom: 0.35em;
+}
+.summary-markdown h1 { font-size: 1.1em; }
+.summary-markdown h2 { font-size: 1em; }
+.summary-markdown h3 { font-size: 0.95em; }
+
+.summary-markdown p {
+  margin-bottom: 0.5em;
+}
+.summary-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.summary-markdown ul,
+.summary-markdown ol {
+  padding-left: 1.25em;
+  margin-bottom: 0.5em;
+}
+.summary-markdown ul { list-style-type: disc; }
+.summary-markdown ol { list-style-type: decimal; }
+
+.summary-markdown li {
+  margin-bottom: 0.2em;
+}
+.summary-markdown li::marker {
+  color: rgba(56, 189, 248, 0.4);
+}
+
+.summary-markdown strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+.summary-markdown em {
+  font-style: italic;
+}
+
+.summary-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.summary-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5em;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+.summary-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.summary-markdown blockquote {
+  border-left: 3px solid rgba(56, 189, 248, 0.3);
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.summary-markdown a {
+  color: rgb(56, 189, 248);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.summary-markdown a:hover {
+  color: rgb(125, 211, 252);
+}
+
+.summary-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.75em 0;
+}

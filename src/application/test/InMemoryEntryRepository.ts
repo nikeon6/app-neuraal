@@ -57,6 +57,10 @@ export class InMemoryEntryRepository implements EntryRepository {
     });
   }
 
+  async clearSummary(entryId: string): Promise<void> {
+    this.summaries.delete(entryId);
+  }
+
   async updateTopic(entryId: string, topicId: string | null): Promise<void> {
     const entry = this.entries.find((e) => e.id === entryId);
     if (entry) {

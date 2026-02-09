@@ -141,6 +141,10 @@ services:
     container_name: neuraal-ollama
     ports:
       - "11434:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"        # Never unload models from RAM (eliminates cold-start)
+      OLLAMA_NUM_PARALLEL: "2"       # Allow 2 simultaneous requests (safe with 16GB RAM)
+      OLLAMA_MAX_LOADED_MODELS: "2"  # glm-ocr + nomic-embed-text loaded at once
     volumes:
       - neuraal_ollama_data:/root/.ollama
     healthcheck:
@@ -155,20 +159,23 @@ services:
   # Models: nomic-embed-text-v2-moe (embeddings), glm-ocr (OCR)
   # ==========================================================================
   ollama-init:
-    image: ollama/ollama:0.15.5-rc1
+    image: curlimages/curl:latest
     container_name: neuraal-ollama-init
     depends_on:
       ollama:
         condition: service_healthy
-    environment:
-      OLLAMA_HOST: ollama:11434
     entrypoint: >
       /bin/sh -c "
       echo 'Pulling nomic-embed-text-v2-moe:latest...';
-      ollama pull nomic-embed-text-v2-moe:latest;
+      curl -sf http://ollama:11434/api/pull -d '{\"name\":\"nomic-embed-text-v2-moe:latest\",\"stream\":false}';
+      echo '';
       echo 'Pulling glm-ocr:latest...';
-      ollama pull glm-ocr:latest;
+      curl -sf http://ollama:11434/api/pull -d '{\"name\":\"glm-ocr:latest\",\"stream\":false}';
+      echo '';
       echo 'All models pulled successfully';
+      echo 'Warming up glm-ocr (preloading into RAM)...';
+      curl -sf --max-time 120 http://ollama:11434/api/generate -d '{\"model\":\"glm-ocr\",\"prompt\":\"hello\",\"stream\":false}' > /dev/null;
+      echo 'Warmup complete — glm-ocr is loaded in RAM';
       exit 0;
       "
 

@@ -8,9 +8,19 @@ import { ImageAttachmentComponent } from "./ImageAttachmentComponent";
  * JSON serialization (getJSON / setContent).
  *
  * Also adds a React NodeView with delete and OCR buttons.
+ *
+ * Extension storage:
+ * - `entryId`: set by the parent component (TaskEditor) so that the
+ *   OCR button in the NodeView knows which entry the image belongs to.
  */
 export const ImageAttachment = Image.extend({
   name: "image",
+
+  addStorage() {
+    return {
+      entryId: null as string | null,
+    };
+  },
 
   addAttributes() {
     return {

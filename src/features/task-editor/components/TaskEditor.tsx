@@ -19,13 +19,15 @@ import {
   Circle,
   ListTodo,
   StickyNote,
+  X,
 } from "lucide-react";
+import Markdown from "react-markdown";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery, entriesQueryKey, attachmentsQueryKey } from "@/shared/api/queries";
-import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
+import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, clearSummaryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
 import * as entriesSdk from "@/shared/api/sdk/entries";
 import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
@@ -520,6 +522,14 @@ export function TaskEditor({
     }
   }, [isSummarizing, queryClient, entry.id, dateKey, onClose]);
 
+  const handleClearSummary = useCallback(async () => {
+    try {
+      await clearSummaryAndInvalidate(queryClient, entry.id, dateKey);
+    } catch (error) {
+      console.error("[TaskEditor] Failed to clear summary:", error);
+    }
+  }, [queryClient, entry.id, dateKey]);
+
   // ---------------------------------------------------------------------------
   // Reminders (create / reschedule / cancel)
   // ---------------------------------------------------------------------------
@@ -922,14 +932,14 @@ export function TaskEditor({
             {/* Summarize Button */}
             <button
               type="button"
-              aria-label={isSummarizing ? "Summary in progress" : "Summarize with AI"}
+              aria-label={isSummarizing ? "Summary in progress" : "Summarize with Neuraal"}
               className={cn(
                 "p-1.5 @[380px]:p-2 rounded-lg transition-all flex-shrink-0",
                 isSummarizing
                   ? "bg-sky-500/15 text-sky-400 cursor-wait"
                   : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
               )}
-              title={isSummarizing ? "Summary in progress..." : "Summarize with AI"}
+              title={isSummarizing ? "Summary in progress..." : "Summarize with Neuraal"}
               onClick={handleSummarize}
               disabled={isSummarizing}
             >
@@ -956,6 +966,7 @@ export function TaskEditor({
           editorRef={tiptapRef}
           onImagePaste={uploadImages}
           onFilePaste={handleFilePaste}
+          entryId={entry.id}
         />
       </div>
 
@@ -969,16 +980,29 @@ export function TaskEditor({
             transition={{ duration: 0.25 }}
             className="mt-3"
           >
-            <div className="bg-sky-500/[0.07] border border-sky-500/15 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Brain className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-semibold text-sky-400 uppercase tracking-wide">
-                  AI Summary
-                </span>
+            <div className="bg-sky-500/[0.07] border border-sky-500/15 rounded-xl p-4 relative group/summary">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-semibold text-sky-400 uppercase tracking-wide">
+                    Neuraal Summary
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Remove summary"
+                  title="Remove summary"
+                  className="p-1 rounded-md text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover/summary:opacity-100"
+                  onClick={handleClearSummary}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <p className="text-sm text-white/75 leading-relaxed whitespace-pre-wrap">
-                {entry.summary}
-              </p>
+              {/* Markdown content */}
+              <div className="summary-markdown text-sm text-white/75 leading-relaxed">
+                <Markdown>{entry.summary}</Markdown>
+              </div>
             </div>
           </motion.div>
         )}

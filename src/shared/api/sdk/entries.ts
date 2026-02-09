@@ -83,6 +83,42 @@ export async function summarizeEntry(
 }
 
 // ---------------------------------------------------------------------------
+// Clear Summary
+// ---------------------------------------------------------------------------
+
+/**
+ * DELETE /api/entries/{id}/summary — clears the AI-generated summary.
+ */
+export async function clearSummary(id: string): Promise<void> {
+  await del(`/api/entries/${id}/summary`);
+}
+
+// ---------------------------------------------------------------------------
+// Vision AI (OCR + Image Description)
+// ---------------------------------------------------------------------------
+
+/** Vision analysis mode: "scan" extracts text, "describe" describes the image. */
+export type VisionMode = "scan" | "describe";
+
+/**
+ * POST /api/entries/{id}/ocr — analyzes an image attachment with Ollama Vision.
+ * Synchronous call — waits for Ollama Vision to process (5-60s typically).
+ *
+ * @param mode - "scan" for OCR text extraction, "describe" for image description.
+ */
+export async function analyzeImage(
+  entryId: string,
+  attachmentId: string,
+  mode: VisionMode = "scan"
+): Promise<{ attachmentId: string; extractedText: string; mode: VisionMode }> {
+  return await post<{ attachmentId: string; extractedText: string; mode: VisionMode }>(
+    `/api/entries/${entryId}/ocr`,
+    { attachmentId, mode },
+    { timeoutMs: 120_000 } // Vision can take 15-60s on CPU; generous timeout for cold starts
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Reorder
 // ---------------------------------------------------------------------------
 

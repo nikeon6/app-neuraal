@@ -55,6 +55,8 @@ interface TiptapEditorProps {
   readonly onFilePaste?: (files: File[]) => void;
   /** Called when editor receives focus. */
   readonly onFocus?: () => void;
+  /** Entry ID — passed to ImageAttachment extension for OCR feature. */
+  readonly entryId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +80,7 @@ export function TiptapEditor({
   onImagePaste,
   onFilePaste,
   onFocus,
+  entryId,
 }: TiptapEditorProps) {
   // Track whether we should skip the next onUpdate (to avoid loops when setting content)
   const skipUpdateRef = useRef(false);
@@ -177,6 +180,16 @@ export function TiptapEditor({
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Pass entryId to ImageAttachment extension storage (used by OCR feature)
+  useEffect(() => {
+    if (editor && entryId) {
+      // Use editor.storage which is the canonical way to access extension storage
+      if (editor.storage.image) {
+        editor.storage.image.entryId = entryId;
+      }
+    }
+  }, [editor, entryId]);
 
   // Update editor class when isExpanded changes
   useEffect(() => {

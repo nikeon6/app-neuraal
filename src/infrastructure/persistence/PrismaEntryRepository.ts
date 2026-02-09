@@ -121,6 +121,17 @@ export class PrismaEntryRepository implements EntryRepository {
     });
   }
 
+  async clearSummary(entryId: string): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: {
+        summary: null,
+        summaryFormat: null,
+        summaryUpdatedAt: null,
+      },
+    });
+  }
+
   async updateTopic(entryId: string, topicId: string | null): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },

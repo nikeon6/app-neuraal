@@ -110,6 +110,15 @@ export async function summarizeEntryAndInvalidate(
   return result;
 }
 
+export async function clearSummaryAndInvalidate(
+  queryClient: QueryClient,
+  entryId: string,
+  dateKey: string
+) {
+  await entriesSdk.clearSummary(entryId);
+  await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
 // ---- Reminders ----
 
 export async function createReminderAndInvalidate(
