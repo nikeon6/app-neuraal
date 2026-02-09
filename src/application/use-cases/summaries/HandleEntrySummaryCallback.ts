@@ -97,15 +97,23 @@ export class HandleEntrySummaryCallback {
       return err(unauthorizedError("User ID mismatch in callback"));
     }
 
+    // 5b. Validate entryId matches — use the stored request as source of truth
+    if (request.entryId !== payload.entryId) {
+      return err(validationError("Entry ID mismatch: payload does not match original request"));
+    }
+
     // 6. Validate summary
     const summaryResult = SummaryText.create(payload.summary, payload.format);
     if (summaryResult.isErr()) {
       return err(validationError(summaryResult.error));
     }
 
+    // Use request.entryId (DB source of truth) instead of payload.entryId
+    const { entryId } = request;
+
     // 7. Update entry with summary
     await this.entryRepository.updateSummary(
-      payload.entryId,
+      entryId,
       summaryResult.value.toString(),
       summaryResult.value.getFormat()
     );
@@ -115,19 +123,19 @@ export class HandleEntrySummaryCallback {
     await this.summaryRequestRepository.update(doneRequest);
 
     // 9. Create SUMMARY_DONE notification
-    const entry = await this.entryRepository.findById(payload.entryId);
+    const entry = await this.entryRepository.findById(entryId);
     const entryTitle = entry?.title.toString() ?? "Entry";
 
     const notificationResult = Notification.create({
       id: this.generateId(),
-      userId: payload.userId,
+      userId: request.userId,
       type: "SUMMARY_DONE",
       title: "Summary Complete",
       message: `Summary generated for "${entryTitle}"`,
       status: "unread",
       payload: {
         requestId: payload.requestId,
-        entryId: payload.entryId,
+        entryId,
       },
       createdAt: new Date(),
     });

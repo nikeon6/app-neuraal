@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday, setMonth, setYear } from "date-fns";
+import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
 import { Pin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
@@ -278,7 +278,8 @@ export function VerticalCalendar({ entriesByDate, compact = false }: Readonly<Ve
 
   const handleSelectMonth = useCallback(
     (monthIndex: number) => {
-      const newDate = setMonth(setYear(new Date(), pickerYear), monthIndex);
+      // Use day-1 as base to avoid month overflow (e.g. Jan 31 → setMonth(feb) → Mar 3)
+      const newDate = new Date(pickerYear, monthIndex, 1);
       setSelectedDate(startOfMonth(newDate));
       setSelectedDay(1);
       setIsMonthPickerOpen(false);

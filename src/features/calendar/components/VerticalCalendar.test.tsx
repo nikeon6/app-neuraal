@@ -66,6 +66,8 @@ const mockSetSelectedDay = vi.fn();
 const mockSetSelectedDate = vi.fn();
 const mockExpandDay = vi.fn();
 const mockCollapseDay = vi.fn();
+const mockPinDay = vi.fn();
+const mockUnpinDay = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
@@ -85,8 +87,11 @@ vi.mock("@/shared/store", () => ({
       setSelectedDate: mockSetSelectedDate,
       selectedTopicIds: [] as string[],
       expandedDayKeys: [] as string[],
+      pinnedDayKeys: [] as string[],
       expandDay: mockExpandDay,
       collapseDay: mockCollapseDay,
+      pinDay: mockPinDay,
+      unpinDay: mockUnpinDay,
     };
     return typeof selector === "function" ? selector(state) : state;
   }),
@@ -128,8 +133,11 @@ describe("VerticalCalendar", () => {
         setSelectedDate: mockSetSelectedDate,
         selectedTopicIds: [],
         expandedDayKeys: [],
+        pinnedDayKeys: [],
         expandDay: mockExpandDay,
         collapseDay: mockCollapseDay,
+        pinDay: mockPinDay,
+        unpinDay: mockUnpinDay,
       };
       return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
     });
@@ -146,8 +154,10 @@ describe("VerticalCalendar", () => {
     it("renders the calendar container", () => {
       renderCalendar();
 
-      expect(screen.getByText("Jan")).toBeInTheDocument();
-      expect(screen.getByText("2024")).toBeInTheDocument();
+      // "Jan" appears in both desktop and mobile views
+      const janElements = screen.getAllByText("Jan");
+      expect(janElements.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("2024").length).toBeGreaterThanOrEqual(1);
     });
 
     it("renders all days of the month", () => {
@@ -239,7 +249,8 @@ describe("VerticalCalendar", () => {
     it("renders calendar without entries when entriesByDate is empty", () => {
       renderCalendar({});
 
-      expect(screen.getByText("Jan")).toBeInTheDocument();
+      // "Jan" appears in both desktop and mobile views
+      expect(screen.getAllByText("Jan").length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
     });
   });
