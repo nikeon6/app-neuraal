@@ -56,10 +56,13 @@ interface AppState {
   selectedTopicIds: string[];
   selectedTopicIdsManual: string[];
   expandedDayKeys: ISODate[];
+  pinnedDayKeys: ISODate[];
   toggleTopicSelection: (topicId: string) => void;
   setSelectedTopics: (topicIds: string[]) => void;
   expandDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
   collapseDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
+  pinDay: (dateKey: ISODate) => void;
+  unpinDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
   clearExpandedDays: () => void;
   clearSelection: () => void;
 
@@ -100,6 +103,7 @@ export const useStore = create<AppState>()(
       selectedTopicIds: [],
       selectedTopicIdsManual: [],
       expandedDayKeys: [],
+      pinnedDayKeys: [],
 
       toggleTopicSelection: (topicId) =>
         set((state) => {
@@ -111,6 +115,7 @@ export const useStore = create<AppState>()(
             selectedTopicIdsManual: newManual,
             selectedTopicIds: newManual,
             expandedDayKeys: [],
+            pinnedDayKeys: [],
           };
         }),
 
@@ -118,8 +123,13 @@ export const useStore = create<AppState>()(
 
       expandDay: (dateKey, entriesByDate) =>
         set((state) => {
-          if (state.expandedDayKeys.includes(dateKey)) return state;
-          const newExpandedDays = [...state.expandedDayKeys, dateKey];
+          // Keep pinned days + add the newly clicked day
+          const pinned = state.pinnedDayKeys.filter((k) =>
+            state.expandedDayKeys.includes(k)
+          );
+          const newExpandedDays = pinned.includes(dateKey)
+            ? pinned
+            : [...pinned, dateKey];
           const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
           return {
             selectedTopicIdsManual: [],
@@ -132,21 +142,41 @@ export const useStore = create<AppState>()(
         set((state) => {
           if (!state.expandedDayKeys.includes(dateKey)) return state;
           const newExpandedDays = state.expandedDayKeys.filter((k) => k !== dateKey);
+          const newPinned = state.pinnedDayKeys.filter((k) => k !== dateKey);
           const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
           return {
             expandedDayKeys: newExpandedDays,
+            pinnedDayKeys: newPinned,
             selectedTopicIds: topicsFromDays,
           };
         }),
 
+      pinDay: (dateKey) =>
+        set((state) => ({
+          pinnedDayKeys: state.pinnedDayKeys.includes(dateKey)
+            ? state.pinnedDayKeys
+            : [...state.pinnedDayKeys, dateKey],
+        })),
+
+      unpinDay: (dateKey, entriesByDate) =>
+        set((state) => {
+          const newPinned = state.pinnedDayKeys.filter((k) => k !== dateKey);
+          // Don't collapse immediately — just unpin.
+          // The day will collapse the next time another day is clicked.
+          return {
+            pinnedDayKeys: newPinned,
+          };
+        }),
+
       clearExpandedDays: () =>
-        set({ expandedDayKeys: [], selectedTopicIds: [] }),
+        set({ expandedDayKeys: [], pinnedDayKeys: [], selectedTopicIds: [] }),
 
       clearSelection: () =>
         set({
           selectedTopicIds: [],
           selectedTopicIdsManual: [],
           expandedDayKeys: [],
+          pinnedDayKeys: [],
         }),
 
       dashboardSection: "daily" as DashboardSection,

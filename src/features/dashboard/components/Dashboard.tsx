@@ -3,6 +3,7 @@
 import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
+import { cn } from "@/shared/lib";
 import { useEntriesForDates, useSummaryDoneWatcher } from "@/shared/api/queries";
 import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
@@ -83,38 +84,47 @@ export function Dashboard() {
   // Dynamic viewport height for Android fix
   const [appHeight, setAppHeight] = useState<string>("100dvh");
 
+  // Landscape mobile detection — switches layout to side-by-side grid
+  const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
+
+  // Virtual keyboard detection — hides bubbles lane & calendar on mobile when keyboard is open
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
   // FIX ANDROID: Use visualViewport to get real viewport height
-  // This handles the browser bar showing/hiding correctly
+  // Also detect landscape mobile (wider than tall + short viewport)
+  // Also detect virtual keyboard open (viewport significantly shorter than screen)
   useEffect(() => {
-    const updateHeight = () => {
-      // Use visualViewport if available (better for mobile browsers)
+    const update = () => {
+      const vw = window.visualViewport?.width ?? window.innerWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
       setAppHeight(`${vh}px`);
-      // Also set CSS variable for any children that need it
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
+      // Landscape mobile: significantly wider than tall, short enough to be a phone
+      setIsLandscapeMobile(vw > vh * 1.2 && vh < 550 && vw < 1200);
+      // Keyboard detection: viewport is much shorter than the full screen height
+      const fullHeight = window.screen.height;
+      const isKb = vh < fullHeight * 0.65 && vw < 1024;
+      setIsKeyboardOpen(isKb);
     };
 
-    // Initial update
-    updateHeight();
+    update();
 
-    // Listen to visualViewport changes (Android browser bar)
     const vv = window.visualViewport;
     if (vv) {
-      vv.addEventListener("resize", updateHeight);
-      vv.addEventListener("scroll", updateHeight);
+      vv.addEventListener("resize", update);
+      vv.addEventListener("scroll", update);
     }
 
-    // Fallback listeners
-    window.addEventListener("resize", updateHeight);
-    window.addEventListener("orientationchange", updateHeight);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", () => setTimeout(update, 150));
 
     return () => {
       if (vv) {
-        vv.removeEventListener("resize", updateHeight);
-        vv.removeEventListener("scroll", updateHeight);
+        vv.removeEventListener("resize", update);
+        vv.removeEventListener("scroll", update);
       }
-      window.removeEventListener("resize", updateHeight);
-      window.removeEventListener("orientationchange", updateHeight);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
     };
   }, []);
 
@@ -185,20 +195,30 @@ export function Dashboard() {
     <div
       ref={containerRef}
       style={{ height: appHeight, minHeight: appHeight }}
-      className="w-full relative overflow-hidden
-                 flex flex-col
-                 lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px]
-                 xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
+      className={cn(
+        "w-full relative overflow-hidden",
+        isLandscapeMobile
+          ? "grid grid-cols-[1fr_clamp(180px,25vw,300px)_48px]"
+          : "flex flex-col lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px] xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
+      )}
     >
-      {/* Floating topics visualization - covers entire area */}
-      <FloatingTopics
-        containerRef={containerRef}
-        laneRef={laneRef}
-        entriesByDate={entriesByDate}
-      />
+      {/* Floating topics visualization - covers entire area (hidden when keyboard open on mobile) */}
+      {!(isKeyboardOpen && !isLandscapeMobile) && (
+        <FloatingTopics
+          containerRef={containerRef}
+          laneRef={laneRef}
+          entriesByDate={entriesByDate}
+          compact={isLandscapeMobile}
+        />
+      )}
 
-      {/* Column 1: Tasks area - flex-1 en mobile para que ocupe espacio principal */}
-      <div className="relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none">
+      {/* Column 1: Tasks area */}
+      <div className={cn(
+        "relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden",
+        isLandscapeMobile
+          ? "p-2"
+          : "flex-1 lg:flex-none px-3 pt-3 pb-1 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none"
+      )}>
         {/* Header with navigation and title */}
         <DashboardHeader
           section={dashboardSection}
@@ -213,25 +233,29 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Column 2: Bubbles lane - horizontal strip in mobile, vertical column in lg+ */}
-      {/* Mobile: taller lane for better bubble space (h-[200px] - h-[240px]) */}
-      {/* Click on empty space clears selection */}
+      {/* Column 2: Bubbles lane (hidden when keyboard open on mobile) */}
       <div
         ref={laneRef}
-        className="relative min-w-0 flex-shrink-0
-                   order-2 lg:order-none
-                   h-[200px] sm:h-[220px] md:h-[240px] lg:h-auto"
+        className={cn(
+          "relative min-w-0 flex-shrink-0",
+          (isKeyboardOpen && !isLandscapeMobile) && "hidden",
+          isLandscapeMobile
+            ? ""
+            : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto"
+        )}
         aria-hidden="true"
         onClick={handleLaneClick}
       />
 
-      {/* Column 3: Calendar sidebar
-          - Mobile: compact horizontal calendar, minimal height + safe-area padding
-          - Desktop: full vertical calendar with tasks
-          - overflow-hidden para forzar que respete el ancho de la columna del grid
-          - pb-[env(safe-area-inset-bottom)] para dispositivos con notch/gesture bar */}
-      <aside className="h-20 lg:h-full relative z-20 min-w-0 flex-shrink-0 overflow-hidden order-3 lg:order-none pb-[env(safe-area-inset-bottom)]">
-        <VerticalCalendar entriesByDate={entriesByDate} />
+      {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}
+      <aside className={cn(
+        "relative z-20 min-w-0 flex-shrink-0 overflow-hidden",
+        (isKeyboardOpen && !isLandscapeMobile) && "hidden",
+        isLandscapeMobile
+          ? "h-full"
+          : "h-20 lg:h-full order-3 lg:order-none pb-[env(safe-area-inset-bottom)]"
+      )}>
+        <VerticalCalendar entriesByDate={entriesByDate} compact={isLandscapeMobile} />
       </aside>
     </div>
   );

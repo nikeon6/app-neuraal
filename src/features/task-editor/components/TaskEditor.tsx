@@ -33,6 +33,7 @@ import { cn } from "@/shared/lib";
 import { ConfirmDialog } from "@/shared/ui";
 import { ReminderDialog } from "./ReminderDialog";
 import { AttachmentPanel } from "@/features/attachments";
+import "@/features/tasks-container/styles/scrollbar.css";
 import { TiptapEditor } from "./TiptapEditor";
 import type { TiptapEditorHandle } from "./TiptapEditor";
 import { useImageUpload } from "../hooks/useImageUpload";
@@ -82,16 +83,25 @@ function TopicDropdown({
 }: TopicDropdownProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; opensUp: boolean }>({ top: 0, left: 0, opensUp: false });
 
   // Recalculate position when menu opens or on scroll/resize
+  // Smart positioning: opens below if space, otherwise above
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    setPanelPos({
-      top: rect.bottom + 8,
-      left: rect.left,
-    });
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const PANEL_MAX_H = 320; // estimated max dropdown height
+    const GAP = 8;
+    const spaceBelow = vh - rect.bottom;
+
+    if (spaceBelow >= PANEL_MAX_H + GAP) {
+      // Enough space below — open downward
+      setPanelPos({ top: rect.bottom + GAP, left: rect.left, opensUp: false });
+    } else {
+      // Not enough space below — open upward (bottom edge at button top)
+      setPanelPos({ top: rect.top - GAP, left: rect.left, opensUp: true });
+    }
   }, []);
 
   useEffect(() => {
@@ -146,17 +156,20 @@ function TopicDropdown({
                 ref={panelRef}
                 role="listbox"
                 aria-label="Select topic"
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                initial={{ opacity: 0, y: panelPos.opensUp ? 10 : -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                exit={{ opacity: 0, y: panelPos.opensUp ? 10 : -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 style={{
                   position: "fixed",
-                  top: panelPos.top,
-                  left: panelPos.left,
+                  ...(panelPos.opensUp
+                    ? { bottom: window.innerHeight - panelPos.top, left: panelPos.left }
+                    : { top: panelPos.top, left: panelPos.left }),
                   zIndex: 9999,
+                  maxHeight: "min(320px, 50vh)",
+                  overflowY: "auto",
                 }}
-                className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[160px]"
+                className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[160px] tasks-scrollbar"
               >
                 {/* Auto option */}
                 <button

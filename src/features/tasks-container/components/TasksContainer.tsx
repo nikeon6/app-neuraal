@@ -360,7 +360,7 @@ export function TasksContainer() {
       <div
         data-testid="tasks-container"
         role="list"
-        className="flex flex-col h-full w-full pl-10"
+        className="flex flex-col h-full w-full pl-6 lg:pl-10"
       >
         <div className="flex-1 flex items-center justify-center">
           <p className="text-white/40 text-sm animate-pulse">Loading entries...</p>
@@ -375,7 +375,7 @@ export function TasksContainer() {
       <div
         data-testid="tasks-container"
         role="list"
-        className="flex flex-col h-full w-full pl-10"
+        className="flex flex-col h-full w-full pl-6 lg:pl-10"
       >
         <div
           ref={containerRef as React.RefObject<HTMLDivElement>}
@@ -399,14 +399,14 @@ export function TasksContainer() {
           onClick={handleAddTask}
           aria-label="Add new task"
           className="
-            flex items-center justify-center gap-2 p-4 mt-4
+            flex items-center justify-center gap-2 p-2 lg:p-4 mt-2 lg:mt-4
             rounded-2xl border-2 border-dashed border-white/20
             text-white/50 hover:text-white/80 hover:border-white/40
             hover:bg-white/5 transition-all duration-200
           "
         >
-          <Plus className="w-5 h-5" />
-          <span className="text-sm font-medium">Add entry</span>
+          <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
+          <span className="text-xs lg:text-sm font-medium">Add entry</span>
         </button>
       </div>
     );
@@ -425,7 +425,7 @@ export function TasksContainer() {
         values={orderedIds}
         onReorder={setOrderedIds}
         data-testid="tasks-scroll-container"
-        className="flex-1 overflow-y-auto space-y-4 pr-4 pl-10 tasks-scrollbar"
+        className="flex-1 overflow-y-auto space-y-2 lg:space-y-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar"
         layoutScroll
       >
         {orderedIds.map((entryId) => {
@@ -446,21 +446,21 @@ export function TasksContainer() {
       </Reorder.Group>
 
       {/* Add Entry Button */}
-      <div className="flex justify-center mt-4 mb-2 flex-shrink-0">
+      <div className="flex justify-center mt-1 mb-1 lg:mt-4 lg:mb-2 flex-shrink-0">
         <button
           type="button"
           data-testid="add-task-button"
           onClick={handleAddTask}
           aria-label="Add new task"
           className="
-            w-12 h-12 flex items-center justify-center
+            w-8 h-8 lg:w-12 lg:h-12 flex items-center justify-center
             rounded-full border-2 border-dashed border-white/20
             text-white/40 hover:text-white/80 hover:border-white/50
             hover:bg-white/10 transition-all duration-200
             hover:scale-110
           "
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-4 h-4 lg:w-6 lg:h-6" />
         </button>
       </div>
     </div>
