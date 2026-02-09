@@ -67,6 +67,7 @@ export interface S3Config {
   bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
+  forcePathStyle: boolean;
 }
 
 /**
@@ -79,5 +80,6 @@ export function getS3Config(): S3Config {
     bucket: process.env.S3_BUCKET || "neuraal-attachments",
     accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
   };
 }

@@ -1144,6 +1144,73 @@
         }
       }
     },
+    "/api/entries/{id}/attachments": {
+      "get": {
+        "tags": [
+          "Attachments"
+        ],
+        "summary": "List attachments for an entry",
+        "operationId": "listEntryAttachments",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of attachments with usage/quota info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "attachments",
+                    "usage"
+                  ],
+                  "properties": {
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Attachment"
+                      }
+                    },
+                    "usage": {
+                      "type": "object",
+                      "required": [
+                        "entryBytesUsed",
+                        "entryLimitBytes",
+                        "userBytesUsed",
+                        "userLimitBytes"
+                      ],
+                      "properties": {
+                        "entryBytesUsed": {
+                          "type": "integer"
+                        },
+                        "entryLimitBytes": {
+                          "type": "integer"
+                        },
+                        "userBytesUsed": {
+                          "type": "integer"
+                        },
+                        "userLimitBytes": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/reminders": {
       "post": {
         "tags": [

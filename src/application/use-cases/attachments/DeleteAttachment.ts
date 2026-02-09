@@ -46,8 +46,15 @@ export class DeleteAttachment {
       return err(notFoundError("Attachment not found"));
     }
 
-    // Delete from object storage
-    await this.objectStorage.deleteObject(attachment.storageKey.toString());
+    // Delete from object storage (best-effort — don't fail if object is already gone)
+    try {
+      await this.objectStorage.deleteObject(attachment.storageKey.toString());
+    } catch (error) {
+      console.error(
+        `[DeleteAttachment] Failed to delete object ${attachment.storageKey.toString()} from storage (continuing):`,
+        error
+      );
+    }
 
     // Mark as deleted in repository
     const deletedAttachment = attachment.markDeleted();

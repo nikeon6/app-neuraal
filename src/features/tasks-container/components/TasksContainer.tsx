@@ -49,12 +49,28 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
   isDragDisabled,
 }: TaskEditorWrapperProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastKnownHeightRef = useRef(0);
 
-  // Handle TaskEditor expansion - notify parent for auto-scroll
+  // Initialize height tracking after mount
+  useEffect(() => {
+    if (wrapperRef.current) {
+      lastKnownHeightRef.current = wrapperRef.current.offsetHeight;
+    }
+  }, []);
+
+  // Handle TaskEditor expansion - only notify parent when height actually
+  // increases (i.e., the editor expanded). This prevents scroll jumps when
+  // clicking inside an already-expanded editor with images/videos.
   const handleEditorClick = useCallback(() => {
-    // Small delay to let TaskEditor expand first
     setTimeout(() => {
-      if (wrapperRef.current) {
+      if (!wrapperRef.current) return;
+
+      const newHeight = wrapperRef.current.offsetHeight;
+      const heightGrew = newHeight > lastKnownHeightRef.current + 40;
+      lastKnownHeightRef.current = newHeight;
+
+      // Only auto-scroll when the editor actually expanded
+      if (heightGrew) {
         onExpand(wrapperRef.current);
       }
     }, 250);

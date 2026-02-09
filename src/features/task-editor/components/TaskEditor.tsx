@@ -24,13 +24,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
-import { useTopicsQuery, entriesQueryKey } from "@/shared/api/queries";
+import { useTopicsQuery, entriesQueryKey, attachmentsQueryKey } from "@/shared/api/queries";
 import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
 import * as entriesSdk from "@/shared/api/sdk/entries";
+import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
 import { cn } from "@/shared/lib";
 import { ConfirmDialog } from "@/shared/ui";
 import { ReminderDialog } from "./ReminderDialog";
+import { AttachmentPanel } from "@/features/attachments";
+import { TiptapEditor } from "./TiptapEditor";
+import type { TiptapEditorHandle } from "./TiptapEditor";
+import { useImageUpload } from "../hooks/useImageUpload";
+import { useResolveAttachmentUrls } from "../hooks/useResolveAttachmentUrls";
+import { useTrackDeletedImages } from "../hooks/useTrackDeletedImages";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
@@ -232,22 +239,12 @@ export function TaskEditor({
   // ---------------------------------------------------------------------------
   const [title, setTitle] = useState<string>(entry.title);
 
-  // Extract plain text from content JSON for the simple textarea
-  const extractContent = (): string => {
-    if (!entry.content || typeof entry.content !== "object") return "";
-    try {
-      const nodes = (entry.content as { content?: Array<{ content?: Array<{ text?: string }> }> }).content;
-      if (!Array.isArray(nodes)) return "";
-      return nodes
-        .flatMap((n) => n.content ?? [])
-        .map((c) => c.text ?? "")
-        .join(" ")
-        .trim();
-    } catch {
-      return "";
-    }
-  };
-  const [content, setContent] = useState<string>(extractContent);
+  // Store content as TipTap JSON directly (no more plain text extraction)
+  const [contentJson, setContentJson] = useState<Record<string, unknown>>(
+    entry.content && typeof entry.content === "object" && Object.keys(entry.content).length > 0
+      ? entry.content
+      : {}
+  );
 
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
     entry.topicId ?? AUTO_TOPIC
@@ -260,10 +257,13 @@ export function TaskEditor({
   // LATEST value, avoiding stale closures that caused topic/completed not saving.
   // ---------------------------------------------------------------------------
   const titleRef = useRef<HTMLInputElement>(null);
-  const initialContent = useMemo(extractContent, [entry.content]);
+  const tiptapRef = useRef<TiptapEditorHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef({
     title: entry.title,
-    content: initialContent,
+    contentJson: (entry.content && typeof entry.content === "object" && Object.keys(entry.content).length > 0
+      ? entry.content
+      : {}) as Record<string, unknown>,
     selectedTopicId: (entry.topicId ?? AUTO_TOPIC) as string | null,
     entryType: entry.type as EntryType,
     isCompleted: entry.completed ?? false,
@@ -271,10 +271,19 @@ export function TaskEditor({
 
   // Keep draftRef in sync with state
   useEffect(() => { draftRef.current.title = title; }, [title]);
-  useEffect(() => { draftRef.current.content = content; }, [content]);
+  useEffect(() => { draftRef.current.contentJson = contentJson; }, [contentJson]);
   useEffect(() => { draftRef.current.selectedTopicId = selectedTopicId; }, [selectedTopicId]);
   useEffect(() => { draftRef.current.entryType = entryType; }, [entryType]);
   useEffect(() => { draftRef.current.isCompleted = isCompleted; }, [isCompleted]);
+
+  // Image upload hook
+  const { uploadImages } = useImageUpload(entry.id, tiptapRef);
+
+  // Resolve attachment URLs on content load
+  useResolveAttachmentUrls(tiptapRef, contentJson);
+
+  // Track deleted image/file nodes and clean up their attachments
+  useTrackDeletedImages(entry.id, tiptapRef);
 
   // Track the current entry version for optimistic concurrency
   const versionRef = useRef<number>(entry.version);
@@ -296,7 +305,6 @@ export function TaskEditor({
 
   // DOM / timer refs
   const editorRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
   const contentMenuRef = useRef<HTMLDivElement>(null);
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -318,13 +326,15 @@ export function TaskEditor({
 
     const draft = draftRef.current;
     const topicIdToSend = draft.selectedTopicId === AUTO_TOPIC ? null : draft.selectedTopicId;
-    const contentJson = draft.content.trim()
-      ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: draft.content }] }] }
+
+    // Use TipTap JSON content directly — no more plain text conversion
+    const contentToSave = Object.keys(draft.contentJson).length > 0
+      ? draft.contentJson
       : {};
 
     const payload = {
       title: draft.title.trim() || entry.title,
-      content: contentJson as Record<string, unknown>,
+      content: contentToSave as Record<string, unknown>,
       topicId: topicIdToSend,
       completed: draft.entryType === "task" ? draft.isCompleted : undefined,
       type: draft.entryType as "task" | "note",
@@ -400,14 +410,10 @@ export function TaskEditor({
     triggerAutoSave();
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+  const handleContentUpdate = useCallback((json: Record<string, unknown>) => {
+    setContentJson(json);
     triggerAutoSave();
-    if (contentRef.current) {
-      contentRef.current.style.height = "auto";
-      contentRef.current.style.height = contentRef.current.scrollHeight + "px";
-    }
-  };
+  }, [triggerAutoSave]);
 
   const handleTopicSelect = (topicId: string | null) => {
     setSelectedTopicId(topicId);
@@ -577,7 +583,11 @@ export function TaskEditor({
   }, [queryClient, activeReminderId]);
 
   const handleEditorClick = () => {
-    setUIState((prev) => ({ ...prev, isExpanded: true }));
+    // Only expand if not already expanded — avoids scroll jump
+    setUIState((prev) => {
+      if (prev.isExpanded) return prev;
+      return { ...prev, isExpanded: true };
+    });
   };
 
   // Click outside → collapse (but ignore clicks on portal-rendered dialogs)
@@ -618,6 +628,170 @@ export function TaskEditor({
     { id: "youtube", label: "YouTube video", icon: Youtube },
     { id: "file", label: "Attach file", icon: Paperclip },
   ];
+
+  // Handle "+" menu item clicks
+  const handleContentMenuAction = useCallback((itemId: string) => {
+    setUIState((prev) => ({ ...prev, isContentMenuOpen: false }));
+
+    switch (itemId) {
+      case "image": {
+        // Open file picker for images
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.multiple = true;
+        input.onchange = () => {
+          const files = Array.from(input.files ?? []);
+          if (files.length > 0) {
+            uploadImages(files);
+          }
+        };
+        input.click();
+        break;
+      }
+      case "code":
+        tiptapRef.current?.insertCodeBlock();
+        break;
+      case "youtube": {
+        const url = globalThis.prompt("Paste YouTube URL:");
+        if (url?.trim()) {
+          tiptapRef.current?.insertYoutube(url.trim());
+        }
+        break;
+      }
+      case "file": {
+        fileInputRef.current?.click();
+        break;
+      }
+    }
+  }, [uploadImages]);
+
+  // Handle pasted non-image files (from TiptapEditor paste handler)
+  const handleFilePaste = useCallback(async (files: File[]) => {
+    if (files.length === 0 || !entry.id) return;
+
+    for (const file of files) {
+      try {
+        const initResult = await attachmentsSdk.initUpload({
+          entryId: entry.id,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          kind: "file",
+        });
+
+        const uploadResp = await fetch(initResult.presignedPutUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+        });
+
+        if (!uploadResp.ok) {
+          throw new Error(`Upload failed: ${uploadResp.status}`);
+        }
+
+        await attachmentsSdk.completeUpload(initResult.attachment.id);
+
+        await queryClient.invalidateQueries({
+          queryKey: attachmentsQueryKey(entry.id),
+        });
+
+        tiptapRef.current?.insertFileNode({
+          attachmentId: initResult.attachment.id,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        });
+
+        triggerAutoSave();
+      } catch (error) {
+        console.error("[TaskEditor] File paste attachment failed:", error);
+      }
+    }
+  }, [entry.id, triggerAutoSave, queryClient]);
+
+  // Handle file attachment upload (from "+" menu → Attach file)
+  const handleFileAttach = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0 || !entry.id) return;
+    e.target.value = "";
+
+    for (const file of files) {
+      try {
+        // Init upload
+        const initResult = await attachmentsSdk.initUpload({
+          entryId: entry.id,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          kind: "file",
+        });
+
+        // Upload to S3
+        const uploadResp = await fetch(initResult.presignedPutUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+        });
+
+        if (!uploadResp.ok) {
+          throw new Error(`Upload failed: ${uploadResp.status}`);
+        }
+
+        // Complete
+        await attachmentsSdk.completeUpload(initResult.attachment.id);
+
+        // Invalidate attachments query so AttachmentPanel updates
+        await queryClient.invalidateQueries({
+          queryKey: attachmentsQueryKey(entry.id),
+        });
+
+        // Insert file node in editor
+        tiptapRef.current?.insertFileNode({
+          attachmentId: initResult.attachment.id,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        });
+
+        // Trigger save since editor content changed
+        triggerAutoSave();
+      } catch (error) {
+        console.error("[TaskEditor] File attachment failed:", error);
+      }
+    }
+  }, [entry.id, triggerAutoSave, queryClient]);
+
+  // Handle attachment deleted from the AttachmentPanel — remove the
+  // corresponding image or file node from the Tiptap editor content.
+  const handleAttachmentDeletedFromPanel = useCallback(
+    (attachmentId: string) => {
+      const editor = tiptapRef.current?.editor;
+      if (!editor || editor.isDestroyed) return;
+
+      const { doc, tr } = editor.state;
+      let deletedPos = -1;
+      let deletedSize = 0;
+
+      doc.descendants((node, pos) => {
+        if (deletedPos >= 0) return false; // already found
+        if (
+          (node.type.name === "image" || node.type.name === "fileAttachment") &&
+          node.attrs.attachmentId === attachmentId
+        ) {
+          deletedPos = pos;
+          deletedSize = node.nodeSize;
+          return false;
+        }
+      });
+
+      if (deletedPos >= 0) {
+        tr.delete(deletedPos, deletedPos + deletedSize);
+        editor.view.dispatch(tr);
+      }
+    },
+    []
+  );
 
   // Current topic display info
   const currentTopicDisplay = (() => {
@@ -752,30 +926,25 @@ export function TaskEditor({
         </div>
       </div>
 
-      {/* Content Area */}
-      <motion.div
-        animate={{
+      {/* Content Area — Tiptap WYSIWYG Editor */}
+      <div
+        className="overflow-hidden"
+        style={{
           height: isExpanded ? "auto" : "80px",
           minHeight: isExpanded ? "120px" : "80px",
         }}
-        transition={{ duration: 0.2 }}
-        className="overflow-hidden"
       >
-        <label htmlFor={`content-${entry.id}`} className="sr-only">Content</label>
-        <textarea
-          ref={contentRef}
-          id={`content-${entry.id}`}
-          aria-label="Content"
-          value={content}
-          onChange={handleContentChange}
-          placeholder="Content"
-          className={cn(
-            "w-full bg-transparent border-none outline-none text-base text-white/80 placeholder:text-white/30 focus:placeholder:text-white/10 resize-none transition-all leading-relaxed",
-            isExpanded ? "min-h-[100px]" : "h-[60px]"
-          )}
-          style={{ overflow: "hidden" }}
+        <TiptapEditor
+          content={contentJson}
+          onUpdate={handleContentUpdate}
+          isExpanded={isExpanded}
+          editable={true}
+          placeholder={entryType === "task" ? "Describe your task..." : "Write your note..."}
+          editorRef={tiptapRef}
+          onImagePaste={uploadImages}
+          onFilePaste={handleFilePaste}
         />
-      </motion.div>
+      </div>
 
       {/* AI Summary Section */}
       <AnimatePresence>
@@ -801,6 +970,11 @@ export function TaskEditor({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Attachments panel (only when expanded and entry is saved) */}
+      {isExpanded && entry.id && (
+        <AttachmentPanel entryId={entry.id} dateKey={dateKey} onAttachmentDeleted={handleAttachmentDeletedFromPanel} />
+      )}
 
       {/* Bottom Toolbar */}
       <AnimatePresence>
@@ -842,7 +1016,7 @@ export function TaskEditor({
                           role="menuitem"
                           aria-label={item.label}
                           className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
-                          onClick={() => setUIState((prev) => ({ ...prev, isContentMenuOpen: false }))}
+                          onClick={() => handleContentMenuAction(item.id)}
                         >
                           <item.icon className="w-4 h-4" />
                           <span>{item.label}</span>
@@ -885,6 +1059,16 @@ export function TaskEditor({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden file input for generic file attachments */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        tabIndex={-1}
+        onChange={handleFileAttach}
+      />
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

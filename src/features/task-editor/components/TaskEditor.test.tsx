@@ -45,6 +45,8 @@ vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
   entriesQueryKey: (dateKey: string) => ["entries", dateKey],
   topicsQueryKey: ["topics"],
+  useEntryAttachmentsQuery: () => ({ data: undefined, isLoading: false }),
+  attachmentsQueryKey: (entryId: string) => ["attachments", entryId],
 }));
 
 const mockSummarizeEntryAndInvalidate = vi.fn();
@@ -61,6 +63,14 @@ vi.mock("@/shared/api/mutations", () => ({
 
 vi.mock("@/shared/api/sdk/entries", () => ({
   autoTopicEntry: vi.fn().mockResolvedValue({ entryId: "entry-test", selectedTopicId: null, score: null }),
+}));
+
+vi.mock("@/shared/api/sdk/attachments", () => ({
+  initUpload: vi.fn(),
+  completeUpload: vi.fn(),
+  getDownloadUrl: vi.fn(),
+  listByEntry: vi.fn(),
+  deleteAttachment: vi.fn(),
 }));
 
 vi.mock("@/shared/store", () => ({
@@ -121,9 +131,9 @@ describe("TaskEditor", () => {
       expect(screen.getByRole("textbox", { name: /title/i })).toBeInTheDocument();
     });
 
-    it("should render content area", () => {
+    it("should render content area (Tiptap editor)", () => {
       renderEditor();
-      expect(screen.getByRole("textbox", { name: /content/i })).toBeInTheDocument();
+      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
     });
 
     it("should render topic selector", () => {
@@ -266,21 +276,29 @@ describe("TaskEditor", () => {
     });
   });
 
-  describe("Content Area", () => {
-    it("should allow typing in content area", async () => {
-      const user = userEvent.setup();
+  describe("Content Area (Tiptap)", () => {
+    it("should render Tiptap editor as the content area", () => {
       renderEditor();
-
-      const contentArea = screen.getByRole("textbox", { name: /content/i });
-      await user.type(contentArea, "My task content here");
-
-      expect(contentArea).toHaveValue("My task content here");
+      const tiptapEditor = screen.getByTestId("tiptap-editor");
+      expect(tiptapEditor).toBeInTheDocument();
+      // Should contain a contenteditable element
+      const proseMirror = tiptapEditor.querySelector("[contenteditable]");
+      expect(proseMirror).not.toBeNull();
     });
 
-    it("should be a textarea element", () => {
-      renderEditor();
-      const contentArea = screen.getByRole("textbox", { name: /content/i });
-      expect(contentArea.tagName.toLowerCase()).toBe("textarea");
+    it("should render content from entry JSON", async () => {
+      renderEditor({
+        content: {
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "Existing content" }] },
+          ],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Existing content")).toBeInTheDocument();
+      });
     });
   });
 
@@ -382,11 +400,11 @@ describe("TaskEditor", () => {
   });
 
   describe("Accessibility", () => {
-    it("should have proper labels for all inputs", () => {
+    it("should have proper labels for title and topic", () => {
       renderEditor();
 
       expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      expect(screen.getByRole("textbox", { name: /content/i })).toBeInTheDocument();
+      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /topic/i })).toBeInTheDocument();
     });
   });

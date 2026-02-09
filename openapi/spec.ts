@@ -597,6 +597,51 @@ const spec = {
       },
     },
 
+    "/api/entries/{id}/attachments": {
+      get: {
+        tags: ["Attachments"],
+        summary: "List attachments for an entry",
+        operationId: "listEntryAttachments",
+        parameters: [{ $ref: "#/components/parameters/ResourceId" }],
+        responses: {
+          "200": {
+            description: "List of attachments with usage/quota info",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["attachments", "usage"],
+                  properties: {
+                    attachments: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Attachment" },
+                    },
+                    usage: {
+                      type: "object" as const,
+                      required: [
+                        "entryBytesUsed",
+                        "entryLimitBytes",
+                        "userBytesUsed",
+                        "userLimitBytes",
+                      ],
+                      properties: {
+                        entryBytesUsed: { type: "integer" as const },
+                        entryLimitBytes: { type: "integer" as const },
+                        userBytesUsed: { type: "integer" as const },
+                        userLimitBytes: { type: "integer" as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
+        },
+      },
+    },
+
     // =====================================================================
     // Reminders
     // =====================================================================

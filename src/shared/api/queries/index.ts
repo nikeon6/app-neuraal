@@ -16,3 +16,4 @@ export {
   notificationsQueryKey,
   getUnreadCount,
 } from "./notifications";
+export { useEntryAttachmentsQuery, attachmentsQueryKey } from "./attachments";

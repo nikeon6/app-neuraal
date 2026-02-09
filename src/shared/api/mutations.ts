@@ -11,6 +11,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import * as topicsSdk from "./sdk/topics";
 import * as entriesSdk from "./sdk/entries";
 import * as remindersSdk from "./sdk/reminders";
+import * as attachmentsSdk from "./sdk/attachments";
 import type {
   CreateTopicBody,
   UpdateTopicBody,
@@ -22,6 +23,7 @@ import type {
 import { topicsQueryKey } from "./queries/topics";
 import { entriesQueryKey } from "./queries/entries";
 import { notificationsQueryKey } from "./queries/notifications";
+import { attachmentsQueryKey } from "./queries/attachments";
 
 // ---- Topics ----
 
@@ -127,4 +129,17 @@ export async function updateReminderAndInvalidate(
   const reminder = await remindersSdk.updateReminder(id, patch);
   await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
   return reminder;
+}
+
+// ---- Attachments ----
+
+export async function deleteAttachmentAndInvalidate(
+  queryClient: QueryClient,
+  attachmentId: string,
+  entryId: string
+) {
+  await attachmentsSdk.deleteAttachment(attachmentId);
+  await queryClient.invalidateQueries({
+    queryKey: attachmentsQueryKey(entryId),
+  });
 }

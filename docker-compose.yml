@@ -111,10 +111,10 @@ services:
       # Disable telemetry for local dev
       N8N_DIAGNOSTICS_ENABLED: "false"
       # LangSmith (LangChain) - preparado
-      LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+      LANGCHAIN_ENDPOINT: "https://eu.api.smith.langchain.com"
       LANGCHAIN_TRACING_V2: "true"
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
-      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-neuraal-dev}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
       LANGCHAIN_CALLBACKS_BACKGROUND: "true"
       # Environment variables
       N8N_ENV_VARS_ENABLED: "N8N_WEBHOOK_SECRET,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT"

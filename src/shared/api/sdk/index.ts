@@ -89,3 +89,18 @@ export {
   createReminder,
   updateReminder,
 } from "./reminders";
+
+// Attachments
+export {
+  listByEntry as listAttachmentsByEntry,
+  initUpload as initAttachmentUpload,
+  completeUpload as completeAttachmentUpload,
+  deleteAttachment,
+  getDownloadUrl as getAttachmentDownloadUrl,
+} from "./attachments";
+
+export type {
+  ListAttachmentsResponse,
+  InitUploadResponse,
+  InitUploadInput,
+} from "./attachments";

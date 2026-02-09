@@ -32,6 +32,32 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return result.isOk() ? result.value : null;
   }
 
+  async findByEntryId(entryId: string): Promise<Attachment[]> {
+    const records = await prisma.attachment.findMany({
+      where: { entryId, status: { not: "deleted" } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return records
+      .map((record) => {
+        const result = Attachment.create({
+          id: record.id,
+          userId: record.userId,
+          entryId: record.entryId,
+          storageKey: record.storageKey,
+          filename: record.filename,
+          mimeType: record.mimeType,
+          sizeBytes: record.sizeBytes,
+          kind: record.kind as "inline" | "file",
+          status: record.status as "pending" | "ready" | "deleted",
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        });
+        return result.isOk() ? result.value : null;
+      })
+      .filter((a): a is Attachment => a !== null);
+  }
+
   async save(attachment: Attachment): Promise<void> {
     const json = attachment.toJSON();
     await prisma.attachment.create({
