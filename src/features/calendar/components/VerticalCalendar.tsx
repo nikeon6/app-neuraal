@@ -28,9 +28,11 @@ interface EntryToDelete {
 interface VerticalCalendarProps {
   /** Entries by date (from TanStack Query). */
   entriesByDate: Record<string, ApiEntry[]>;
+  /** Compact vertical mode for landscape mobile. */
+  compact?: boolean;
 }
 
-export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarProps>) {
+export function VerticalCalendar({ entriesByDate, compact = false }: Readonly<VerticalCalendarProps>) {
   const queryClient = useQueryClient();
   const {
     selectedDate,
@@ -45,6 +47,8 @@ export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarPro
   const { data: topics = [] } = useTopicsQuery();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const compactScrollRef = useRef<HTMLDivElement>(null);
   const [visibleDays, setVisibleDays] = useState<Set<string>>(new Set());
   const visibleDaysRef = useRef<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -66,7 +70,7 @@ export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarPro
   const monthEnd = endOfMonth(selectedDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Scroll to selected day
+  // Scroll to selected day (desktop vertical)
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
@@ -84,6 +88,47 @@ export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarPro
       behavior: "smooth"
     });
   }, [selectedDate]);
+
+  // Scroll to selected day (mobile horizontal) — centers the day button
+  useEffect(() => {
+    const container = mobileScrollRef.current;
+    if (!container) return;
+
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    const dayEl = container.querySelector(`[data-date-key="${dateKey}"]`) as HTMLElement | null;
+    if (!dayEl) return;
+
+    const containerWidth = container.clientWidth;
+    const elementLeft = dayEl.offsetLeft;
+    const elementWidth = dayEl.clientWidth;
+    const scrollLeft = elementLeft - (containerWidth / 2) + (elementWidth / 2);
+
+    container.scrollTo({
+      left: Math.max(0, scrollLeft),
+      behavior: "smooth"
+    });
+  }, [selectedDate]);
+
+  // Scroll to selected day (compact vertical mode) — centers vertically
+  useEffect(() => {
+    if (!compact) return;
+    const container = compactScrollRef.current;
+    if (!container) return;
+
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    const dayEl = container.querySelector(`[data-date-key="${dateKey}"]`) as HTMLElement | null;
+    if (!dayEl) return;
+
+    const containerHeight = container.clientHeight;
+    const elementTop = dayEl.offsetTop;
+    const elementHeight = dayEl.clientHeight;
+    const scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+
+    container.scrollTo({
+      top: Math.max(0, scrollTop),
+      behavior: "smooth"
+    });
+  }, [selectedDate, compact]);
 
   // IntersectionObserver for lazy rendering
   useEffect(() => {
@@ -187,62 +232,102 @@ export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarPro
   );
 
   return (
-    <div className="h-full flex flex-col bg-black/20 backdrop-blur-md 
-                    border-t lg:border-t-0 lg:border-l border-white/10 
-                    w-full min-w-0 relative overflow-hidden box-border">
-      {/* Month Header */}
-      <div className="hidden lg:block p-4 text-center border-b border-white/10 flex-shrink-0">
-        <h2 className="text-lg font-bold text-white/80">
-          {format(selectedDate, "MMM")}
-        </h2>
-        <p className="text-xs text-white/40">{format(selectedDate, "yyyy")}</p>
-      </div>
+    <div className={cn(
+      "h-full flex flex-col bg-black/20 backdrop-blur-md w-full min-w-0 relative overflow-hidden box-border",
+      compact ? "border-l border-white/10" : "border-t lg:border-t-0 lg:border-l border-white/10"
+    )}>
+      {compact ? (
+        /* COMPACT VERTICAL: Landscape mobile — just day numbers in a narrow column */
+        <div
+          ref={compactScrollRef}
+          className="flex-1 flex flex-col items-center overflow-y-auto scrollbar-hide py-1 gap-0.5"
+        >
+          {days.map((day) => {
+            const dateKey: ISODate = format(day, "yyyy-MM-dd");
+            const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
+            const isSelected: boolean = isSameDay(day, selectedDate);
+            const isCurrentDay: boolean = isToday(day);
+            const hasEntries: boolean = dayEntries.length > 0;
 
-      {/* MOBILE: Horizontal compact calendar */}
-      <div className="lg:hidden flex overflow-x-auto overflow-y-hidden scrollbar-hide py-2 px-2 gap-1">
-        {days.map((day) => {
-          const dateKey: ISODate = format(day, "yyyy-MM-dd");
-          const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
-          const isSelected: boolean = isSameDay(day, selectedDate);
-          const isCurrentDay: boolean = isToday(day);
-          const hasEntries: boolean = dayEntries.length > 0;
+            return (
+              <button
+                key={dateKey}
+                type="button"
+                data-day-anchor="true"
+                data-date-key={dateKey}
+                data-day-number={day.getDate()}
+                onClick={() => handleMobileDayClick(day)}
+                className={cn(
+                  "relative flex-shrink-0 flex items-center justify-center",
+                  "w-8 h-8 rounded-lg transition-all duration-200 text-xs font-bold",
+                  "text-white/60 hover:bg-white/10",
+                  isSelected && "bg-primary text-white shadow-lg",
+                  isCurrentDay && !isSelected && "ring-1 ring-primary/50"
+                )}
+              >
+                {format(day, "d")}
+                {hasEntries && !isSelected && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          {/* Month Header */}
+          <div className="hidden lg:block p-4 text-center border-b border-white/10 flex-shrink-0">
+            <h2 className="text-lg font-bold text-white/80">
+              {format(selectedDate, "MMM")}
+            </h2>
+            <p className="text-xs text-white/40">{format(selectedDate, "yyyy")}</p>
+          </div>
 
-          return (
-            <button
-              key={dateKey}
-              type="button"
-              data-day-anchor="true"
-              data-date-key={dateKey}
-              data-day-number={day.getDate()}
-              onClick={() => handleMobileDayClick(day)}
-              className={cn(
-                "flex-shrink-0 flex flex-col items-center justify-center",
-                "w-12 h-14 rounded-xl transition-all duration-200",
-                "text-white/60 hover:bg-white/10",
-                isSelected && "bg-primary text-white shadow-lg",
-                isCurrentDay && !isSelected && "ring-1 ring-primary/50"
-              )}
-            >
-              <span className="text-[10px] uppercase font-medium opacity-70">
-                {format(day, "EEE")}
-              </span>
-              <span className="text-lg font-bold">{format(day, "d")}</span>
-              {hasEntries && !isSelected && (
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-0.5" />
-              )}
-              {hasEntries && isSelected && (
-                <div className="w-1.5 h-1.5 rounded-full bg-white/60 mt-0.5" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+          {/* MOBILE: Horizontal compact calendar */}
+          <div ref={mobileScrollRef} className="lg:hidden flex overflow-x-auto overflow-y-hidden scrollbar-hide py-2 px-2 gap-1">
+            {days.map((day) => {
+              const dateKey: ISODate = format(day, "yyyy-MM-dd");
+              const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
+              const isSelected: boolean = isSameDay(day, selectedDate);
+              const isCurrentDay: boolean = isToday(day);
+              const hasEntries: boolean = dayEntries.length > 0;
 
-      {/* DESKTOP: Vertical calendar with expandable entries */}
-      <div
-        ref={scrollRef}
-        className="hidden lg:block flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-4 space-y-2"
-      >
+              return (
+                <button
+                  key={dateKey}
+                  type="button"
+                  data-day-anchor="true"
+                  data-date-key={dateKey}
+                  data-day-number={day.getDate()}
+                  onClick={() => handleMobileDayClick(day)}
+                  className={cn(
+                    "flex-shrink-0 flex flex-col items-center justify-center",
+                    "w-12 h-14 rounded-xl transition-all duration-200",
+                    "text-white/60 hover:bg-white/10",
+                    isSelected && "bg-primary text-white shadow-lg",
+                    isCurrentDay && !isSelected && "ring-1 ring-primary/50"
+                  )}
+                >
+                  <span className="text-[10px] uppercase font-medium opacity-70">
+                    {format(day, "EEE")}
+                  </span>
+                  <span className="text-lg font-bold">{format(day, "d")}</span>
+                  {hasEntries && !isSelected && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-0.5" />
+                  )}
+                  {hasEntries && isSelected && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/60 mt-0.5" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP: Vertical calendar with expandable entries */}
+          <div
+            ref={scrollRef}
+            className="hidden lg:block flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-4 space-y-2"
+          >
         {days.map((day, i) => {
           const dateKey: ISODate = format(day, "yyyy-MM-dd");
           const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
@@ -340,7 +425,9 @@ export function VerticalCalendar({ entriesByDate }: Readonly<VerticalCalendarPro
             </motion.div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

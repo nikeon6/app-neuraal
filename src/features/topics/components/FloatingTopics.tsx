@@ -84,6 +84,8 @@ interface FloatingTopicsProps {
   laneRef?: React.RefObject<HTMLDivElement | null>;
   /** Entries by date (from TanStack Query, e.g. useEntriesForDates). */
   entriesByDate: Record<string, ApiEntry[]>;
+  /** Compact mode for landscape mobile — smaller nodes and wires. */
+  compact?: boolean;
 }
 
 interface DragState {
@@ -107,7 +109,7 @@ interface NodePosition {
 // ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonly<FloatingTopicsProps>) {
+export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact = false }: Readonly<FloatingTopicsProps>) {
   // ---------------------------------------------------------------------------
   // Data from TanStack Query
   // ---------------------------------------------------------------------------
@@ -200,6 +202,10 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // Persistent push direction per topic (for minTrunk logic in stack mode)
   // Prevents snap/discontinuity when crossing the center of the lane
   const pushDirRef = useRef<Partial<Record<string, 1 | -1>>>({});
+  
+  // Compact ref for imperative callbacks
+  const compactRef = useRef(compact);
+  compactRef.current = compact;
 
   // ---------------------------------------------------------------------------
   // Derived data (memoized)
@@ -247,9 +253,9 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     for (let idx = 0; idx < activeTopics.length; idx++) {
       const id = activeTopics[idx];
       const count = topicCounts[id] ?? 0;
-      // Scale radius down in mobile stack mode for smaller bubbles
+      // Scale radius down in mobile stack mode or compact (landscape) for smaller bubbles
       const baseR = Math.min(65, 20 + count * 8);
-      const r = isStackLayout ? baseR * NODE_SCALE_STACK : baseR;
+      const r = (isStackLayout || compact) ? baseR * NODE_SCALE_STACK : baseR;
 
       // Cycle through default anchors for positioning
       const anchor = DEFAULT_ANCHORS[idx % DEFAULT_ANCHORS.length];
@@ -276,7 +282,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     }
 
     return centers;
-  }, [activeTopics, boardSize, topicCounts, topicPositions, isStackLayout]);
+  }, [activeTopics, boardSize, topicCounts, topicPositions, isStackLayout, compact]);
 
   // ---------------------------------------------------------------------------
   // Initialize/sync nodePosRef from baseTopicCenters AND update DOM
@@ -394,9 +400,15 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         if (!isVisible) return;
       }
 
-      // Anchor point: CENTER of the day element (works for both mobile buttons and desktop rows)
-      const x = r.left - containerRect.left + r.width / 2;
-      const y = r.top - containerRect.top + r.height / 2;
+      // Anchor point depends on layout mode:
+      // Desktop (grid): LEFT EDGE X, center Y — branches arrive from the left of the calendar
+      // Mobile (stack): center X, TOP EDGE Y — branches arrive from the top of the calendar
+      const x = isStack
+        ? r.left - containerRect.left + r.width / 2   // mobile: center X
+        : r.left - containerRect.left;                 // desktop: left edge X
+      const y = isStack
+        ? r.top - containerRect.top                    // mobile: top edge Y
+        : r.top - containerRect.top + r.height / 2;   // desktop: center Y
 
       if (y > 0 && y < containerRect.height && x > 0) {
         dayCenterMap[dateKey] = { x, y, dayNumber: Number.parseInt(dayNumberStr, 10) };
@@ -458,16 +470,24 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       tasksScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
-    // Also observe scroll in calendar (both desktop vertical and mobile horizontal)
-    const calendarScrollEl = aside?.querySelector('.overflow-y-auto') || aside;
-    if (calendarScrollEl) {
-      calendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    // Observe scroll in ALL scrollable children of aside (desktop vertical, mobile horizontal, compact vertical)
+    // Query by computed overflow style to be Tailwind-version-agnostic
+    const calendarScrollEls: Element[] = [];
+    if (aside) {
+      aside.querySelectorAll('*').forEach((el) => {
+        const style = getComputedStyle(el);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+            style.overflowX === 'auto' || style.overflowX === 'scroll') {
+          calendarScrollEls.push(el);
+        }
+      });
+      // Fallback: listen on aside itself
+      if (calendarScrollEls.length === 0) {
+        calendarScrollEls.push(aside);
+      }
     }
-    
-    // Mobile calendar horizontal scroll (overflow-x-auto container)
-    const mobileCalendarScrollEl = aside?.querySelector('.overflow-x-auto');
-    if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-      mobileCalendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    for (const el of calendarScrollEls) {
+      el.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
     // Window resize as backup
@@ -506,14 +526,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       if (tasksScrollEl) {
         tasksScrollEl.removeEventListener("scroll", scheduleRecalc);
       }
-      if (calendarScrollEl) {
-        calendarScrollEl.removeEventListener("scroll", scheduleRecalc);
-      }
-      if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-        mobileCalendarScrollEl.removeEventListener("scroll", scheduleRecalc);
+      for (const el of calendarScrollEls) {
+        el.removeEventListener("scroll", scheduleRecalc);
       }
     };
-  }, [recalc, scheduleRecalc, containerRef, laneRef]);
+  }, [recalc, scheduleRecalc, containerRef, laneRef, compact]);
 
   useEffect(() => {
     const timeout = setTimeout(scheduleRecalc, 100);
@@ -726,9 +743,10 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       setPathD(`branch-${topicId}-${id}`, quadPath(j.x, j.y, x, y, branchCurve));
     });
 
-    // Update junction dot position (scaled in stack mode - isStack already declared above)
-    const dotR = isStack ? DOT_RADIUS_BASE * NODE_SCALE_STACK : DOT_RADIUS_BASE;
-    const haloR = isStack ? HALO_RADIUS_BASE * NODE_SCALE_STACK : HALO_RADIUS_BASE;
+    // Update junction dot position (scaled in stack/compact mode)
+    const shouldScale = isStack || compactRef.current;
+    const dotR = shouldScale ? DOT_RADIUS_BASE * NODE_SCALE_STACK : DOT_RADIUS_BASE;
+    const haloR = shouldScale ? HALO_RADIUS_BASE * NODE_SCALE_STACK : HALO_RADIUS_BASE;
     setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, haloR);
     setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, dotR);
   }, [wireStructure, taskCenters, dayCenters]);
@@ -1252,7 +1270,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           const branchOpacity = dim ? 0.04 : 0.3;
           
           // Scale stroke widths in stack mode for proportional visuals
-          const wireScale = isStackLayout ? 0.85 : 1;
+          const wireScale = (isStackLayout || compact) ? 0.85 : 1;
           
           // Get the branch IDs based on mode
           const branchIds = wire.mode === 'tasks' ? (wire.taskIds || []) : (wire.dayKeys || []);
