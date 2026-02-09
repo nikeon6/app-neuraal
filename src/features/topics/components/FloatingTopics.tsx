@@ -36,13 +36,14 @@ const JUNCTION_PULL_LEFT = 120;
 const JUNCTION_LANE_OFFSET = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
+const JUNCTION_TO_NODE_BLEND_Y_STACK = 0.40; // Blend for Y in mobile stack mode — lower = junction closer to calendar
 const JUNCTION_TO_NODE_BLEND_X_STACK = 0.70; // Blend for X in mobile stack mode (how much junction X follows node)
 // Min-trunk hysteresis: prevent junction from snapping to lane center when anchor is close to node
 const MIN_TRUNK = 32;
 const DIR_HYSTERESIS = 10;
 const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
-const NODE_SCALE_STACK = 0.82; // Scale factor for topic nodes in mobile stack mode
+const NODE_SCALE_STACK = 0.59; // Scale factor for topic nodes in mobile stack mode
 
 // Junction dot (neuron point) parameters
 const DOT_RADIUS_BASE = 4.5;
@@ -98,6 +99,7 @@ interface DragState {
   startX: number;
   startY: number;
   hasMoved: boolean; // Track if user actually dragged vs just clicked
+  isTouch: boolean;  // Touch inputs need larger drag threshold
 }
 
 interface NodePosition {
@@ -349,9 +351,9 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
       laneH,
     });
 
-    // Measure task pills from VerticalCalendar (inside aside)
+    // Measure task pills from VerticalCalendar (inside aside ONLY, not TasksContainer)
     const taskCenterMap: Record<string, TaskCenter> = {};
-    const taskPills = container.querySelectorAll('[data-task-id]');
+    const taskPills = aside?.querySelectorAll('[data-task-id]') ?? [];
 
     taskPills.forEach((el) => {
       const taskId = (el as HTMLElement).dataset.taskId;
@@ -463,11 +465,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
       ro.observe(aside);
     }
 
-    // Find tasks scroll container and observe it too
+    // Observe tasks scroll container for size changes (task add/remove)
+    // but NOT scroll — task pills we care about are inside aside, not here
     const tasksScrollEl = container.querySelector('.tasks-scrollbar');
     if (tasksScrollEl) {
       ro.observe(tasksScrollEl);
-      tasksScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
     // Observe scroll in ALL scrollable children of aside (desktop vertical, mobile horizontal, compact vertical)
@@ -522,9 +524,6 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
       if (vv) {
         vv.removeEventListener("resize", handleResize);
         vv.removeEventListener("scroll", handleResize);
-      }
-      if (tasksScrollEl) {
-        tasksScrollEl.removeEventListener("scroll", scheduleRecalc);
       }
       for (const el of calendarScrollEls) {
         el.removeEventListener("scroll", scheduleRecalc);
@@ -839,11 +838,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
 
         junctionTargetXRef.current[id] = { x: desiredX };
         
-        // Calculate target Y
+        // Calculate target Y (use stack-specific blend to push junction closer to calendar)
         const ys = getTargetYsForTopic(id);
         const medY = ys.length > 0 ? median(ys) : node.y;
         const targetY = clamp(
-          medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
+          medY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) + node.y * JUNCTION_TO_NODE_BLEND_Y_STACK,
           yMinLane,
           yMaxLane
         );
@@ -1028,7 +1027,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
           const yMax = boardSize.laneTop + boardSize.laneH - lanePad;
           const medY = topicMedianYRef.current[topicId];
           const desiredY = medY != null 
-            ? clamp(medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND, yMin, yMax)
+            ? clamp(medY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) + node.y * JUNCTION_TO_NODE_BLEND_Y_STACK, yMin, yMax)
             : clamp(boardSize.laneTop + boardSize.laneH * 0.5, yMin, yMax);
           j.y = j.y + (desiredY - j.y) * 0.15; // Slower Y easing in stack
           
@@ -1114,6 +1113,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
         startX: px,
         startY: py,
         hasMoved: false,
+        isTouch: e.pointerType === "touch",
       };
 
       latestPointerRef.current = { x: px, y: py };
@@ -1135,10 +1135,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
       const px = e.clientX - drag.containerRect.left;
       const py = e.clientY - drag.containerRect.top;
 
-      // Check if user has moved enough to be considered a drag (5px threshold)
+      // Check if user has moved enough to be considered a drag
+      // Touch inputs need a larger threshold (15px) because finger taps are imprecise
+      const dragThreshold = drag.isTouch ? 15 : 5;
       const dx = Math.abs(px - drag.startX);
       const dy = Math.abs(py - drag.startY);
-      if (dx > 5 || dy > 5) {
+      if (dx > dragThreshold || dy > dragThreshold) {
         drag.hasMoved = true;
       }
       
@@ -1218,6 +1220,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
           toggleTopicSelection(id);
         }
 
+        // On touch, clear highlightedTopic since onMouseLeave doesn't fire reliably
+        // This prevents the dimming logic from keeping the last tapped topic "highlighted"
+        if (drag.isTouch) {
+          setHighlightedTopic(null);
+        }
+
         dragRef.current = null;
         latestPointerRef.current = null;
       }
@@ -1226,7 +1234,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     },
-    [setTopicPosition, stopDragLoop, toggleTopicSelection]
+    [setTopicPosition, stopDragLoop, toggleTopicSelection, setHighlightedTopic]
   );
 
   // ---------------------------------------------------------------------------
@@ -1385,8 +1393,8 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
             ref={(el) => { nodeElRef.current[id] = el; }}
             aria-label={`${isSelected ? 'Deselect' : 'Select'} topic ${topicMap[id]?.name ?? id}`}
             aria-pressed={isSelected}
-            onMouseEnter={() => setHighlightedTopic(id)}
-            onMouseLeave={() => setHighlightedTopic(null)}
+            onMouseEnter={() => { if (!isStackLayout) setHighlightedTopic(id); }}
+            onMouseLeave={() => { if (!isStackLayout) setHighlightedTopic(null); }}
             onPointerDown={handlePointerDown(id)}
             onPointerMove={handlePointerMove(id)}
             onPointerUp={handlePointerUp(id)}

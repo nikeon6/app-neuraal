@@ -87,8 +87,12 @@ export function Dashboard() {
   // Landscape mobile detection — switches layout to side-by-side grid
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
 
+  // Virtual keyboard detection — hides bubbles lane & calendar on mobile when keyboard is open
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
   // FIX ANDROID: Use visualViewport to get real viewport height
   // Also detect landscape mobile (wider than tall + short viewport)
+  // Also detect virtual keyboard open (viewport significantly shorter than screen)
   useEffect(() => {
     const update = () => {
       const vw = window.visualViewport?.width ?? window.innerWidth;
@@ -97,6 +101,10 @@ export function Dashboard() {
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
       // Landscape mobile: significantly wider than tall, short enough to be a phone
       setIsLandscapeMobile(vw > vh * 1.2 && vh < 550 && vw < 1200);
+      // Keyboard detection: viewport is much shorter than the full screen height
+      const fullHeight = window.screen.height;
+      const isKb = vh < fullHeight * 0.65 && vw < 1024;
+      setIsKeyboardOpen(isKb);
     };
 
     update();
@@ -194,20 +202,22 @@ export function Dashboard() {
           : "flex flex-col lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px] xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
       )}
     >
-      {/* Floating topics visualization - covers entire area */}
-      <FloatingTopics
-        containerRef={containerRef}
-        laneRef={laneRef}
-        entriesByDate={entriesByDate}
-        compact={isLandscapeMobile}
-      />
+      {/* Floating topics visualization - covers entire area (hidden when keyboard open on mobile) */}
+      {!(isKeyboardOpen && !isLandscapeMobile) && (
+        <FloatingTopics
+          containerRef={containerRef}
+          laneRef={laneRef}
+          entriesByDate={entriesByDate}
+          compact={isLandscapeMobile}
+        />
+      )}
 
       {/* Column 1: Tasks area */}
       <div className={cn(
         "relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden",
         isLandscapeMobile
           ? "p-2"
-          : "flex-1 lg:flex-none p-4 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none"
+          : "flex-1 lg:flex-none px-3 pt-3 pb-1 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none"
       )}>
         {/* Header with navigation and title */}
         <DashboardHeader
@@ -223,22 +233,24 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Column 2: Bubbles lane */}
+      {/* Column 2: Bubbles lane (hidden when keyboard open on mobile) */}
       <div
         ref={laneRef}
         className={cn(
           "relative min-w-0 flex-shrink-0",
+          (isKeyboardOpen && !isLandscapeMobile) && "hidden",
           isLandscapeMobile
             ? ""
-            : "order-2 lg:order-none h-[200px] sm:h-[220px] md:h-[240px] lg:h-auto"
+            : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto"
         )}
         aria-hidden="true"
         onClick={handleLaneClick}
       />
 
-      {/* Column 3: Calendar sidebar */}
+      {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}
       <aside className={cn(
         "relative z-20 min-w-0 flex-shrink-0 overflow-hidden",
+        (isKeyboardOpen && !isLandscapeMobile) && "hidden",
         isLandscapeMobile
           ? "h-full"
           : "h-20 lg:h-full order-3 lg:order-none pb-[env(safe-area-inset-bottom)]"

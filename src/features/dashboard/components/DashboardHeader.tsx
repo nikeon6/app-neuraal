@@ -82,10 +82,10 @@ export function DashboardHeader({
   const currentLabel = SECTION_LABELS[section];
 
   return (
-    <header className="relative mb-4 lg:mb-6">
+    <header className="relative mb-2 lg:mb-6">
       {/* Navigation tabs - horizontal scroll on mobile */}
       <nav
-        className="flex items-center gap-2 mb-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1"
+        className="flex items-center gap-1.5 lg:gap-2 mb-2 lg:mb-4 overflow-x-auto scrollbar-hide pb-1 lg:pb-2 -mx-1 px-1"
         aria-label="Dashboard navigation"
       >
         {NAV_TABS.map((tab) => {
@@ -139,12 +139,12 @@ export function DashboardHeader({
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         key={isDaily ? `daily-${selectedDate.getDate()}` : section}
-        className="space-y-1 lg:space-y-2"
+        className="space-y-0.5 lg:space-y-2"
       >
         {/* Kicker - always visible, blue accent */}
-        <div className="flex items-center gap-2 text-sky-400/90">
-          {isDaily && <Calendar className="w-4 h-4 lg:w-5 lg:h-5" />}
-          <span className="text-xs lg:text-sm font-medium tracking-wider uppercase">
+        <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
+          {isDaily && <Calendar className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          <span className="text-[10px] lg:text-sm font-medium tracking-wider uppercase">
             {currentLabel}
           </span>
         </div>
@@ -152,18 +152,18 @@ export function DashboardHeader({
         {/* Main title */}
         {isDaily ? (
           <>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
               {format(selectedDate, "MMMM d")}
               <span className="text-white/20">
                 , {format(selectedDate, "yyyy")}
               </span>
             </h1>
-            <p className="text-white/40 text-base lg:text-lg">
+            <p className="text-white/40 text-sm lg:text-lg">
               {format(selectedDate, "EEEE")}
             </p>
           </>
         ) : (
-          <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
             {currentLabel}
           </h1>
         )}

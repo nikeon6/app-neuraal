@@ -48,17 +48,20 @@ export function useEntriesForDates(dateKeys: string[]) {
 
   const isPending = results.some((r) => r.isPending);
 
-  // Memoize using the individual data arrays as deps (they are referentially
-  // stable from TanStack Query when data hasn't changed).
-  const dataArrays = results.map((r) => r.data);
+  // Memoize using a stable fingerprint of the data so the dependency array
+  // has a fixed size regardless of how many dateKeys there are.
+  // dataUpdatedAt changes whenever TanStack Query updates a specific key's data.
+  const dataFingerprint = results.map((r) => r.dataUpdatedAt).join(",");
+  const dateKeysFingerprint = dateKeys.join(",");
+
   const entriesByDate = useMemo(() => {
     const map: Record<string, ApiEntry[]> = {};
     dateKeys.forEach((key, i) => {
-      map[key] = dataArrays[i] ?? EMPTY;
+      map[key] = results[i]?.data ?? EMPTY;
     });
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dataArrays items are stable refs
-  }, [...dataArrays, dateKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fingerprints track actual data changes
+  }, [dataFingerprint, dateKeysFingerprint]);
 
   return { entriesByDate, isPending };
 }
