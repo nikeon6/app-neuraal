@@ -67,8 +67,6 @@ export type {
   NotesByDate,
 } from "./entry";
 
-// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants
-
 // ============================================================================
 // Reminder Types
 // ============================================================================
