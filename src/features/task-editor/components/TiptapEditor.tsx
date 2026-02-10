@@ -34,6 +34,21 @@ export interface TiptapEditorHandle {
     mimeType: string;
     sizeBytes: number;
   }) => void;
+  /**
+   * Inject transcription text into YouTube nodes, keyed by src URL.
+   * This uses a ProseMirror transaction without triggering onUpdate
+   * to avoid autosave loops. Returns the updated JSON if any node was modified.
+   */
+  syncYoutubeTranscriptions: (
+    transcriptions: Map<string, string>
+  ) => Record<string, unknown> | null;
+  /**
+   * Inject vision results into image nodes, keyed by attachmentId.
+   * Like syncYoutubeTranscriptions, suppresses onUpdate to avoid loops.
+   */
+  syncImageVisionResults: (
+    visionResults: Map<string, { text: string; mode: string }>
+  ) => Record<string, unknown> | null;
 }
 
 interface TiptapEditorProps {
@@ -181,12 +196,16 @@ export function TiptapEditor({
     }
   }, [editor, editable]);
 
-  // Pass entryId to ImageAttachment extension storage (used by OCR feature)
+  // Pass entryId to extension storage (used by OCR and transcription features)
   useEffect(() => {
     if (editor && entryId) {
-      // Use editor.storage which is the canonical way to access extension storage
+      // ImageAttachment extension storage (OCR feature)
       if (editor.storage.image) {
         editor.storage.image.entryId = entryId;
+      }
+      // YoutubeEmbed extension storage (transcription feature)
+      if (editor.storage.youtube) {
+        editor.storage.youtube.entryId = entryId;
       }
     }
   }, [editor, entryId]);
@@ -309,6 +328,72 @@ export function TiptapEditor({
     [editor]
   );
 
+  const syncYoutubeTranscriptions = useCallback(
+    (transcriptions: Map<string, string>): Record<string, unknown> | null => {
+      if (!editor || editor.isDestroyed || transcriptions.size === 0) return null;
+
+      const { tr } = editor.state;
+      let modified = false;
+
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "youtube" && node.attrs.src) {
+          const serverText = transcriptions.get(node.attrs.src as string);
+          if (serverText && !node.attrs.transcription) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              transcription: serverText,
+            });
+            modified = true;
+          }
+        }
+      });
+
+      if (!modified) return null;
+
+      // Suppress onUpdate callback to avoid autosave loop
+      skipUpdateRef.current = true;
+      editor.view.dispatch(tr);
+      skipUpdateRef.current = false;
+
+      return editor.getJSON() as Record<string, unknown>;
+    },
+    [editor]
+  );
+
+  const syncImageVisionResults = useCallback(
+    (
+      visionResults: Map<string, { text: string; mode: string }>
+    ): Record<string, unknown> | null => {
+      if (!editor || editor.isDestroyed || visionResults.size === 0) return null;
+
+      const { tr } = editor.state;
+      let modified = false;
+
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "image" && node.attrs.attachmentId) {
+          const entry = visionResults.get(node.attrs.attachmentId as string);
+          if (entry && !node.attrs.visionResult) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              visionResult: entry.text,
+              visionMode: entry.mode,
+            });
+            modified = true;
+          }
+        }
+      });
+
+      if (!modified) return null;
+
+      skipUpdateRef.current = true;
+      editor.view.dispatch(tr);
+      skipUpdateRef.current = false;
+
+      return editor.getJSON() as Record<string, unknown>;
+    },
+    [editor]
+  );
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -317,8 +402,10 @@ export function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      syncYoutubeTranscriptions,
+      syncImageVisionResults,
     }),
-    [editor, insertImage, insertCodeBlock, insertYoutube, insertFileNode]
+    [editor, insertImage, insertCodeBlock, insertYoutube, insertFileNode, syncYoutubeTranscriptions, syncImageVisionResults]
   );
 
   return (

@@ -16,6 +16,16 @@ export interface EnqueueEntrySummaryData {
 }
 
 /**
+ * Data for enqueuing a transcription job.
+ */
+export interface EnqueueEntryTranscriptionData {
+  requestId: string;
+  userId: string;
+  entryId: string;
+  youtubeUrl: string;
+}
+
+/**
  * Port for job queue operations.
  */
 export interface QueuePort {
@@ -31,4 +41,10 @@ export interface QueuePort {
    * Uses requestId as jobId for idempotency.
    */
   enqueueEntrySummary(data: EnqueueEntrySummaryData): Promise<void>;
+
+  /**
+   * Enqueues an entry transcription job to be processed immediately.
+   * Uses requestId as jobId for idempotency.
+   */
+  enqueueEntryTranscription(data: EnqueueEntryTranscriptionData): Promise<void>;
 }

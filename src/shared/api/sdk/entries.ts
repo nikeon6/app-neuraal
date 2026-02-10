@@ -119,6 +119,26 @@ export async function analyzeImage(
 }
 
 // ---------------------------------------------------------------------------
+// Transcribe YouTube Video (async)
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/entries/{id}/transcription — requests async YouTube transcription (202).
+ * The transcription arrives via notification when ready, and is injected
+ * into the YouTube node in the entry content.
+ */
+export async function requestTranscription(
+  entryId: string,
+  youtubeUrl: string
+): Promise<{ requestId: string; notificationId: string; message: string }> {
+  return await post<{
+    requestId: string;
+    notificationId: string;
+    message: string;
+  }>(`/api/entries/${entryId}/transcription`, { youtubeUrl });
+}
+
+// ---------------------------------------------------------------------------
 // Reorder
 // ---------------------------------------------------------------------------
 

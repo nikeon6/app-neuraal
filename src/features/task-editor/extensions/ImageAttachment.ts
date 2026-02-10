@@ -39,6 +39,26 @@ export const ImageAttachment = Image.extend({
         // Don't render uploading state to HTML — it's transient
         renderHTML: () => ({}),
       },
+      /** Persisted OCR / Describe result text. Survives JSON serialization. */
+      visionResult: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.visionResult ?? null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.visionResult) return {};
+          return { "data-vision-result": attributes.visionResult };
+        },
+      },
+      /** Which mode produced the visionResult: "scan" or "describe". */
+      visionMode: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.visionMode ?? null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.visionMode) return {};
+          return { "data-vision-mode": attributes.visionMode };
+        },
+      },
     };
   },
 

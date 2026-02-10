@@ -19,20 +19,34 @@ export function ImageAttachmentComponent({
   deleteNode,
   selected,
   editor,
+  getPos,
 }: Readonly<NodeViewProps>) {
-  const { src, alt, uploading, attachmentId } = node.attrs;
+  const { src, alt, uploading, attachmentId, visionResult, visionMode: persistedVisionMode } = node.attrs;
 
-  // Vision state
+  // Initialize vision state from persisted node attrs (restored after remount)
   const [visionState, setVisionState] = useState<
     "idle" | "queued" | "loading" | "done" | "error"
-  >("idle");
-  const [visionText, setVisionText] = useState<string>("");
+  >(visionResult ? "done" : "idle");
+  const [visionText, setVisionText] = useState<string>(
+    (visionResult as string) || ""
+  );
   const [visionError, setVisionError] = useState<string>("");
-  const [activeMode, setActiveMode] = useState<VisionMode | null>(null);
+  const [activeMode, setActiveMode] = useState<VisionMode | null>(
+    (persistedVisionMode as VisionMode) || null
+  );
   const [copied, setCopied] = useState(false);
   const [queueAhead, setQueueAhead] = useState(0);
 
   const hasAttachment = !!attachmentId && !uploading;
+
+  // Sync local state when node attrs are updated externally (e.g. server sync)
+  useEffect(() => {
+    if (visionResult && visionState !== "done") {
+      setVisionText(visionResult as string);
+      setActiveMode((persistedVisionMode as VisionMode) || "scan");
+      setVisionState("done");
+    }
+  }, [visionResult, persistedVisionMode, visionState]);
 
   // Subscribe to queue pending changes to update "queued" feedback
   useEffect(() => {
@@ -81,6 +95,9 @@ export function ImageAttachmentComponent({
         });
         setVisionText(result.extractedText);
         setVisionState("done");
+
+        // Persist result to node attrs so it survives remount / autosave
+        persistVisionToNode(editor, getPos, result.extractedText, mode);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Vision analysis failed";
@@ -302,4 +319,35 @@ export function ImageAttachmentComponent({
       )}
     </NodeViewWrapper>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist the vision result into the ProseMirror node attributes so it is
+ * included in the Tiptap JSON. The normal editor `onUpdate` callback will
+ * fire, which triggers the autosave — no extra save needed.
+ */
+function persistVisionToNode(
+  editor: NodeViewProps["editor"],
+  getPos: NodeViewProps["getPos"],
+  text: string,
+  mode: VisionMode
+): void {
+  if (!editor || editor.isDestroyed) return;
+  const pos = typeof getPos === "function" ? getPos() : undefined;
+  if (pos == null) return;
+
+  const node = editor.state.doc.nodeAt(pos);
+  if (node?.type.name !== "image") return;
+
+  const { tr } = editor.state;
+  tr.setNodeMarkup(pos, undefined, {
+    ...node.attrs,
+    visionResult: text,
+    visionMode: mode,
+  });
+  editor.view.dispatch(tr);
 }

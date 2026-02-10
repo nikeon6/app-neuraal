@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "worker:reminders": "tsx src/infrastructure/queue/reminderWorker.ts",
     "worker:summaries": "tsx src/infrastructure/queue/summaryWorker.ts",
+    "worker:transcriptions": "tsx src/infrastructure/queue/transcriptionWorker.ts",
     "openapi:emit": "tsx scripts/openapi/emit.ts",
     "openapi:types": "openapi-typescript openapi/openapi.json -o src/shared/api/openapi-types.ts",
     "openapi:generate": "pnpm openapi:emit && pnpm openapi:types"

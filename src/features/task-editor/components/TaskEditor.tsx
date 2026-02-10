@@ -304,6 +304,49 @@ export function TaskEditor({
   const versionRef = useRef<number>(entry.version);
   useEffect(() => { versionRef.current = entry.version; }, [entry.version]);
 
+  // ---------------------------------------------------------------------------
+  // Sync server-injected data (transcription, vision) → Tiptap editor
+  // When server-side code injects results into entry.content JSON, we need
+  // to push them into the live Tiptap editor without a full page reload.
+  // Unlike summary (separate field), these live inside the content JSON.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!entry.content || typeof entry.content !== "object") return;
+
+    const serverContent = entry.content as Record<string, unknown>;
+    let latestJson: Record<string, unknown> | null = null;
+
+    // 1. Sync YouTube transcriptions
+    const serverTranscriptions = new Map<string, string>();
+    collectYoutubeTranscriptions(serverContent, serverTranscriptions);
+
+    if (serverTranscriptions.size > 0) {
+      const updated = tiptapRef.current?.syncYoutubeTranscriptions(serverTranscriptions);
+      if (updated) {
+        latestJson = updated;
+        console.info("[TaskEditor] Transcription synced from server to editor");
+      }
+    }
+
+    // 2. Sync image vision results (OCR / describe)
+    const serverVision = new Map<string, { text: string; mode: string }>();
+    collectImageVisionResults(serverContent, serverVision);
+
+    if (serverVision.size > 0) {
+      const updated = tiptapRef.current?.syncImageVisionResults(serverVision);
+      if (updated) {
+        latestJson = updated;
+        console.info("[TaskEditor] Vision results synced from server to editor");
+      }
+    }
+
+    // Update local state if anything changed
+    if (latestJson) {
+      setContentJson(latestJson);
+      draftRef.current.contentJson = latestJson;
+    }
+  }, [entry.content]);
+
   // UI state
   const [uiState, setUIState] = useState<TaskEditorUIState>({
     isExpanded: false,
@@ -1139,4 +1182,62 @@ export function TaskEditor({
       />
     </motion.div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively traverse a Tiptap/ProseMirror JSON doc and collect
+ * `src → transcription` pairs from YouTube nodes that have a transcription.
+ */
+function collectYoutubeTranscriptions(
+  node: Record<string, unknown>,
+  map: Map<string, string>
+): void {
+  if (node.type === "youtube" && node.attrs) {
+    const attrs = node.attrs as Record<string, unknown>;
+    if (typeof attrs.src === "string" && typeof attrs.transcription === "string" && attrs.transcription) {
+      map.set(attrs.src, attrs.transcription);
+    }
+  }
+
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) {
+      collectYoutubeTranscriptions(child as Record<string, unknown>, map);
+    }
+  }
+}
+
+/**
+ * Recursively traverse a Tiptap/ProseMirror JSON doc and collect
+ * `attachmentId → { text, mode }` pairs from image nodes that have
+ * a persisted vision result (OCR / describe).
+ */
+function collectImageVisionResults(
+  node: Record<string, unknown>,
+  map: Map<string, { text: string; mode: string }>
+): void {
+  if (node.type === "image" && node.attrs) {
+    const attrs = node.attrs as Record<string, unknown>;
+    if (
+      typeof attrs.attachmentId === "string" &&
+      typeof attrs.visionResult === "string" &&
+      attrs.visionResult
+    ) {
+      map.set(attrs.attachmentId, {
+        text: attrs.visionResult,
+        mode: (attrs.visionMode as string) || "scan",
+      });
+    }
+  }
+
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) {
+      collectImageVisionResults(child as Record<string, unknown>, map);
+    }
+  }
 }

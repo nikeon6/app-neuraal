@@ -47,6 +47,12 @@ export interface EntryRepository {
   clearSummary(entryId: string): Promise<void>;
 
   /**
+   * Updates the raw JSON content of an entry.
+   * Used by transcription callback to inject transcription into Tiptap doc.
+   */
+  updateContent(entryId: string, content: Record<string, unknown>): Promise<void>;
+
+  /**
    * Updates the topicId of an entry.
    * Used by auto-topic assignment.
    */

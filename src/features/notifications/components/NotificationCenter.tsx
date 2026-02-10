@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, CheckCheck, ExternalLink, Brain, AlertTriangle, X } from "lucide-react";
+import { Bell, Check, CheckCheck, ExternalLink, Brain, AlertTriangle, X, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useNotificationsQuery,
@@ -57,6 +57,12 @@ function notifMeta(type: ApiNotification["type"]) {
       return { label: "Reminder failed", Icon: AlertTriangle, color: "text-red-400" };
     case "REMINDER_CANCELED":
       return { label: "Reminder canceled", Icon: X, color: "text-white/40" };
+    case "TRANSCRIPTION_IN_PROGRESS":
+      return { label: "Transcription in progress", Icon: FileText, color: "text-sky-400" };
+    case "TRANSCRIPTION_DONE":
+      return { label: "Transcription ready", Icon: FileText, color: "text-emerald-400" };
+    case "TRANSCRIPTION_FAILED":
+      return { label: "Transcription failed", Icon: AlertTriangle, color: "text-red-400" };
     default:
       return { label: type, Icon: Bell, color: "text-white/50" };
   }

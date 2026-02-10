@@ -4,7 +4,7 @@ import React, { useRef, useCallback, useEffect, useState, useMemo } from "react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
 import { cn } from "@/shared/lib";
-import { useEntriesForDates, useSummaryDoneWatcher } from "@/shared/api/queries";
+import { useEntriesForDates, useSummaryDoneWatcher, useTranscriptionDoneWatcher } from "@/shared/api/queries";
 import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
@@ -75,6 +75,7 @@ export function Dashboard() {
   // Watch for SUMMARY_DONE notifications and auto-refresh entries
   const currentDateKey = useStore(selectDateKey);
   useSummaryDoneWatcher(currentDateKey);
+  useTranscriptionDoneWatcher(currentDateKey);
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);

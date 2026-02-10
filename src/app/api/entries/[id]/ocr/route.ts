@@ -112,5 +112,74 @@ export async function POST(
     return NextResponse.json({ error: { code, message } }, { status: statusCode });
   }
 
+  // 5. Persist vision result server-side into entry content JSON.
+  //    This ensures the result survives even if the client navigates away
+  //    before the response arrives (component unmounts, setState is no-op).
+  try {
+    const entry = await entryRepository.findById(entryId);
+    if (entry) {
+      const content = entry.content.toJSON();
+      const updated = injectVisionResult(
+        content,
+        attachmentId.trim(),
+        result.value.extractedText,
+        mode
+      );
+      if (updated) {
+        await entryRepository.updateContent(entryId, updated);
+      }
+    }
+  } catch (error) {
+    // Non-fatal: the OCR result is still returned to the client.
+    // If the client is still mounted it will persist via ProseMirror transaction.
+    console.error("[OCR] Failed to persist vision result server-side:", error);
+  }
+
   return NextResponse.json({ ...result.value, mode }, { status: 200 });
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively traverse a Tiptap/ProseMirror JSON doc and inject
+ * `visionResult` + `visionMode` into the image node whose
+ * `attachmentId` matches. Returns the updated doc, or null if no match.
+ */
+function injectVisionResult(
+  doc: Record<string, unknown>,
+  attachmentId: string,
+  text: string,
+  mode: string
+): Record<string, unknown> | null {
+  const clone = structuredClone(doc);
+  const found = injectInNode(clone, attachmentId, text, mode);
+  return found ? clone : null;
+}
+
+function injectInNode(
+  node: Record<string, unknown>,
+  attachmentId: string,
+  text: string,
+  mode: string
+): boolean {
+  if (node.type === "image" && node.attrs) {
+    const attrs = node.attrs as Record<string, unknown>;
+    if (attrs.attachmentId === attachmentId) {
+      attrs.visionResult = text;
+      attrs.visionMode = mode;
+      return true;
+    }
+  }
+
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) {
+      if (injectInNode(child as Record<string, unknown>, attachmentId, text, mode)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

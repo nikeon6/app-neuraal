@@ -4,16 +4,18 @@ import {
   QueuePort,
   EnqueueReminderData,
   EnqueueEntrySummaryData,
+  EnqueueEntryTranscriptionData,
 } from "../../application/ports/QueuePort";
 
 /**
  * BullMQ implementation of QueuePort.
- * Manages multiple queues: reminders and summaries.
+ * Manages multiple queues: reminders, summaries, and transcriptions.
  */
 export class BullMQAdapter implements QueuePort {
-  private remindersQueue: Queue;
-  private summariesQueue: Queue;
-  private connection: IORedis;
+  private readonly remindersQueue: Queue;
+  private readonly summariesQueue: Queue;
+  private readonly transcriptionsQueue: Queue;
+  private readonly connection: IORedis;
 
   constructor(redisUrl?: string) {
     this.connection = new IORedis(
@@ -25,6 +27,7 @@ export class BullMQAdapter implements QueuePort {
 
     this.remindersQueue = new Queue("reminders", { connection: this.connection });
     this.summariesQueue = new Queue("summaries", { connection: this.connection });
+    this.transcriptionsQueue = new Queue("transcriptions", { connection: this.connection });
   }
 
   async enqueueReminder(data: EnqueueReminderData): Promise<void> {
@@ -72,12 +75,37 @@ export class BullMQAdapter implements QueuePort {
     );
   }
 
+  async enqueueEntryTranscription(
+    data: EnqueueEntryTranscriptionData
+  ): Promise<void> {
+    await this.transcriptionsQueue.add(
+      "transcribe-video",
+      {
+        requestId: data.requestId,
+        userId: data.userId,
+        entryId: data.entryId,
+        youtubeUrl: data.youtubeUrl,
+      },
+      {
+        jobId: `transcription-${data.requestId}`,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 10000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
+  }
+
   /**
    * Closes all queue connections.
    */
   async close(): Promise<void> {
     await this.remindersQueue.close();
     await this.summariesQueue.close();
+    await this.transcriptionsQueue.close();
     await this.connection.quit();
   }
 }
