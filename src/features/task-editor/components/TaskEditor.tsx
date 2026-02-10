@@ -304,6 +304,11 @@ export function TaskEditor({
   const versionRef = useRef<number>(entry.version);
   useEffect(() => { versionRef.current = entry.version; }, [entry.version]);
 
+  // Track whether the user has manually edited the title at least once.
+  // Auto-topic should NOT fire until the user touches the title — otherwise
+  // simply creating a new entry would auto-assign a topic immediately.
+  const titleEditedRef = useRef(false);
+
   // ---------------------------------------------------------------------------
   // Sync server-injected data (transcription, vision) → Tiptap editor
   // When server-side code injects results into entry.content JSON, we need
@@ -402,7 +407,7 @@ export function TaskEditor({
     const hash = `${payload.title}|${JSON.stringify(payload.content)}|${payload.topicId}|${payload.type}|${payload.completed}`;
     if (hash === lastSavedHashRef.current) {
       setUIState((prev) => ({ ...prev, isSaving: false }));
-      if (draft.selectedTopicId === AUTO_TOPIC) {
+      if (draft.selectedTopicId === AUTO_TOPIC && titleEditedRef.current) {
         try {
           const res = await entriesSdk.autoTopicEntry(entry.id);
           if (res.selectedTopicId) {
@@ -424,7 +429,7 @@ export function TaskEditor({
         versionRef.current = result.version;
         lastSavedHashRef.current = hash;
       }
-      if (draft.selectedTopicId === AUTO_TOPIC) {
+      if (draft.selectedTopicId === AUTO_TOPIC && titleEditedRef.current) {
         const res = await entriesSdk.autoTopicEntry(entry.id);
         if (res.selectedTopicId) {
           setSelectedTopicId(res.selectedTopicId);
@@ -464,7 +469,18 @@ export function TaskEditor({
   // ---- Handlers -----------------------------------------------------------
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value);
+    titleEditedRef.current = true;
+    const newTitle = e.target.value;
+    setTitle(newTitle);
+
+    // Optimistic update: reflect title immediately in VerticalCalendar
+    queryClient.setQueryData<ApiEntry[]>(
+      entriesQueryKey(dateKey),
+      (old) => old?.map((en) =>
+        en.id === entry.id ? { ...en, title: newTitle } : en
+      )
+    );
+
     triggerAutoSave();
   };
 
@@ -476,6 +492,11 @@ export function TaskEditor({
   const handleTopicSelect = (topicId: string | null) => {
     setSelectedTopicId(topicId);
     setUIState((prev) => ({ ...prev, isTopicMenuOpen: false }));
+    // If the user explicitly picks "Auto", allow auto-topic to run
+    // even if title hasn't been edited (they're opting in intentionally)
+    if (topicId === AUTO_TOPIC && title.trim().length > 0) {
+      titleEditedRef.current = true;
+    }
     triggerAutoSave();
   };
 
@@ -485,12 +506,35 @@ export function TaskEditor({
     if (newType === "note") {
       setIsCompleted(false);
     }
+
+    // Optimistic update: reflect type change immediately in VerticalCalendar
+    queryClient.setQueryData<ApiEntry[]>(
+      entriesQueryKey(dateKey),
+      (old) => old?.map((en) =>
+        en.id === entry.id
+          ? { ...en, type: newType, completed: newType === "note" ? null : en.completed }
+          : en
+      )
+    );
+
     triggerAutoSave();
   };
 
   const handleToggleCompleted = () => {
     if (entryType !== "task") return;
-    setIsCompleted((prev) => !prev);
+    const newCompleted = !isCompleted;
+    setIsCompleted(newCompleted);
+
+    // Optimistic update: immediately reflect in VerticalCalendar
+    // without waiting for the debounced save + API round-trip.
+    // If the save fails, invalidateQueries in the catch block reverts this.
+    queryClient.setQueryData<ApiEntry[]>(
+      entriesQueryKey(dateKey),
+      (old) => old?.map((e) =>
+        e.id === entry.id ? { ...e, completed: newCompleted } : e
+      )
+    );
+
     triggerAutoSave();
   };
 
