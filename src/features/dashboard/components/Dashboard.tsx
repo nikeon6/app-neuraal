@@ -12,6 +12,7 @@ import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
+import { WeeklyRecap } from "@/features/weekly-recap";
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
@@ -180,7 +181,7 @@ export function Dashboard() {
       case "daily":
         return <TasksContainer />;
       case "weeklyRecap":
-        return <SectionPlaceholder title="Weekly Recap" />;
+        return <WeeklyRecap />;
       case "stickies":
         return <SectionPlaceholder title="Stickies" />;
       case "topics":

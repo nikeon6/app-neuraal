@@ -11,8 +11,30 @@ vi.mock("date-fns", () => ({
     if (formatStr === "MMMM d") return "February 4";
     if (formatStr === "yyyy") return "2026";
     if (formatStr === "EEEE") return "Wednesday";
+    if (formatStr === "MMM d") {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    }
+    if (formatStr === "d") return String(date.getDate());
     return "mocked-date";
   },
+  startOfWeek: (date: Date, opts?: { weekStartsOn?: number }) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const start = opts?.weekStartsOn ?? 0;
+    const diff = (day - start + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return d;
+  },
+  endOfWeek: (date: Date, opts?: { weekStartsOn?: number }) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const start = opts?.weekStartsOn ?? 0;
+    const diff = (6 - day + start) % 7;
+    d.setDate(d.getDate() + diff);
+    return d;
+  },
+  getISOWeek: () => 6,
 }));
 
 // ============================================================================
@@ -184,11 +206,21 @@ describe("DashboardHeader", () => {
       expect(heading).toHaveTextContent("Topics");
     });
 
-    it("displays 'Weekly Recap' title for weeklyRecap section", () => {
-      renderHeader({ section: "weeklyRecap" });
+    it("displays dynamic week date range for weeklyRecap section", () => {
+      // Feb 4, 2026 is a Wednesday. Week (Mon-Sun): Feb 2 — Feb 8
+      renderHeader({ section: "weeklyRecap", selectedDate: new Date(2026, 1, 4) });
 
       const heading = screen.getByRole("heading", { level: 1 });
-      expect(heading).toHaveTextContent("Weekly Recap");
+      // Same month: "Feb 2 — 8"
+      expect(heading).toHaveTextContent(/Feb 2/);
+      expect(heading).toHaveTextContent(/8/);
+    });
+
+    it("displays week number in kicker for weeklyRecap section", () => {
+      renderHeader({ section: "weeklyRecap", selectedDate: new Date(2026, 1, 4) });
+
+      // Kicker should show "Week X · YYYY"
+      expect(screen.getByText(/Week \d+/)).toBeInTheDocument();
     });
 
     it("displays kicker label for all sections", () => {
