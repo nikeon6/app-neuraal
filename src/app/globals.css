@@ -156,6 +156,7 @@
   padding: 0;
   margin: 0;
   font-family: inherit;
+  overflow: hidden; /* Clip text to the circular boundary */
   /* Glass appearance: topic color is set as background via inline style.
      We override it here to be semi-transparent and add the glass layers. */
   border: 1.5px solid rgba(255, 255, 255, 0.12);
@@ -231,23 +232,52 @@
 
 .topic-label {
   text-align: center;
-  padding: 8px;
+  padding: 2px;
   width: 100%;
+  /* Use ~80% of diameter — the circle clips the rest anyway */
+  max-width: 80%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
 }
 
 .topic-name {
-  font-size: 13px;
+  /* Scale font with bubble radius via CSS custom property --node-r
+     Small bubbles (r=28) → ~8px, large bubbles (r=65) → 13px */
+  font-size: clamp(7px, calc(var(--node-r, 30) * 0.28px), 13px);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   font-weight: 600;
   opacity: 0.95;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.15;
+  /* Multi-word names: allow up to 2 lines, wrap only at spaces */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Single-word names: force 1 line, truncate with ellipsis — never split mid-word */
+.topic-name--single {
+  display: block;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
 }
 
 .topic-count {
-  font-size: 15px;
+  /* Scale font with bubble radius */
+  font-size: clamp(8px, calc(var(--node-r, 30) * 0.35px), 15px);
   font-weight: 700;
   opacity: 0.95;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  line-height: 1.15;
+  flex-shrink: 0;
 }
 
 /* Topic color dots — glass style matching floating bubbles.

@@ -199,8 +199,6 @@ export type Attachment =
   | YouTubeAttachment
   | CodeAttachment;
 
-// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants/attachments.ts
-
 // ============================================================================
 // Entry Entity
 // ============================================================================

@@ -196,6 +196,19 @@ export function TiptapEditor({
     }
   }, [editor, editable]);
 
+  // Update placeholder when prop changes (e.g. task ↔ note toggle)
+  useEffect(() => {
+    if (!editor) return;
+    const placeholderExt = editor.extensionManager.extensions.find(
+      (ext) => ext.name === "placeholder"
+    );
+    if (placeholderExt) {
+      placeholderExt.options.placeholder = placeholder;
+      // Force re-render so Tiptap picks up the new placeholder text
+      editor.view.dispatch(editor.state.tr);
+    }
+  }, [editor, placeholder]);
+
   // Pass entryId to extension storage (used by OCR and transcription features)
   useEffect(() => {
     if (editor && entryId) {

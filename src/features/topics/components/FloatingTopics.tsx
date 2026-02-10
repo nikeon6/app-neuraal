@@ -1421,12 +1421,17 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
               "--topic-glow": isSelected
                 ? `${topicMap[id]?.color ?? "#6b7280"}50`
                 : `${topicMap[id]?.color ?? "#6b7280"}28`,
+              // CSS custom property for scaling font sizes with bubble radius
+              "--node-r": node.r,
               touchAction: "none",
             } as React.CSSProperties}
             title={`${topicMap[id]?.name ?? id} (${topicCounts[id] ?? 0} entries) - Click to ${isSelected ? 'deselect' : 'select'}`}
           >
             <div className="topic-label">
-              <div className="topic-name">{topicMap[id]?.name ?? "?"}</div>
+              <div className={cn(
+                "topic-name",
+                !(topicMap[id]?.name ?? "").includes(" ") && "topic-name--single"
+              )}>{topicMap[id]?.name ?? "?"}</div>
               <div className="topic-count">{topicCounts[id] ?? 0}</div>
             </div>
           </button>

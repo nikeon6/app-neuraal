@@ -399,8 +399,8 @@ export function TasksContainer() {
           onClick={handleAddTask}
           aria-label="Add new task"
           className="
-            flex items-center justify-center gap-2 p-2 lg:p-4 mt-2 lg:mt-4
-            rounded-2xl border-2 border-dashed border-white/20
+            self-center inline-flex items-center justify-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 mt-2 lg:mt-4
+            rounded-full border-2 border-dashed border-white/20
             text-white/50 hover:text-white/80 hover:border-white/40
             hover:bg-white/5 transition-all duration-200
           "

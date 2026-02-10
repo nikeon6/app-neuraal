@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isToday } from "date-fns";
-import { Pin } from "lucide-react";
+import { Pin, ListTodo, StickyNote } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/shared/store";
@@ -569,6 +569,11 @@ export function VerticalCalendar({ entriesByDate, compact = false }: Readonly<Ve
                         data-task-id={entry.id}
                       >
                         <span className="dot" style={{ background: color }} />
+                        {entry.type === "task" ? (
+                          <ListTodo className="w-3 h-3 flex-shrink-0 text-white/40" />
+                        ) : (
+                          <StickyNote className="w-3 h-3 flex-shrink-0 text-white/40" />
+                        )}
                         <span
                           className={cn(
                             "task-text",

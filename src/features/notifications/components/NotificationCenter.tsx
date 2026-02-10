@@ -262,10 +262,10 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
                           aria-label="Mark all read"
                           onClick={handleMarkAllRead}
                           disabled={markReadMutation.isPending}
-                          className="inline-flex items-center gap-1 text-[11px] text-white/40 hover:text-white/60 transition-colors disabled:opacity-40"
+                          className="p-1.5 rounded-lg text-emerald-400/70 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all disabled:opacity-40"
                           title="Mark all as read"
                         >
-                          <CheckCheck className="w-3.5 h-3.5" />
+                          <CheckCheck className="w-4 h-4" />
                         </button>
                       </>
                     )}
