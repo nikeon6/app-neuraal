@@ -142,8 +142,8 @@ function TopicDropdown({
         className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
       >
         <div
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: currentTopicDisplay.color }}
+          className="w-3 h-3 rounded-full flex-shrink-0 topic-dot"
+          style={{ "--dot-color": currentTopicDisplay.color } as React.CSSProperties}
         />
         <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
         {selectedTopicId === AUTO_TOPIC && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
@@ -185,7 +185,7 @@ function TopicDropdown({
                   )}
                   onClick={() => onSelect(AUTO_TOPIC)}
                 >
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8b5cf6" }} />
+                  <div className="w-3 h-3 rounded-full topic-dot" style={{ "--dot-color": "#8b5cf6" } as React.CSSProperties} />
                   <span>Auto</span>
                   <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
                 </button>
@@ -222,7 +222,7 @@ function TopicDropdown({
                     )}
                     onClick={() => onSelect(t.id)}
                   >
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
+                    <div className="w-3 h-3 rounded-full topic-dot" style={{ "--dot-color": t.color } as React.CSSProperties} />
                     <span>{t.name}</span>
                   </button>
                 ))}

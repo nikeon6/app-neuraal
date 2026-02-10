@@ -185,8 +185,8 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                   <div className="flex items-center gap-2 mb-2">
                     {group.color && (
                       <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: group.color }}
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 topic-dot"
+                        style={{ "--dot-color": group.color } as React.CSSProperties}
                       />
                     )}
                     {filter === "status" && (
@@ -240,8 +240,8 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span
                               data-testid="topic-dot"
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: task.topicColor ?? "#6b7280" }}
+                              className="w-2 h-2 rounded-full topic-dot"
+                              style={{ "--dot-color": task.topicColor ?? "#6b7280" } as React.CSSProperties}
                             />
                             <span className="text-[11px] text-white/40 font-medium">
                               {task.topicName}

@@ -1401,7 +1401,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
             onPointerCancel={handlePointerUp(id)}
             className={cn(
               "topic-node pointer-events-auto absolute",
-              isSelected && "ring-2 ring-white/50 ring-offset-2 ring-offset-transparent"
+              isSelected && "topic-node--selected"
             )}
             style={{
               // Position is controlled imperatively during drag via left/top
@@ -1409,9 +1409,20 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate, compact =
               top: node.y - node.r,
               width: node.r * 2,
               height: node.r * 2,
-              background: topicMap[id]?.color ?? "#6b7280",
+              // Glass bubble: semi-transparent fill + radial glow
+              // Selected state gets higher opacity for a brighter look
+              background: isSelected
+                ? `radial-gradient(circle at 35% 35%, ${topicMap[id]?.color ?? "#6b7280"}90, ${topicMap[id]?.color ?? "#6b7280"}55 70%)`
+                : `radial-gradient(circle at 35% 35%, ${topicMap[id]?.color ?? "#6b7280"}60, ${topicMap[id]?.color ?? "#6b7280"}35 70%)`,
+              borderColor: isSelected
+                ? `${topicMap[id]?.color ?? "#6b7280"}90`
+                : `${topicMap[id]?.color ?? "#6b7280"}55`,
+              // CSS custom property consumed by .topic-node box-shadow
+              "--topic-glow": isSelected
+                ? `${topicMap[id]?.color ?? "#6b7280"}50`
+                : `${topicMap[id]?.color ?? "#6b7280"}28`,
               touchAction: "none",
-            }}
+            } as React.CSSProperties}
             title={`${topicMap[id]?.name ?? id} (${topicCounts[id] ?? 0} entries) - Click to ${isSelected ? 'deselect' : 'select'}`}
           >
             <div className="topic-label">

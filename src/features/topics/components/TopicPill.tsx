@@ -21,8 +21,8 @@ export function TopicPill({ topic, onDelete }: TopicPillProps) {
     >
       {/* Color indicator */}
       <span
-        className="w-3 h-3 rounded-full flex-shrink-0"
-        style={{ backgroundColor: topic.color }}
+        className="w-3 h-3 rounded-full flex-shrink-0 topic-dot"
+        style={{ "--dot-color": topic.color } as React.CSSProperties}
       />
 
       {/* Name */}
