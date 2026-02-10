@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -57,6 +57,38 @@ const NAV_TABS: NavTab[] = [
 ];
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Returns a formatted week date range string, e.g.
+ * "Feb 10 — 16" (same month) or "Jan 27 — Feb 2" (cross-month).
+ */
+function formatWeekRange(date: Date): string {
+  const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+
+  const startMonth = weekStart.getMonth();
+  const endMonth = weekEnd.getMonth();
+
+  if (startMonth === endMonth) {
+    // Same month: "Feb 2 — 8"
+    return `${format(weekStart, "MMM d")} — ${format(weekEnd, "d")}`;
+  }
+  // Cross month: "Jan 27 — Feb 2"
+  return `${format(weekStart, "MMM d")} — ${format(weekEnd, "MMM d")}`;
+}
+
+/**
+ * Returns the kicker text for the weekly recap, e.g. "Week 6 · 2026".
+ */
+function formatWeekKicker(date: Date): string {
+  const weekNum = getISOWeek(date);
+  const year = format(date, "yyyy");
+  return `Week ${weekNum} · ${year}`;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -79,7 +111,16 @@ export function DashboardHeader({
   notificationSlot,
 }: DashboardHeaderProps) {
   const isDaily = section === "daily";
+  const isWeekly = section === "weeklyRecap";
   const currentLabel = SECTION_LABELS[section];
+
+  // Compute the motion key for section transitions
+  function getMotionKey(): string {
+    if (isDaily) return `daily-${selectedDate.getDate()}`;
+    if (isWeekly) return `weekly-${selectedDate.getTime()}`;
+    return section;
+  }
+  const motionKey = getMotionKey();
 
   return (
     <header className="relative mb-2 lg:mb-6">
@@ -138,19 +179,20 @@ export function DashboardHeader({
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        key={isDaily ? `daily-${selectedDate.getDate()}` : section}
+        key={motionKey}
         className="space-y-0.5 lg:space-y-2"
       >
         {/* Kicker - always visible, blue accent */}
         <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
           {isDaily && <Calendar className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          {isWeekly && <LayoutGrid className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
           <span className="text-[10px] lg:text-sm font-medium tracking-wider uppercase">
-            {currentLabel}
+            {isWeekly ? formatWeekKicker(selectedDate) : currentLabel}
           </span>
         </div>
 
         {/* Main title */}
-        {isDaily ? (
+        {isDaily && (
           <>
             <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
               {format(selectedDate, "MMMM d")}
@@ -162,7 +204,13 @@ export function DashboardHeader({
               {format(selectedDate, "EEEE")}
             </p>
           </>
-        ) : (
+        )}
+        {isWeekly && (
+          <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+            {formatWeekRange(selectedDate)}
+          </h1>
+        )}
+        {!isDaily && !isWeekly && (
           <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
             {currentLabel}
           </h1>

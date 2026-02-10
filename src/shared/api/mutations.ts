@@ -110,6 +110,28 @@ export async function summarizeEntryAndInvalidate(
   return result;
 }
 
+export async function clearSummaryAndInvalidate(
+  queryClient: QueryClient,
+  entryId: string,
+  dateKey: string
+) {
+  await entriesSdk.clearSummary(entryId);
+  await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+}
+
+// ---- Transcribe ----
+
+export async function requestTranscriptionAndInvalidate(
+  queryClient: QueryClient,
+  entryId: string,
+  youtubeUrl: string
+) {
+  const result = await entriesSdk.requestTranscription(entryId, youtubeUrl);
+  // Refresh notifications so the in-progress item shows up quickly
+  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  return result;
+}
+
 // ---- Reminders ----
 
 export async function createReminderAndInvalidate(

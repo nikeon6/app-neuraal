@@ -34,6 +34,19 @@ export interface AutomationResult {
 }
 
 /**
+ * Payload sent to the automation service (n8n) for entry transcriptions.
+ * Includes the YouTube URL so n8n can call the external transcription API.
+ */
+export interface EntryTranscriptionPayload {
+  requestId: string;
+  userId: string;
+  entryId: string;
+  youtubeUrl: string;
+  callbackUrl: string;
+  entryTitle: string;
+}
+
+/**
  * Port for automation service (n8n) operations.
  */
 export interface AutomationPort {
@@ -49,4 +62,13 @@ export interface AutomationPort {
    * Handles HMAC signing and optional basic auth.
    */
   requestEntrySummary(payload: EntrySummaryPayload): Promise<AutomationResult>;
+
+  /**
+   * Sends a transcription request to the automation service.
+   * n8n will call an external API and POST the result to the callbackUrl.
+   * Handles HMAC signing and optional basic auth.
+   */
+  requestEntryTranscription(
+    payload: EntryTranscriptionPayload
+  ): Promise<AutomationResult>;
 }

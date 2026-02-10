@@ -69,6 +69,34 @@ export function useSummaryDoneWatcher(dateKey: string) {
 }
 
 /**
+ * Watches for TRANSCRIPTION_DONE notifications and auto-invalidates the entries
+ * query for the given dateKey so the TaskEditor picks up the new transcription
+ * (injected into the YouTube node in the entry content JSON).
+ */
+export function useTranscriptionDoneWatcher(dateKey: string) {
+  const queryClient = useQueryClient();
+  const { data: notifications } = useNotificationsQuery();
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!notifications) return;
+
+    const transcriptionDone = notifications.filter(
+      (n) => n.type === "TRANSCRIPTION_DONE" && !knownIdsRef.current.has(n.id)
+    );
+
+    if (transcriptionDone.length > 0) {
+      for (const n of notifications) {
+        if (n.type === "TRANSCRIPTION_DONE") {
+          knownIdsRef.current.add(n.id);
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+    }
+  }, [notifications, dateKey, queryClient]);
+}
+
+/**
  * Mutation: mark a notification as read, then refresh the list.
  */
 export function useMarkNotificationReadMutation() {

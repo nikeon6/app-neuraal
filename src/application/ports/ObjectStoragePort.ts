@@ -27,4 +27,11 @@ export interface ObjectStoragePort {
    * @param storageKey The key/path of the file to delete
    */
   deleteObject(storageKey: string): Promise<void>;
+
+  /**
+   * Downloads an object's raw bytes from storage.
+   * @param storageKey The key/path of the file to download
+   * @returns Buffer with the file contents
+   */
+  getObjectBuffer(storageKey: string): Promise<Buffer>;
 }

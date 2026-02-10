@@ -13,6 +13,7 @@ export {
   useNotificationsQuery,
   useMarkNotificationReadMutation,
   useSummaryDoneWatcher,
+  useTranscriptionDoneWatcher,
   notificationsQueryKey,
   getUnreadCount,
 } from "./notifications";

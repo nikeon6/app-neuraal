@@ -142,7 +142,7 @@
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-/* Floating topics (nodes) styles */
+/* Floating topics (nodes) styles — glass/glow bubble aesthetic */
 .topic-node {
   position: absolute;
   z-index: 30;
@@ -151,25 +151,42 @@
   place-items: center;
   color: rgba(255, 255, 255, 0.95);
   font-weight: 700;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 60px rgba(0, 0, 0, 0.15);
-  border: 3px solid rgba(255, 255, 255, 0.15);
   user-select: none;
   cursor: grab;
   padding: 0;
   margin: 0;
-  background: transparent;
   font-family: inherit;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* Glass appearance: topic color is set as background via inline style.
+     We override it here to be semi-transparent and add the glass layers. */
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 0 16px rgba(255, 255, 255, 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    0 0 20px var(--topic-glow, rgba(0, 0, 0, 0));
+  transition: transform 0.15s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .topic-node:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 80px rgba(0, 0, 0, 0.2);
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.1),
+    0 6px 24px rgba(0, 0, 0, 0.35),
+    0 0 32px var(--topic-glow, rgba(0, 0, 0, 0));
+}
+
+.topic-node--selected {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    0 0 28px var(--topic-glow, rgba(0, 0, 0, 0));
 }
 
 .topic-node:active {
   cursor: grabbing;
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Junction dot (neuron point) - where branches split */
@@ -219,15 +236,31 @@
 }
 
 .topic-name {
-  font-size: 14px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  letter-spacing: 0.5px;
+  font-size: 13px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  opacity: 0.95;
 }
 
 .topic-count {
-  font-size: 12px;
-  opacity: 0.85;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.95;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Topic color dots — glass style matching floating bubbles.
+   Usage: add class "topic-dot" + set --dot-color via inline style.
+   The dot uses the color as a semi-transparent fill with a subtle border and glow. */
+.topic-dot {
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--dot-color, #6b7280) 20%,
+    color-mix(in srgb, var(--dot-color, #6b7280) 50%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--dot-color, #6b7280) 40%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--dot-color, #6b7280) 30%, transparent);
 }
 
 /* Wires (SVG connections) */
@@ -360,4 +393,93 @@
     min-width: 50px;
     min-height: 50px;
   }
+}
+
+/* ============================================================================
+   AI Summary Markdown Styles
+   ============================================================================ */
+.summary-markdown h1,
+.summary-markdown h2,
+.summary-markdown h3 {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.75em;
+  margin-bottom: 0.35em;
+}
+.summary-markdown h1 { font-size: 1.1em; }
+.summary-markdown h2 { font-size: 1em; }
+.summary-markdown h3 { font-size: 0.95em; }
+
+.summary-markdown p {
+  margin-bottom: 0.5em;
+}
+.summary-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.summary-markdown ul,
+.summary-markdown ol {
+  padding-left: 1.25em;
+  margin-bottom: 0.5em;
+}
+.summary-markdown ul { list-style-type: disc; }
+.summary-markdown ol { list-style-type: decimal; }
+
+.summary-markdown li {
+  margin-bottom: 0.2em;
+}
+.summary-markdown li::marker {
+  color: rgba(56, 189, 248, 0.4);
+}
+
+.summary-markdown strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+.summary-markdown em {
+  font-style: italic;
+}
+
+.summary-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.summary-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5em;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+.summary-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.summary-markdown blockquote {
+  border-left: 3px solid rgba(56, 189, 248, 0.3);
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.summary-markdown a {
+  color: rgb(56, 189, 248);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.summary-markdown a:hover {
+  color: rgb(125, 211, 252);
+}
+
+.summary-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.75em 0;
 }

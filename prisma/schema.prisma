@@ -151,6 +151,26 @@ model EntrySummaryRequest {
 }
 
 // ============================================================================
+// Transcription Requests
+// ============================================================================
+
+/// Tracks async YouTube transcription requests.
+model TranscriptionRequest {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  entryId    String   @map("entry_id")
+  youtubeUrl String   @map("youtube_url") @db.VarChar(2048)
+  status     String   @db.VarChar(10) // "pending" | "submitted" | "done" | "failed"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([entryId])
+  @@index([status])
+  @@map("transcription_requests")
+}
+
+// ============================================================================
 // Future tables (placeholders for reference)
 // ============================================================================
 

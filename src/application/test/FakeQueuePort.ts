@@ -2,6 +2,7 @@ import {
   QueuePort,
   EnqueueReminderData,
   EnqueueEntrySummaryData,
+  EnqueueEntryTranscriptionData,
 } from "../ports/QueuePort";
 
 /**
@@ -10,6 +11,7 @@ import {
 export class FakeQueuePort implements QueuePort {
   private enqueuedReminderJobs: EnqueueReminderData[] = [];
   private enqueuedSummaryJobs: EnqueueEntrySummaryData[] = [];
+  private enqueuedTranscriptionJobs: EnqueueEntryTranscriptionData[] = [];
 
   async enqueueReminder(data: EnqueueReminderData): Promise<void> {
     this.enqueuedReminderJobs.push(data);
@@ -17,6 +19,12 @@ export class FakeQueuePort implements QueuePort {
 
   async enqueueEntrySummary(data: EnqueueEntrySummaryData): Promise<void> {
     this.enqueuedSummaryJobs.push(data);
+  }
+
+  async enqueueEntryTranscription(
+    data: EnqueueEntryTranscriptionData
+  ): Promise<void> {
+    this.enqueuedTranscriptionJobs.push(data);
   }
 
   // Test helpers for reminders
@@ -37,8 +45,22 @@ export class FakeQueuePort implements QueuePort {
     return this.enqueuedSummaryJobs[this.enqueuedSummaryJobs.length - 1];
   }
 
+  // Test helpers for transcriptions
+  getEnqueuedTranscriptionJobs(): EnqueueEntryTranscriptionData[] {
+    return [...this.enqueuedTranscriptionJobs];
+  }
+
+  getLastEnqueuedTranscriptionJob():
+    | EnqueueEntryTranscriptionData
+    | undefined {
+    return this.enqueuedTranscriptionJobs[
+      this.enqueuedTranscriptionJobs.length - 1
+    ];
+  }
+
   clear(): void {
     this.enqueuedReminderJobs = [];
     this.enqueuedSummaryJobs = [];
+    this.enqueuedTranscriptionJobs = [];
   }
 }

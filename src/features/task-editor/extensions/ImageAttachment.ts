@@ -8,9 +8,19 @@ import { ImageAttachmentComponent } from "./ImageAttachmentComponent";
  * JSON serialization (getJSON / setContent).
  *
  * Also adds a React NodeView with delete and OCR buttons.
+ *
+ * Extension storage:
+ * - `entryId`: set by the parent component (TaskEditor) so that the
+ *   OCR button in the NodeView knows which entry the image belongs to.
  */
 export const ImageAttachment = Image.extend({
   name: "image",
+
+  addStorage() {
+    return {
+      entryId: null as string | null,
+    };
+  },
 
   addAttributes() {
     return {
@@ -28,6 +38,26 @@ export const ImageAttachment = Image.extend({
         default: false,
         // Don't render uploading state to HTML — it's transient
         renderHTML: () => ({}),
+      },
+      /** Persisted OCR / Describe result text. Survives JSON serialization. */
+      visionResult: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.visionResult ?? null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.visionResult) return {};
+          return { "data-vision-result": attributes.visionResult };
+        },
+      },
+      /** Which mode produced the visionResult: "scan" or "describe". */
+      visionMode: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.visionMode ?? null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.visionMode) return {};
+          return { "data-vision-mode": attributes.visionMode };
+        },
       },
     };
   },

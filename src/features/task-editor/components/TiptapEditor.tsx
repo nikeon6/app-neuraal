@@ -34,6 +34,21 @@ export interface TiptapEditorHandle {
     mimeType: string;
     sizeBytes: number;
   }) => void;
+  /**
+   * Inject transcription text into YouTube nodes, keyed by src URL.
+   * This uses a ProseMirror transaction without triggering onUpdate
+   * to avoid autosave loops. Returns the updated JSON if any node was modified.
+   */
+  syncYoutubeTranscriptions: (
+    transcriptions: Map<string, string>
+  ) => Record<string, unknown> | null;
+  /**
+   * Inject vision results into image nodes, keyed by attachmentId.
+   * Like syncYoutubeTranscriptions, suppresses onUpdate to avoid loops.
+   */
+  syncImageVisionResults: (
+    visionResults: Map<string, { text: string; mode: string }>
+  ) => Record<string, unknown> | null;
 }
 
 interface TiptapEditorProps {
@@ -55,6 +70,8 @@ interface TiptapEditorProps {
   readonly onFilePaste?: (files: File[]) => void;
   /** Called when editor receives focus. */
   readonly onFocus?: () => void;
+  /** Entry ID — passed to ImageAttachment extension for OCR feature. */
+  readonly entryId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +95,7 @@ export function TiptapEditor({
   onImagePaste,
   onFilePaste,
   onFocus,
+  entryId,
 }: TiptapEditorProps) {
   // Track whether we should skip the next onUpdate (to avoid loops when setting content)
   const skipUpdateRef = useRef(false);
@@ -177,6 +195,20 @@ export function TiptapEditor({
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Pass entryId to extension storage (used by OCR and transcription features)
+  useEffect(() => {
+    if (editor && entryId) {
+      // ImageAttachment extension storage (OCR feature)
+      if (editor.storage.image) {
+        editor.storage.image.entryId = entryId;
+      }
+      // YoutubeEmbed extension storage (transcription feature)
+      if (editor.storage.youtube) {
+        editor.storage.youtube.entryId = entryId;
+      }
+    }
+  }, [editor, entryId]);
 
   // Update editor class when isExpanded changes
   useEffect(() => {
@@ -296,6 +328,72 @@ export function TiptapEditor({
     [editor]
   );
 
+  const syncYoutubeTranscriptions = useCallback(
+    (transcriptions: Map<string, string>): Record<string, unknown> | null => {
+      if (!editor || editor.isDestroyed || transcriptions.size === 0) return null;
+
+      const { tr } = editor.state;
+      let modified = false;
+
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "youtube" && node.attrs.src) {
+          const serverText = transcriptions.get(node.attrs.src as string);
+          if (serverText && !node.attrs.transcription) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              transcription: serverText,
+            });
+            modified = true;
+          }
+        }
+      });
+
+      if (!modified) return null;
+
+      // Suppress onUpdate callback to avoid autosave loop
+      skipUpdateRef.current = true;
+      editor.view.dispatch(tr);
+      skipUpdateRef.current = false;
+
+      return editor.getJSON() as Record<string, unknown>;
+    },
+    [editor]
+  );
+
+  const syncImageVisionResults = useCallback(
+    (
+      visionResults: Map<string, { text: string; mode: string }>
+    ): Record<string, unknown> | null => {
+      if (!editor || editor.isDestroyed || visionResults.size === 0) return null;
+
+      const { tr } = editor.state;
+      let modified = false;
+
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "image" && node.attrs.attachmentId) {
+          const entry = visionResults.get(node.attrs.attachmentId as string);
+          if (entry && !node.attrs.visionResult) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              visionResult: entry.text,
+              visionMode: entry.mode,
+            });
+            modified = true;
+          }
+        }
+      });
+
+      if (!modified) return null;
+
+      skipUpdateRef.current = true;
+      editor.view.dispatch(tr);
+      skipUpdateRef.current = false;
+
+      return editor.getJSON() as Record<string, unknown>;
+    },
+    [editor]
+  );
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -304,8 +402,10 @@ export function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      syncYoutubeTranscriptions,
+      syncImageVisionResults,
     }),
-    [editor, insertImage, insertCodeBlock, insertYoutube, insertFileNode]
+    [editor, insertImage, insertCodeBlock, insertYoutube, insertFileNode, syncYoutubeTranscriptions, syncImageVisionResults]
   );
 
   return (

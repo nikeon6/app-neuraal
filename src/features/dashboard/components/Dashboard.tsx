@@ -4,7 +4,7 @@ import React, { useRef, useCallback, useEffect, useState, useMemo } from "react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
 import { cn } from "@/shared/lib";
-import { useEntriesForDates, useSummaryDoneWatcher } from "@/shared/api/queries";
+import { useEntriesForDates, useSummaryDoneWatcher, useTranscriptionDoneWatcher } from "@/shared/api/queries";
 import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
@@ -12,6 +12,7 @@ import { TasksContainer } from "@/features/tasks-container";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
+import { WeeklyRecap } from "@/features/weekly-recap";
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
@@ -75,6 +76,7 @@ export function Dashboard() {
   // Watch for SUMMARY_DONE notifications and auto-refresh entries
   const currentDateKey = useStore(selectDateKey);
   useSummaryDoneWatcher(currentDateKey);
+  useTranscriptionDoneWatcher(currentDateKey);
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -179,7 +181,7 @@ export function Dashboard() {
       case "daily":
         return <TasksContainer />;
       case "weeklyRecap":
-        return <SectionPlaceholder title="Weekly Recap" />;
+        return <WeeklyRecap />;
       case "stickies":
         return <SectionPlaceholder title="Stickies" />;
       case "topics":

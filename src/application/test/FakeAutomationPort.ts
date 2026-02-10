@@ -2,6 +2,7 @@ import {
   AutomationPort,
   ReminderPayload,
   EntrySummaryPayload,
+  EntryTranscriptionPayload,
   AutomationResult,
 } from "../ports/AutomationPort";
 
@@ -11,6 +12,7 @@ import {
 export class FakeAutomationPort implements AutomationPort {
   private sentReminderPayloads: ReminderPayload[] = [];
   private sentSummaryPayloads: EntrySummaryPayload[] = [];
+  private sentTranscriptionPayloads: EntryTranscriptionPayload[] = [];
   private shouldSucceed: boolean = true;
   private statusCode: number = 200;
   private errorMessage: string = "Automation error";
@@ -33,6 +35,22 @@ export class FakeAutomationPort implements AutomationPort {
     payload: EntrySummaryPayload
   ): Promise<AutomationResult> {
     this.sentSummaryPayloads.push(payload);
+
+    if (this.shouldSucceed) {
+      return { success: true, statusCode: this.statusCode };
+    } else {
+      return {
+        success: false,
+        statusCode: this.statusCode,
+        error: this.errorMessage,
+      };
+    }
+  }
+
+  async requestEntryTranscription(
+    payload: EntryTranscriptionPayload
+  ): Promise<AutomationResult> {
+    this.sentTranscriptionPayloads.push(payload);
 
     if (this.shouldSucceed) {
       return { success: true, statusCode: this.statusCode };
@@ -76,9 +94,23 @@ export class FakeAutomationPort implements AutomationPort {
     return this.sentSummaryPayloads[this.sentSummaryPayloads.length - 1];
   }
 
+  // Transcription helpers
+  getSentTranscriptionPayloads(): EntryTranscriptionPayload[] {
+    return [...this.sentTranscriptionPayloads];
+  }
+
+  getLastSentTranscriptionPayload():
+    | EntryTranscriptionPayload
+    | undefined {
+    return this.sentTranscriptionPayloads[
+      this.sentTranscriptionPayloads.length - 1
+    ];
+  }
+
   clear(): void {
     this.sentReminderPayloads = [];
     this.sentSummaryPayloads = [];
+    this.sentTranscriptionPayloads = [];
     this.shouldSucceed = true;
     this.statusCode = 200;
   }

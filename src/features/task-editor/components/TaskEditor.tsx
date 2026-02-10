@@ -19,13 +19,15 @@ import {
   Circle,
   ListTodo,
   StickyNote,
+  X,
 } from "lucide-react";
+import Markdown from "react-markdown";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery, entriesQueryKey, attachmentsQueryKey } from "@/shared/api/queries";
-import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
+import { updateEntryAndInvalidate, deleteEntryAndInvalidate, summarizeEntryAndInvalidate, clearSummaryAndInvalidate, createReminderAndInvalidate, updateReminderAndInvalidate } from "@/shared/api/mutations";
 import * as entriesSdk from "@/shared/api/sdk/entries";
 import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
@@ -140,8 +142,8 @@ function TopicDropdown({
         className="flex items-center gap-1.5 @[380px]:gap-2 px-2 @[420px]:px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 hover:text-white transition-all min-w-0 max-w-[100px] @[380px]:max-w-[120px] @[420px]:max-w-[180px]"
       >
         <div
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: currentTopicDisplay.color }}
+          className="w-3 h-3 rounded-full flex-shrink-0 topic-dot"
+          style={{ "--dot-color": currentTopicDisplay.color } as React.CSSProperties}
         />
         <span className="flex-1 min-w-0 truncate">{currentTopicDisplay.name}</span>
         {selectedTopicId === AUTO_TOPIC && <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />}
@@ -183,7 +185,7 @@ function TopicDropdown({
                   )}
                   onClick={() => onSelect(AUTO_TOPIC)}
                 >
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8b5cf6" }} />
+                  <div className="w-3 h-3 rounded-full topic-dot" style={{ "--dot-color": "#8b5cf6" } as React.CSSProperties} />
                   <span>Auto</span>
                   <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
                 </button>
@@ -220,7 +222,7 @@ function TopicDropdown({
                     )}
                     onClick={() => onSelect(t.id)}
                   >
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
+                    <div className="w-3 h-3 rounded-full topic-dot" style={{ "--dot-color": t.color } as React.CSSProperties} />
                     <span>{t.name}</span>
                   </button>
                 ))}
@@ -301,6 +303,49 @@ export function TaskEditor({
   // Track the current entry version for optimistic concurrency
   const versionRef = useRef<number>(entry.version);
   useEffect(() => { versionRef.current = entry.version; }, [entry.version]);
+
+  // ---------------------------------------------------------------------------
+  // Sync server-injected data (transcription, vision) → Tiptap editor
+  // When server-side code injects results into entry.content JSON, we need
+  // to push them into the live Tiptap editor without a full page reload.
+  // Unlike summary (separate field), these live inside the content JSON.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!entry.content || typeof entry.content !== "object") return;
+
+    const serverContent = entry.content as Record<string, unknown>;
+    let latestJson: Record<string, unknown> | null = null;
+
+    // 1. Sync YouTube transcriptions
+    const serverTranscriptions = new Map<string, string>();
+    collectYoutubeTranscriptions(serverContent, serverTranscriptions);
+
+    if (serverTranscriptions.size > 0) {
+      const updated = tiptapRef.current?.syncYoutubeTranscriptions(serverTranscriptions);
+      if (updated) {
+        latestJson = updated;
+        console.info("[TaskEditor] Transcription synced from server to editor");
+      }
+    }
+
+    // 2. Sync image vision results (OCR / describe)
+    const serverVision = new Map<string, { text: string; mode: string }>();
+    collectImageVisionResults(serverContent, serverVision);
+
+    if (serverVision.size > 0) {
+      const updated = tiptapRef.current?.syncImageVisionResults(serverVision);
+      if (updated) {
+        latestJson = updated;
+        console.info("[TaskEditor] Vision results synced from server to editor");
+      }
+    }
+
+    // Update local state if anything changed
+    if (latestJson) {
+      setContentJson(latestJson);
+      draftRef.current.contentJson = latestJson;
+    }
+  }, [entry.content]);
 
   // UI state
   const [uiState, setUIState] = useState<TaskEditorUIState>({
@@ -519,6 +564,14 @@ export function TaskEditor({
       }
     }
   }, [isSummarizing, queryClient, entry.id, dateKey, onClose]);
+
+  const handleClearSummary = useCallback(async () => {
+    try {
+      await clearSummaryAndInvalidate(queryClient, entry.id, dateKey);
+    } catch (error) {
+      console.error("[TaskEditor] Failed to clear summary:", error);
+    }
+  }, [queryClient, entry.id, dateKey]);
 
   // ---------------------------------------------------------------------------
   // Reminders (create / reschedule / cancel)
@@ -922,14 +975,14 @@ export function TaskEditor({
             {/* Summarize Button */}
             <button
               type="button"
-              aria-label={isSummarizing ? "Summary in progress" : "Summarize with AI"}
+              aria-label={isSummarizing ? "Summary in progress" : "Summarize with Neuraal"}
               className={cn(
                 "p-1.5 @[380px]:p-2 rounded-lg transition-all flex-shrink-0",
                 isSummarizing
                   ? "bg-sky-500/15 text-sky-400 cursor-wait"
                   : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
               )}
-              title={isSummarizing ? "Summary in progress..." : "Summarize with AI"}
+              title={isSummarizing ? "Summary in progress..." : "Summarize with Neuraal"}
               onClick={handleSummarize}
               disabled={isSummarizing}
             >
@@ -956,6 +1009,7 @@ export function TaskEditor({
           editorRef={tiptapRef}
           onImagePaste={uploadImages}
           onFilePaste={handleFilePaste}
+          entryId={entry.id}
         />
       </div>
 
@@ -969,16 +1023,29 @@ export function TaskEditor({
             transition={{ duration: 0.25 }}
             className="mt-3"
           >
-            <div className="bg-sky-500/[0.07] border border-sky-500/15 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Brain className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-semibold text-sky-400 uppercase tracking-wide">
-                  AI Summary
-                </span>
+            <div className="bg-sky-500/[0.07] border border-sky-500/15 rounded-xl p-4 relative group/summary">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-semibold text-sky-400 uppercase tracking-wide">
+                    Neuraal Summary
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Remove summary"
+                  title="Remove summary"
+                  className="p-1 rounded-md text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover/summary:opacity-100"
+                  onClick={handleClearSummary}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <p className="text-sm text-white/75 leading-relaxed whitespace-pre-wrap">
-                {entry.summary}
-              </p>
+              {/* Markdown content */}
+              <div className="summary-markdown text-sm text-white/75 leading-relaxed">
+                <Markdown>{entry.summary}</Markdown>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1115,4 +1182,62 @@ export function TaskEditor({
       />
     </motion.div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively traverse a Tiptap/ProseMirror JSON doc and collect
+ * `src → transcription` pairs from YouTube nodes that have a transcription.
+ */
+function collectYoutubeTranscriptions(
+  node: Record<string, unknown>,
+  map: Map<string, string>
+): void {
+  if (node.type === "youtube" && node.attrs) {
+    const attrs = node.attrs as Record<string, unknown>;
+    if (typeof attrs.src === "string" && typeof attrs.transcription === "string" && attrs.transcription) {
+      map.set(attrs.src, attrs.transcription);
+    }
+  }
+
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) {
+      collectYoutubeTranscriptions(child as Record<string, unknown>, map);
+    }
+  }
+}
+
+/**
+ * Recursively traverse a Tiptap/ProseMirror JSON doc and collect
+ * `attachmentId → { text, mode }` pairs from image nodes that have
+ * a persisted vision result (OCR / describe).
+ */
+function collectImageVisionResults(
+  node: Record<string, unknown>,
+  map: Map<string, { text: string; mode: string }>
+): void {
+  if (node.type === "image" && node.attrs) {
+    const attrs = node.attrs as Record<string, unknown>;
+    if (
+      typeof attrs.attachmentId === "string" &&
+      typeof attrs.visionResult === "string" &&
+      attrs.visionResult
+    ) {
+      map.set(attrs.attachmentId, {
+        text: attrs.visionResult,
+        mode: (attrs.visionMode as string) || "scan",
+      });
+    }
+  }
+
+  const content = node.content;
+  if (Array.isArray(content)) {
+    for (const child of content) {
+      collectImageVisionResults(child as Record<string, unknown>, map);
+    }
+  }
 }

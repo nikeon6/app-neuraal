@@ -3,6 +3,7 @@ import {
   AutomationPort,
   ReminderPayload,
   EntrySummaryPayload,
+  EntryTranscriptionPayload,
   AutomationResult,
 } from "../../application/ports/AutomationPort";
 
@@ -12,6 +13,7 @@ import {
 export interface N8NClientConfig {
   reminderWebhookUrl: string;
   summaryWebhookUrl: string;
+  transcriptionWebhookUrl: string;
   webhookSecret: string;
   basicAuthUser?: string;
   basicAuthPassword?: string;
@@ -33,6 +35,10 @@ export class N8NClient implements AutomationPort {
       summaryWebhookUrl:
         config?.summaryWebhookUrl ??
         process.env.N8N_SUMMARY_WEBHOOK_URL ??
+        "",
+      transcriptionWebhookUrl:
+        config?.transcriptionWebhookUrl ??
+        process.env.N8N_TRANSCRIPTION_WEBHOOK_URL ??
         "",
       webhookSecret:
         config?.webhookSecret ?? process.env.N8N_WEBHOOK_SECRET ?? "",
@@ -58,6 +64,19 @@ export class N8NClient implements AutomationPort {
     }
 
     return this.sendRequest(this.config.summaryWebhookUrl, payload);
+  }
+
+  async requestEntryTranscription(
+    payload: EntryTranscriptionPayload
+  ): Promise<AutomationResult> {
+    if (!this.config.transcriptionWebhookUrl) {
+      return {
+        success: false,
+        error: "N8N transcription webhook URL not configured",
+      };
+    }
+
+    return this.sendRequest(this.config.transcriptionWebhookUrl, payload);
   }
 
   /**

@@ -73,4 +73,18 @@ export class S3ObjectStorage implements ObjectStoragePort {
 
     await this.client.send(command);
   }
+
+  async getObjectBuffer(storageKey: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: storageKey,
+    });
+
+    const response = await this.client.send(command);
+    if (!response.Body) {
+      throw new Error(`Object not found or empty: ${storageKey}`);
+    }
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
 }
