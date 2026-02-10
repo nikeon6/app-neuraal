@@ -98,7 +98,29 @@ export class RequestTranscription {
     );
     await this.transcriptionRequestRepository.save(transcriptionRequest);
 
-    // 5. Create TRANSCRIPTION_IN_PROGRESS notification
+    // 5. Enqueue transcription job — if this fails, clean up the saved request
+    //    so it doesn't remain as a "zombie" blocking future requests.
+    try {
+      await this.queuePort.enqueueEntryTranscription({
+        requestId,
+        userId,
+        entryId,
+        youtubeUrl: youtubeUrl.trim(),
+      });
+    } catch (error: unknown) {
+      // Roll back: mark the request as failed so it won't block retries
+      const failedRequest = transcriptionRequest.markFailed();
+      await this.transcriptionRequestRepository.update(failedRequest);
+      const reason =
+        error instanceof Error ? error.message : "Unknown queue error";
+      return err(
+        validationError(
+          `Failed to enqueue transcription job (${reason}) — please try again later`
+        )
+      );
+    }
+
+    // 6. Create TRANSCRIPTION_IN_PROGRESS notification
     const notificationResult = Notification.create({
       id: notificationId,
       userId,
@@ -113,14 +135,6 @@ export class RequestTranscription {
     if (notificationResult.isOk()) {
       await this.notificationRepository.create(notificationResult.value);
     }
-
-    // 6. Enqueue transcription job
-    await this.queuePort.enqueueEntryTranscription({
-      requestId,
-      userId,
-      entryId,
-      youtubeUrl: youtubeUrl.trim(),
-    });
 
     // 7. Return IDs for 202 Accepted response
     return ok({

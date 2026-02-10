@@ -125,6 +125,17 @@ export class HandleTranscriptionCallback {
       payload.transcription.trim()
     );
 
+    if (!updatedContent) {
+      // YouTube node was removed/changed before the callback arrived — mark as failed
+      const failedRequest = request.markFailed();
+      await this.transcriptionRequestRepository.update(failedRequest);
+      return err(
+        validationError(
+          "YouTube embed not found in entry content — transcription could not be injected"
+        )
+      );
+    }
+
     await this.entryRepository.updateContent(entryId, updatedContent);
 
     // 9. Mark request as done
@@ -162,15 +173,17 @@ export class HandleTranscriptionCallback {
    *
    * Traverses the document tree recursively and sets a `transcription`
    * attribute on the first YouTube node whose `src` matches the given URL.
+   *
+   * Returns the updated document, or `null` if no matching YouTube node was found.
    */
   private injectTranscription(
     content: Record<string, unknown>,
     youtubeUrl: string,
     transcription: string
-  ): Record<string, unknown> {
+  ): Record<string, unknown> | null {
     const doc = structuredClone(content);
-    this.walkAndInject(doc, youtubeUrl, transcription);
-    return doc;
+    const injected = this.walkAndInject(doc, youtubeUrl, transcription);
+    return injected ? doc : null;
   }
 
   /** Recursively walks ProseMirror doc nodes. */
