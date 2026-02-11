@@ -49,6 +49,7 @@ export type {
   ApiReminder,
   ApiNotification,
   ApiAttachment,
+  ApiSticky,
   ApiErrorResponse,
   CreateTopicBody,
   UpdateTopicBody,
@@ -57,6 +58,8 @@ export type {
   AutoTopicBody,
   CreateReminderBody,
   UpdateReminderBody,
+  CreateStickyBody,
+  UpdateStickyBody,
 } from "./types";
 
 // Topics
@@ -104,3 +107,12 @@ export type {
   InitUploadResponse,
   InitUploadInput,
 } from "./attachments";
+
+// Stickies
+export {
+  listStickies,
+  createSticky,
+  updateSticky,
+  deleteSticky,
+  reorderStickies,
+} from "./stickies";

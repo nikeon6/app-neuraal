@@ -112,6 +112,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const isDaily = section === "daily";
   const isWeekly = section === "weeklyRecap";
+  const isStickies = section === "stickies";
   const currentLabel = SECTION_LABELS[section];
 
   // Compute the motion key for section transitions
@@ -186,6 +187,7 @@ export function DashboardHeader({
         <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
           {isDaily && <Calendar className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
           {isWeekly && <LayoutGrid className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          {isStickies && <StickyNote className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
           <span className="text-[10px] lg:text-sm font-medium tracking-wider uppercase">
             {isWeekly ? formatWeekKicker(selectedDate) : currentLabel}
           </span>

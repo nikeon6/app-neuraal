@@ -171,6 +171,26 @@ model TranscriptionRequest {
 }
 
 // ============================================================================
+// Stickies (persistent notes, not date-bound)
+// ============================================================================
+
+/// Persistent sticky note displayed in the Stickies section.
+model Sticky {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  title       String   @db.VarChar(120)
+  content     Json     @default("{}")
+  version     Int      @default(1)
+  sortOrder   Int      @default(0) @map("sort_order")
+  columnIndex Int      @default(0) @map("column_index") // 0 = left, 1 = right
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("stickies")
+}
+
+// ============================================================================
 // Future tables (placeholders for reference)
 // ============================================================================
 

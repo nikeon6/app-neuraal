@@ -21,6 +21,10 @@
       "description": "Task and note entries"
     },
     {
+      "name": "Stickies",
+      "description": "Persistent sticky notes (not date-bound)"
+    },
+    {
       "name": "Reminders",
       "description": "Scheduled reminders for entries"
     },
@@ -303,7 +307,10 @@
               "REMINDER_CANCELED",
               "SUMMARY_IN_PROGRESS",
               "SUMMARY_DONE",
-              "SUMMARY_FAILED"
+              "SUMMARY_FAILED",
+              "TRANSCRIPTION_IN_PROGRESS",
+              "TRANSCRIPTION_DONE",
+              "TRANSCRIPTION_FAILED"
             ]
           },
           "title": {
@@ -390,6 +397,62 @@
               "ready",
               "deleted"
             ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Sticky": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "title",
+          "content",
+          "version",
+          "sortOrder",
+          "columnIndex",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "TipTap/ProseMirror JSON content"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columnIndex": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "0 = left column, 1 = right column"
           },
           "createdAt": {
             "type": "string",
@@ -1797,6 +1860,271 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/stickies": {
+      "get": {
+        "tags": [
+          "Stickies"
+        ],
+        "summary": "List user stickies",
+        "operationId": "listStickies",
+        "responses": {
+          "200": {
+            "description": "List of stickies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "stickies"
+                  ],
+                  "properties": {
+                    "stickies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Sticky"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Stickies"
+        ],
+        "summary": "Create a sticky",
+        "operationId": "createSticky",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "content"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "columnIndex": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sticky created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sticky"
+                  ],
+                  "properties": {
+                    "sticky": {
+                      "$ref": "#/components/schemas/Sticky"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/stickies/{id}": {
+      "patch": {
+        "tags": [
+          "Stickies"
+        ],
+        "summary": "Update a sticky",
+        "operationId": "updateSticky",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "version"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "columnIndex": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sticky updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sticky"
+                  ],
+                  "properties": {
+                    "sticky": {
+                      "$ref": "#/components/schemas/Sticky"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Stickies"
+        ],
+        "summary": "Delete a sticky",
+        "operationId": "deleteSticky",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sticky deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/stickies/reorder": {
+      "patch": {
+        "tags": [
+          "Stickies"
+        ],
+        "summary": "Reorder stickies",
+        "operationId": "reorderStickies",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "sortOrder",
+                        "columnIndex"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "columnIndex": {
+                          "type": "integer",
+                          "enum": [
+                            0,
+                            1
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Stickies reordered"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }

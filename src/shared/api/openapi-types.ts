@@ -338,6 +338,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stickies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List user stickies */
+        get: operations["listStickies"];
+        put?: never;
+        /** Create a sticky */
+        post: operations["createSticky"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stickies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a sticky */
+        delete: operations["deleteSticky"];
+        options?: never;
+        head?: never;
+        /** Update a sticky */
+        patch: operations["updateSticky"];
+        trace?: never;
+    };
+    "/api/stickies/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reorder stickies */
+        patch: operations["reorderStickies"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -412,7 +465,7 @@ export interface components {
             id: string;
             userId: string;
             /** @enum {string} */
-            type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED" | "SUMMARY_IN_PROGRESS" | "SUMMARY_DONE" | "SUMMARY_FAILED";
+            type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED" | "SUMMARY_IN_PROGRESS" | "SUMMARY_DONE" | "SUMMARY_FAILED" | "TRANSCRIPTION_IN_PROGRESS" | "TRANSCRIPTION_DONE" | "TRANSCRIPTION_FAILED";
             title: string;
             message: string;
             /** @enum {string} */
@@ -438,6 +491,27 @@ export interface components {
             kind: "inline" | "file";
             /** @enum {string} */
             status: "pending" | "ready" | "deleted";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        Sticky: {
+            /** Format: uuid */
+            id: string;
+            userId: string;
+            title: string;
+            /** @description TipTap/ProseMirror JSON content */
+            content: {
+                [key: string]: unknown;
+            };
+            version: number;
+            sortOrder: number;
+            /**
+             * @description 0 = left column, 1 = right column
+             * @enum {integer}
+             */
+            columnIndex: 0 | 1;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1229,6 +1303,160 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listStickies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of stickies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        stickies: components["schemas"]["Sticky"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createSticky: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title: string;
+                    content: {
+                        [key: string]: unknown;
+                    };
+                    /** @enum {integer} */
+                    columnIndex?: 0 | 1;
+                };
+            };
+        };
+        responses: {
+            /** @description Sticky created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sticky: components["schemas"]["Sticky"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteSticky: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sticky deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateSticky: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    version: number;
+                    title?: string;
+                    content?: {
+                        [key: string]: unknown;
+                    };
+                    /** @enum {integer} */
+                    columnIndex?: 0 | 1;
+                };
+            };
+        };
+        responses: {
+            /** @description Sticky updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sticky: components["schemas"]["Sticky"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    reorderStickies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    items: {
+                        /** Format: uuid */
+                        id: string;
+                        sortOrder: number;
+                        /** @enum {integer} */
+                        columnIndex: 0 | 1;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Stickies reordered */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
 }
