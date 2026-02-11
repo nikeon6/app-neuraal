@@ -110,8 +110,9 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
   // Render
   // -----------------------------------------------------------------------
 
-  // Don't render anything if there are no attachments and we're not loading
-  if (!isLoading && attachments.length === 0) return null;
+  // Don't render anything while loading or when there are no attachments.
+  // This prevents a brief flash of the panel header on entries with no attachments.
+  if (isLoading || attachments.length === 0) return null;
 
   return (
     <div className="mt-3 pt-3 border-t border-white/10">

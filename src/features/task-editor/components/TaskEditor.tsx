@@ -745,6 +745,17 @@ export function TaskEditor({
     };
   }, []);
 
+  // Close content menu on click outside its container
+  useEffect(() => {
+    if (!isContentMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (contentMenuRef.current?.contains(e.target as Node)) return;
+      setUIState((prev) => ({ ...prev, isContentMenuOpen: false }));
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isContentMenuOpen]);
+
   // Content menu items
   const contentMenuItems: ContentMenuItem[] = [
     { id: "image", label: "Image", icon: Image },
