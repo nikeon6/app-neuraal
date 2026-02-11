@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -27,8 +27,11 @@ function isValidContent(content: Record<string, unknown>): boolean {
 /**
  * Minimal Tiptap editor: text + code blocks only (no images, files, YouTube).
  * Used by StickyEditor to avoid cross-feature imports from task-editor.
+ *
+ * Wrapped in React.memo to prevent unnecessary re-renders during Framer
+ * Motion drag-reorder, which can trigger TipTap's flushSync conflict.
  */
-export function MinimalTiptapEditor({
+export const MinimalTiptapEditor = React.memo(function MinimalTiptapEditor({
   content,
   onUpdate,
   isExpanded = false,
@@ -97,4 +100,4 @@ export function MinimalTiptapEditor({
       <EditorContent editor={editor} />
     </div>
   );
-}
+})

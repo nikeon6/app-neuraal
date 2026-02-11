@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useImperativeHandle, useCallback, useRef } from "react";
+import React, { useEffect, useImperativeHandle, useCallback, useMemo, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -84,8 +84,16 @@ interface TiptapEditorProps {
  * Supports: rich text, code blocks with syntax highlighting,
  * images with attachment persistence, YouTube embeds with transcribe UI,
  * and file attachment nodes with download/delete.
+ *
+ * Wrapped in React.memo to prevent re-renders triggered by Framer Motion's
+ * MotionContext propagation during drag-reorder. Without this, Reorder.Item
+ * layout animations cause context updates that cascade through motion
+ * components, eventually re-rendering EditorContent. TipTap's
+ * ReactNodeViewRenderer then calls flushSync during React's render cycle,
+ * corrupting image NodeViews. The memo boundary ensures TiptapEditor only
+ * re-renders when its own props actually change.
  */
-export function TiptapEditor({
+export const TiptapEditor = React.memo(function TiptapEditor({
   content,
   onUpdate,
   isExpanded = false,
@@ -101,11 +109,59 @@ export function TiptapEditor({
   const skipUpdateRef = useRef(false);
   // Track current content hash to avoid setting same content
   const contentHashRef = useRef<string>("");
+  const onImagePasteRef = useRef<typeof onImagePaste>(onImagePaste);
+  const onFilePasteRef = useRef<typeof onFilePaste>(onFilePaste);
 
-  const editor = useEditor({
-    // Prevent SSR hydration mismatch — Tiptap must only render on client
-    immediatelyRender: false,
-    extensions: [
+  useEffect(() => {
+    onImagePasteRef.current = onImagePaste;
+  }, [onImagePaste]);
+
+  useEffect(() => {
+    onFilePasteRef.current = onFilePaste;
+  }, [onFilePaste]);
+
+  const handlePaste = useCallback(
+    (_view: unknown, event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return false;
+
+      const imageFiles: File[] = [];
+      const otherFiles: File[] = [];
+
+      for (const item of items) {
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          if (item.type.startsWith("image/")) {
+            imageFiles.push(file);
+          } else {
+            otherFiles.push(file);
+          }
+        }
+      }
+
+      // Handle image paste
+      if (imageFiles.length > 0 && onImagePasteRef.current) {
+        event.preventDefault();
+        onImagePasteRef.current(imageFiles);
+        return true;
+      }
+
+      // Handle non-image file paste
+      if (otherFiles.length > 0 && onFilePasteRef.current) {
+        event.preventDefault();
+        onFilePasteRef.current(otherFiles);
+        return true;
+      }
+
+      return false;
+    },
+    []
+  );
+
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         // Disable the built-in codeBlock in favour of CodeBlockLowlight
         codeBlock: false,
@@ -133,49 +189,26 @@ export function TiptapEditor({
         },
       }),
     ],
+    [placeholder]
+  );
+
+  const editorProps = useMemo(
+    () => ({
+      attributes: {
+        class: "tiptap",
+      },
+      handlePaste,
+    }),
+    [handlePaste]
+  );
+
+  const editor = useEditor({
+    // Prevent SSR hydration mismatch — Tiptap must only render on client
+    immediatelyRender: false,
+    extensions,
     content: isValidContent(content) ? content : undefined,
     editable,
-    editorProps: {
-      attributes: {
-        class: cn("tiptap", isExpanded && "is-expanded"),
-      },
-      handlePaste: (_view, event) => {
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-
-        const imageFiles: File[] = [];
-        const otherFiles: File[] = [];
-
-        for (const item of items) {
-          if (item.kind === "file") {
-            const file = item.getAsFile();
-            if (!file) continue;
-
-            if (item.type.startsWith("image/")) {
-              imageFiles.push(file);
-            } else {
-              otherFiles.push(file);
-            }
-          }
-        }
-
-        // Handle image paste
-        if (imageFiles.length > 0 && onImagePaste) {
-          event.preventDefault();
-          onImagePaste(imageFiles);
-          return true;
-        }
-
-        // Handle non-image file paste
-        if (otherFiles.length > 0 && onFilePaste) {
-          event.preventDefault();
-          onFilePaste(otherFiles);
-          return true;
-        }
-
-        return false;
-      },
-    },
+    editorProps,
     onUpdate: ({ editor: ed }) => {
       if (skipUpdateRef.current) {
         skipUpdateRef.current = false;
@@ -187,7 +220,7 @@ export function TiptapEditor({
     onFocus: () => {
       onFocus?.();
     },
-  });
+  }, [extensions, editorProps]);
 
   // Update editable when prop changes
   useEffect(() => {
@@ -195,6 +228,12 @@ export function TiptapEditor({
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Keep expanded styling in sync without recreating editor options/deps.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dom.classList.toggle("is-expanded", isExpanded);
+  }, [editor, isExpanded]);
 
   // Update placeholder when prop changes (e.g. task ↔ note toggle)
   useEffect(() => {
@@ -222,19 +261,6 @@ export function TiptapEditor({
       }
     }
   }, [editor, entryId]);
-
-  // Update editor class when isExpanded changes
-  useEffect(() => {
-    if (editor) {
-      editor.setOptions({
-        editorProps: {
-          attributes: {
-            class: cn("tiptap", isExpanded && "is-expanded"),
-          },
-        },
-      });
-    }
-  }, [editor, isExpanded]);
 
   // Sync external content changes (e.g., when entry changes from API)
   useEffect(() => {
@@ -429,7 +455,7 @@ export function TiptapEditor({
       <EditorContent editor={editor} />
     </div>
   );
-}
+})
 
 // ---------------------------------------------------------------------------
 // Helpers
