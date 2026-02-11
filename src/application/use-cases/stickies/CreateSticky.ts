@@ -4,7 +4,7 @@ import type { StickyRepository } from "../../ports/StickyRepository";
 import type { CreateStickyDTO, StickyDTO } from "../../dto/StickyDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
 import { validationError } from "../../core/UseCaseError";
-import { stickyToDTO } from "./stickyToDTO";
+import { stickyToDTO } from "../../dto/stickyToDTO";
 
 function generateId(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") {

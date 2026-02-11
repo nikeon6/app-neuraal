@@ -3,7 +3,7 @@ import type { Result } from "@/domain/core/Result";
 import type { StickyRepository } from "../../ports/StickyRepository";
 import type { StickyDTO } from "../../dto/StickyDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { stickyToDTO } from "./stickyToDTO";
+import { stickyToDTO } from "../../dto/stickyToDTO";
 
 /**
  * ListStickies use case.

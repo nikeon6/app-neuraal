@@ -3,7 +3,7 @@ import type { StickyRepository } from "../../ports/StickyRepository";
 import type { UpdateStickyDTO, StickyDTO } from "../../dto/StickyDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
 import { validationError, notFoundError, conflictError } from "../../core/UseCaseError";
-import { stickyToDTO } from "./stickyToDTO";
+import { stickyToDTO } from "../../dto/stickyToDTO";
 
 /**
  * UpdateSticky use case.

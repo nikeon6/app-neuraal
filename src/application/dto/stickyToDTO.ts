@@ -1,5 +1,5 @@
 import type { Sticky } from "@/domain/entities/Sticky";
-import type { StickyDTO } from "../../dto/StickyDTO";
+import type { StickyDTO } from "./StickyDTO";
 
 /** Converts a Sticky domain entity to a StickyDTO. */
 export function stickyToDTO(sticky: Sticky): StickyDTO {
