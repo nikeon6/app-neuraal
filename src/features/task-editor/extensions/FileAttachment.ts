@@ -75,6 +75,9 @@ export const FileAttachment = Node.create({
       const root = document.createElement("div");
       root.className = "file-attachment-node";
       root.contentEditable = "false";
+      // Stop click propagation so the TaskEditorWrapper's onClick (which
+      // auto-scrolls on height change) doesn't trigger from NodeView clicks.
+      root.addEventListener("click", (e) => e.stopPropagation());
 
       // File icon (FileText)
       const fileIcon = makeSvg(
@@ -179,6 +182,9 @@ export const FileAttachment = Node.create({
           const target = event.target as HTMLElement | null;
           if (!target) return false;
           return Boolean(target.closest("button"));
+        },
+        ignoreMutation() {
+          return true;
         },
       };
     };

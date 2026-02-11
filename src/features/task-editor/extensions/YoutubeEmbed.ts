@@ -97,6 +97,12 @@ export const YoutubeEmbed = Youtube.extend({
       root.className = "youtube-embed-wrapper";
       root.contentEditable = "false";
 
+      // Stop click propagation so clicks on buttons/panels inside this NodeView
+      // don't bubble up to the TaskEditorWrapper's onClick handler, which would
+      // detect the height change (from expanding transcription) and trigger
+      // an auto-scroll to the top of the task.
+      root.addEventListener("click", (e) => e.stopPropagation());
+
       // ---- Video container (16:9) ----
       const videoContainer = document.createElement("div");
       videoContainer.className = "youtube-embed-video";
@@ -423,6 +429,14 @@ export const YoutubeEmbed = Youtube.extend({
               target.closest(".youtube-embed-panel-toggle") ||
               target.closest(".youtube-embed-panel-retry")
           );
+        },
+        // Tell ProseMirror to ignore all DOM mutations inside this NodeView.
+        // We manage our own DOM; without this, ProseMirror's MutationObserver
+        // detects class/style changes (e.g. expand toggle), triggers a
+        // document sync, and calls scrollIntoView on the current selection,
+        // which causes the scroll container to jump.
+        ignoreMutation() {
+          return true;
         },
       };
     };

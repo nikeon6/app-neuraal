@@ -86,6 +86,9 @@ export const ImageAttachment = Image.extend({
       root.contentEditable = "false";
       root.draggable = false;
       root.addEventListener("dragstart", blockNativeDrag);
+      // Stop click propagation so the TaskEditorWrapper's onClick (which
+      // auto-scrolls on height change) doesn't trigger from NodeView clicks.
+      root.addEventListener("click", (e) => e.stopPropagation());
 
       const frame = document.createElement("div");
       frame.className = "image-attachment-frame";
@@ -401,6 +404,9 @@ export const ImageAttachment = Image.extend({
             target.closest(".image-attachment-controls") ||
               target.closest(".image-attachment-result")
           );
+        },
+        ignoreMutation() {
+          return true;
         },
         destroy() {
           unsubQueue();
