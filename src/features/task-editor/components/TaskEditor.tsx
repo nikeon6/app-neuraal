@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
-  Palette,
   Trash2,
   Brain,
   Bell,
@@ -20,6 +19,7 @@ import {
   ListTodo,
   StickyNote,
   X,
+  ALargeSmall,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +42,8 @@ import { useImageUpload } from "../hooks/useImageUpload";
 import { useResolveAttachmentUrls } from "../hooks/useResolveAttachmentUrls";
 import { useTrackDeletedImages } from "../hooks/useTrackDeletedImages";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
+import { YoutubeUrlDialog } from "./YoutubeUrlDialog";
+import { FormatMenu } from "./FormatMenu";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
@@ -364,6 +366,9 @@ export function TaskEditor({
   // Delete confirmation state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  // Format menu state
+  const [isFormatMenuOpen, setIsFormatMenuOpen] = useState(false);
+
   const { isExpanded, isContentMenuOpen, isTopicMenuOpen, isSaving } = uiState;
 
   // DOM / timer refs
@@ -618,6 +623,15 @@ export function TaskEditor({
   }, [queryClient, entry.id, dateKey]);
 
   // ---------------------------------------------------------------------------
+  // YouTube URL dialog
+  // ---------------------------------------------------------------------------
+  const [isYoutubeDialogOpen, setIsYoutubeDialogOpen] = useState(false);
+
+  const handleYoutubeSubmit = useCallback((url: string) => {
+    tiptapRef.current?.insertYoutube(url);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Reminders (create / reschedule / cancel)
   // ---------------------------------------------------------------------------
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
@@ -762,13 +776,9 @@ export function TaskEditor({
       case "code":
         tiptapRef.current?.insertCodeBlock();
         break;
-      case "youtube": {
-        const url = globalThis.prompt("Paste YouTube URL:");
-        if (url?.trim()) {
-          tiptapRef.current?.insertYoutube(url.trim());
-        }
+      case "youtube":
+        setIsYoutubeDialogOpen(true);
         break;
-      }
       case "file": {
         fileInputRef.current?.click();
         break;
@@ -1151,14 +1161,34 @@ export function TaskEditor({
                 </AnimatePresence>
               </div>
 
-              <button
-                type="button"
-                aria-label="Format"
-                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                title="Text format"
-              >
-                <Palette className="w-5 h-5" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="Text format"
+                  aria-haspopup="true"
+                  aria-expanded={isFormatMenuOpen}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.stopPropagation(); setIsFormatMenuOpen((prev) => !prev); }}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    isFormatMenuOpen
+                      ? "bg-white/15 text-white"
+                      : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
+                  )}
+                  title="Text format"
+                >
+                  <ALargeSmall className="w-5 h-5" />
+                </button>
+
+                <AnimatePresence>
+                  {isFormatMenuOpen && tiptapRef.current?.editor && (
+                    <FormatMenu
+                      editor={tiptapRef.current.editor}
+                      onClose={() => setIsFormatMenuOpen(false)}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             <div
@@ -1223,6 +1253,13 @@ export function TaskEditor({
         onCancel={handleCancelReminder}
         hasActiveReminder={!!activeReminderId}
         isSaving={isReminderSaving}
+      />
+
+      {/* YouTube URL dialog */}
+      <YoutubeUrlDialog
+        isOpen={isYoutubeDialogOpen}
+        onClose={() => setIsYoutubeDialogOpen(false)}
+        onSubmit={handleYoutubeSubmit}
       />
     </motion.div>
   );
