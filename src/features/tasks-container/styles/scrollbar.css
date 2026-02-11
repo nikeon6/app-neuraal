@@ -25,6 +25,7 @@
 .tasks-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  overflow-anchor: none; /* Prevent browser scroll anchoring from jumping during layout changes */
 }
 
 /* Scroll-to-entry highlight animation */

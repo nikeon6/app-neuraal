@@ -167,9 +167,17 @@ export function ImageAttachmentComponent({
   };
 
   return (
-    <NodeViewWrapper className="image-attachment-wrapper">
+    <NodeViewWrapper
+      className="image-attachment-wrapper"
+      onDragStart={(e: React.DragEvent) => {
+        // Prevent native/ProseMirror drag interactions from image node views while
+        // the parent Task card is being reordered with Framer Motion.
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
       <div
-        className={`relative group inline-block max-w-full ${selected ? "ring-2 ring-primary/50 rounded-lg" : ""}`}
+        className={`relative inline-block max-w-full ${selected ? "ring-2 ring-primary/50 rounded-lg" : ""}`}
       >
         {/* The image */}
         <img
@@ -177,6 +185,10 @@ export function ImageAttachmentComponent({
           alt={(alt as string) || ""}
           className={`max-w-full h-auto rounded-lg ${uploading ? "opacity-50" : ""}`}
           draggable={false}
+          onDragStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         />
 
         {/* Upload overlay */}
@@ -200,61 +212,62 @@ export function ImageAttachmentComponent({
           </div>
         )}
 
-        {/* Action buttons — visible on hover */}
-        {!uploading && (
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            {hasAttachment && (
-              <>
-                {/* Scan text (OCR) button */}
-                <button
-                  type="button"
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md backdrop-blur-sm text-xs font-medium transition-all ${getScanButtonClass()}`}
-                  title="Extract text from image (OCR)"
-                  disabled={isProcessing}
-                  onMouseDown={(e) => handleVision(e, "scan")}
-                >
-                  {isProcessing && activeMode === "scan" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ScanSearch className="w-3.5 h-3.5" />
-                  )}
-                  <span>Scan</span>
-                </button>
-
-                {/* Describe button */}
-                <button
-                  type="button"
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md backdrop-blur-sm text-xs font-medium transition-all ${getDescribeButtonClass()}`}
-                  title="Describe image with AI"
-                  disabled={isProcessing}
-                  onMouseDown={(e) => handleVision(e, "describe")}
-                >
-                  {isProcessing && activeMode === "describe" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Eye className="w-3.5 h-3.5" />
-                  )}
-                  <span>Describe</span>
-                </button>
-              </>
-            )}
-
-            {/* Delete button */}
-            <button
-              type="button"
-              className="p-1.5 rounded-md bg-black/50 backdrop-blur-sm text-white/70 hover:text-red-400 hover:bg-black/70 transition-all"
-              title="Remove image"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                deleteNode();
-              }}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Action buttons below image (avoid overlay interactions while dragging cards) */}
+      {!uploading && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {hasAttachment && (
+            <>
+              {/* Scan text (OCR) button */}
+              <button
+                type="button"
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md backdrop-blur-sm text-xs font-medium transition-all ${getScanButtonClass()}`}
+                title="Extract text from image (OCR)"
+                disabled={isProcessing}
+                onMouseDown={(e) => handleVision(e, "scan")}
+              >
+                {isProcessing && activeMode === "scan" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ScanSearch className="w-3.5 h-3.5" />
+                )}
+                <span>Scan</span>
+              </button>
+
+              {/* Describe button */}
+              <button
+                type="button"
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md backdrop-blur-sm text-xs font-medium transition-all ${getDescribeButtonClass()}`}
+                title="Describe image with AI"
+                disabled={isProcessing}
+                onMouseDown={(e) => handleVision(e, "describe")}
+              >
+                {isProcessing && activeMode === "describe" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                <span>Describe</span>
+              </button>
+            </>
+          )}
+
+          {/* Delete button */}
+          <button
+            type="button"
+            className="p-1.5 rounded-md bg-black/50 backdrop-blur-sm text-white/70 hover:text-red-400 hover:bg-black/70 transition-all"
+            title="Remove image"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              deleteNode();
+            }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Neuraal Vision Result panel */}
       {visionState === "done" && visionText && (

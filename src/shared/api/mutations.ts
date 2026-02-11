@@ -12,6 +12,7 @@ import * as topicsSdk from "./sdk/topics";
 import * as entriesSdk from "./sdk/entries";
 import * as remindersSdk from "./sdk/reminders";
 import * as attachmentsSdk from "./sdk/attachments";
+import * as stickiesSdk from "./sdk/stickies";
 import type {
   CreateTopicBody,
   UpdateTopicBody,
@@ -19,11 +20,14 @@ import type {
   UpdateEntryBody,
   CreateReminderBody,
   UpdateReminderBody,
+  CreateStickyBody,
+  UpdateStickyBody,
 } from "./sdk/types";
 import { topicsQueryKey } from "./queries/topics";
 import { entriesQueryKey } from "./queries/entries";
 import { notificationsQueryKey } from "./queries/notifications";
 import { attachmentsQueryKey } from "./queries/attachments";
+import { stickiesQueryKey } from "./queries/stickies";
 
 // ---- Topics ----
 
@@ -151,6 +155,43 @@ export async function updateReminderAndInvalidate(
   const reminder = await remindersSdk.updateReminder(id, patch);
   await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
   return reminder;
+}
+
+// ---- Stickies ----
+
+export async function createStickyAndInvalidate(
+  queryClient: QueryClient,
+  input: CreateStickyBody
+) {
+  const sticky = await stickiesSdk.createSticky(input);
+  await queryClient.invalidateQueries({ queryKey: stickiesQueryKey });
+  return sticky;
+}
+
+export async function updateStickyAndInvalidate(
+  queryClient: QueryClient,
+  id: string,
+  patch: UpdateStickyBody
+) {
+  const sticky = await stickiesSdk.updateSticky(id, patch);
+  await queryClient.invalidateQueries({ queryKey: stickiesQueryKey });
+  return sticky;
+}
+
+export async function deleteStickyAndInvalidate(
+  queryClient: QueryClient,
+  id: string
+) {
+  await stickiesSdk.deleteSticky(id);
+  await queryClient.invalidateQueries({ queryKey: stickiesQueryKey });
+}
+
+export async function reorderStickiesAndInvalidate(
+  queryClient: QueryClient,
+  items: { id: string; sortOrder: number; columnIndex: number }[]
+) {
+  await stickiesSdk.reorderStickies(items);
+  await queryClient.invalidateQueries({ queryKey: stickiesQueryKey });
 }
 
 // ---- Attachments ----

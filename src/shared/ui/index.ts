@@ -11,6 +11,9 @@
 export { ConfirmDialog } from "./ConfirmDialog";
 export type { ConfirmDialogProps } from "./ConfirmDialog";
 
+// Editors
+export { MinimalTiptapEditor } from "./MinimalTiptapEditor";
+
 // Export components as they are added
 // export { Button } from "./Button";
 // export { Modal } from "./Modal";

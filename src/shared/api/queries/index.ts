@@ -18,3 +18,4 @@ export {
   getUnreadCount,
 } from "./notifications";
 export { useEntryAttachmentsQuery, attachmentsQueryKey } from "./attachments";
+export { useStickiesQuery, stickiesQueryKey } from "./stickies";

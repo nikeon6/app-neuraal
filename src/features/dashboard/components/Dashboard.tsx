@@ -9,6 +9,7 @@ import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
+import { StickiesContainer } from "@/features/stickies";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
@@ -175,6 +176,9 @@ export function Dashboard() {
     [selectedTopicIds, expandedDayKeys, clearSelection]
   );
 
+  // When stickies section: hide topics lane and use 2-col layout (content + calendar)
+  const showTopicsLane = dashboardSection !== "stickies";
+
   // Render content based on active section
   const renderContent = () => {
     switch (dashboardSection) {
@@ -183,7 +187,7 @@ export function Dashboard() {
       case "weeklyRecap":
         return <WeeklyRecap />;
       case "stickies":
-        return <SectionPlaceholder title="Stickies" />;
+        return <StickiesContainer />;
       case "topics":
         return <TopicsSection />;
       case "settings":
@@ -201,11 +205,13 @@ export function Dashboard() {
         "w-full relative overflow-hidden",
         isLandscapeMobile
           ? "grid grid-cols-[1fr_clamp(180px,25vw,300px)_48px]"
-          : "flex flex-col lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px] xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
+          : showTopicsLane
+            ? "flex flex-col lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px] xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
+            : "flex flex-col lg:grid lg:grid-cols-[1fr_180px] xl:grid-cols-[1fr_200px]"
       )}
     >
-      {/* Floating topics visualization - covers entire area (hidden when keyboard open on mobile) */}
-      {!(isKeyboardOpen && !isLandscapeMobile) && (
+      {/* Floating topics visualization - only when not on stickies section */}
+      {showTopicsLane && !(isKeyboardOpen && !isLandscapeMobile) && (
         <FloatingTopics
           containerRef={containerRef}
           laneRef={laneRef}
@@ -235,19 +241,21 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Column 2: Bubbles lane (hidden when keyboard open on mobile) */}
-      <div
-        ref={laneRef}
-        className={cn(
-          "relative min-w-0 flex-shrink-0",
-          (isKeyboardOpen && !isLandscapeMobile) && "hidden",
-          isLandscapeMobile
-            ? ""
-            : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto"
-        )}
-        aria-hidden="true"
-        onClick={handleLaneClick}
-      />
+      {/* Column 2: Bubbles lane (not rendered when stickies section) */}
+      {showTopicsLane && (
+        <div
+          ref={laneRef}
+          className={cn(
+            "relative min-w-0 flex-shrink-0",
+            (isKeyboardOpen && !isLandscapeMobile) && "hidden",
+            isLandscapeMobile
+              ? ""
+              : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto"
+          )}
+          aria-hidden="true"
+          onClick={handleLaneClick}
+        />
+      )}
 
       {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}
       <aside className={cn(
