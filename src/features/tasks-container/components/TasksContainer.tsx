@@ -417,6 +417,7 @@ export function TasksContainer() {
       data-testid="tasks-container"
       role="list"
       className="flex flex-col h-full w-full"
+      style={{ overflowX: "clip" }}
     >
       {/* Scrollable Entry List with Reorder */}
       <Reorder.Group
@@ -425,7 +426,7 @@ export function TasksContainer() {
         values={orderedIds}
         onReorder={setOrderedIds}
         data-testid="tasks-scroll-container"
-        className="flex-1 overflow-y-auto space-y-2 lg:space-y-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar"
+        className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 lg:space-y-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar"
         layoutScroll
       >
         {orderedIds.map((entryId) => {
