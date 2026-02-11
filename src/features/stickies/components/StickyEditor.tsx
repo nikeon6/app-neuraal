@@ -36,17 +36,25 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
   const lastSavedHashRef = useRef<string>("");
   const versionRef = useRef<number>(sticky.version);
 
+  // Keep refs in sync with latest state so runSave always reads current values
+  // (avoids stale closure where the debounced save sends the pre-update state).
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  const contentRef = useRef(contentJson);
+  contentRef.current = contentJson;
+
   useEffect(() => {
     versionRef.current = sticky.version;
   }, [sticky.version]);
 
   const runSave = useCallback(async () => {
-    const contentToSave =
-      Object.keys(contentJson).length > 0 ? contentJson : {};
+    const latestTitle = titleRef.current.trim();
+    const latestContent =
+      Object.keys(contentRef.current).length > 0 ? contentRef.current : {};
     const payload = {
       version: versionRef.current,
-      title: title.trim() || sticky.title,
-      content: contentToSave,
+      title: latestTitle, // Allow empty titles — user may intentionally clear it
+      content: latestContent,
     };
     const hash = `${payload.title}|${JSON.stringify(payload.content)}`;
     if (hash === lastSavedHashRef.current) return;
@@ -62,9 +70,12 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
         lastSavedHashRef.current = hash;
       }
     } catch {
-      // Error handled by mutation / invalidate
+      // On failure (e.g. 409 version conflict), invalidate queries so the
+      // component re-syncs with the latest server state. This resets
+      // versionRef via the sticky.version effect and lets future saves succeed.
+      await queryClient.invalidateQueries({ queryKey: ["stickies"] });
     }
-  }, [sticky.id, sticky.title, title, contentJson, queryClient]);
+  }, [sticky.id, queryClient]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
