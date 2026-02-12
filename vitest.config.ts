@@ -8,6 +8,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    maxWorkers: 2,
+    minWorkers: 1,
     include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     exclude: [
       "**/node_modules/**",
@@ -15,6 +17,7 @@ export default defineConfig({
       "**/cypress/**",
       "**/.{idea,git,cache,output,temp}/**",
       "**/proyectos-base-ejemplo-mvps/**",
+      "**/tests/e2e/**",
     ],
     coverage: {
       provider: "v8",

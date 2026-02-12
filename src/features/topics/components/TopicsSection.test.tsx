@@ -174,8 +174,11 @@ describe("TopicsSection", () => {
       const nameInput = screen.getByRole("textbox", { name: /name|nombre/i });
       await user.type(nameInput, "Finanzas");
 
-      const colorOption = screen.getAllByTestId(/color-option/)[0];
-      await user.click(colorOption);
+      // Pick the first AVAILABLE color (not already in use by mock topics)
+      const availableColor = screen
+        .getAllByTestId(/color-option/)
+        .find((el) => el.getAttribute("aria-disabled") !== "true")!;
+      await user.click(availableColor);
 
       await user.click(screen.getByRole("button", { name: /create|save|guardar|crear/i }));
 
@@ -277,8 +280,11 @@ describe("TopicsSection", () => {
       await user.click(screen.getByRole("button", { name: /add topic/i }));
       await user.type(screen.getByRole("textbox", { name: /name|nombre/i }), "Finanzas");
 
-      const colorOption = screen.getAllByTestId(/color-option/)[0];
-      await user.click(colorOption);
+      // Pick the first AVAILABLE color (not disabled)
+      const availableColor = screen
+        .getAllByTestId(/color-option/)
+        .find((el) => el.getAttribute("aria-disabled") !== "true")!;
+      await user.click(availableColor);
 
       const createButton = screen.getByRole("button", { name: /create|save|guardar|crear/i });
       expect(createButton).not.toBeDisabled();
@@ -508,10 +514,13 @@ describe("TopicsSection", () => {
 
       await user.click(screen.getByRole("button", { name: /add topic/i }));
 
-      const colorOptions = screen.getAllByTestId(/color-option/);
-      await user.click(colorOptions[0]);
+      // Pick the first AVAILABLE color (not already in use)
+      const availableColor = screen
+        .getAllByTestId(/color-option/)
+        .find((el) => el.getAttribute("aria-disabled") !== "true")!;
+      await user.click(availableColor);
 
-      expect(colorOptions[0]).toHaveAttribute("aria-checked", "true");
+      expect(availableColor).toHaveAttribute("aria-checked", "true");
     });
 
     it("should require color selection before enabling Create button", async () => {

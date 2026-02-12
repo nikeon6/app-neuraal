@@ -5,6 +5,8 @@ import { ProcessReminderJob } from "../../application/use-cases/reminders/Proces
 import { PrismaReminderRepository } from "../persistence/PrismaReminderRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
+import { logger, withJobContext } from "../logging/logger";
+import { initSentryForWorker, captureWorkerException } from "../logging/sentryCapture";
 
 /**
  * Job data structure for reminder jobs.
@@ -14,11 +16,14 @@ interface ReminderJobData {
   originalScheduledAt: string;
 }
 
+const QUEUE_NAME = "reminders";
+
 /**
  * Creates and starts the reminder worker.
  */
 async function startWorker() {
-  console.log("Starting reminder worker...");
+  initSentryForWorker();
+  logger.info({ queue: QUEUE_NAME }, "worker.starting");
 
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
   const connection = new IORedis(redisUrl, {
@@ -37,28 +42,37 @@ async function startWorker() {
 
   // Create worker
   const worker = new Worker<ReminderJobData>(
-    "reminders",
+    QUEUE_NAME,
     async (job: Job<ReminderJobData>) => {
-      console.log(`Processing job ${job.id} for reminder ${job.data.reminderId}`);
+      const log = withJobContext({
+        jobId: job.id ?? "unknown",
+        queue: QUEUE_NAME,
+        action: "REMINDER",
+      });
+      const start = performance.now();
+
+      log.info({ reminderId: job.data.reminderId }, "job.start");
 
       const result = await processReminderJob.execute({
         reminderId: job.data.reminderId,
         originalScheduledAt: job.data.originalScheduledAt,
       });
 
+      const durationMs = Math.round(performance.now() - start);
+
       if (result.isErr()) {
-        console.error(`Job ${job.id} error:`, result.error);
+        log.error({ err: result.error, durationMs }, "job.use_case_error");
         throw new Error(result.error.message);
       }
 
       const outcome = result.value;
-      console.log(`Job ${job.id} result:`, outcome);
 
       if (outcome.status === "failed") {
-        // Throw error to trigger retry
+        log.warn({ reason: outcome.reason, durationMs }, "job.outcome_failed");
         throw new Error(`Reminder failed: ${outcome.reason}`);
       }
 
+      log.info({ status: outcome.status, durationMs }, "job.success");
       return outcome;
     },
     {
@@ -68,21 +82,33 @@ async function startWorker() {
   );
 
   // Event handlers
-  worker.on("completed", (job, result) => {
-    console.log(`Job ${job?.id} completed:`, result);
+  worker.on("completed", (job) => {
+    logger.debug({ jobId: job?.id, queue: QUEUE_NAME }, "job.completed");
   });
 
   worker.on("failed", (job, error) => {
-    console.error(`Job ${job?.id} failed:`, error.message);
+    logger.error(
+      { jobId: job?.id, queue: QUEUE_NAME, err: error },
+      "job.failed"
+    );
+    captureWorkerException(error, {
+      queue: QUEUE_NAME,
+      jobId: job?.id,
+      action: "REMINDER",
+    });
+  });
+
+  worker.on("stalled", (jobId) => {
+    logger.warn({ jobId, queue: QUEUE_NAME }, "job.stalled");
   });
 
   worker.on("error", (error) => {
-    console.error("Worker error:", error);
+    logger.error({ queue: QUEUE_NAME, err: error }, "worker.error");
   });
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log("Shutting down worker...");
+    logger.info({ queue: QUEUE_NAME }, "worker.shutting_down");
     await worker.close();
     await connection.quit();
     process.exit(0);
@@ -91,11 +117,11 @@ async function startWorker() {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  console.log("Reminder worker started. Waiting for jobs...");
+  logger.info({ queue: QUEUE_NAME }, "worker.ready");
 }
 
 // Start the worker
 startWorker().catch((error) => {
-  console.error("Failed to start worker:", error);
+  logger.fatal({ queue: QUEUE_NAME, err: error }, "worker.start_failed");
   process.exit(1);
 });

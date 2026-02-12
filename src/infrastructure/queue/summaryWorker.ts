@@ -6,6 +6,8 @@ import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
 import { PrismaSummaryRequestRepository } from "../persistence/PrismaSummaryRequestRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
+import { logger, withJobContext } from "../logging/logger";
+import { initSentryForWorker, captureWorkerException } from "../logging/sentryCapture";
 
 /**
  * Job data structure for summary jobs.
@@ -17,11 +19,14 @@ interface SummaryJobData {
   plainTextForSummary?: string;
 }
 
+const QUEUE_NAME = "summaries";
+
 /**
  * Creates and starts the summary worker.
  */
 async function startWorker() {
-  console.log("Starting summary worker...");
+  initSentryForWorker();
+  logger.info({ queue: QUEUE_NAME }, "worker.starting");
 
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
   const connection = new IORedis(redisUrl, {
@@ -48,10 +53,20 @@ async function startWorker() {
 
   // Create worker
   const worker = new Worker<SummaryJobData>(
-    "summaries",
+    QUEUE_NAME,
     async (job: Job<SummaryJobData>) => {
-      console.log(
-        `Processing job ${job.id} for summary request ${job.data.requestId}`
+      const log = withJobContext({
+        jobId: job.id ?? "unknown",
+        queue: QUEUE_NAME,
+        userId: job.data.userId,
+        action: "SUMMARY",
+        requestId: job.data.requestId,
+      });
+      const start = performance.now();
+
+      log.info(
+        { entryId: job.data.entryId, requestId: job.data.requestId },
+        "job.start"
       );
 
       const result = await processEntrySummaryJob.execute({
@@ -61,43 +76,58 @@ async function startWorker() {
         plainTextForSummary: job.data.plainTextForSummary,
       });
 
+      const durationMs = Math.round(performance.now() - start);
+
       if (result.isErr()) {
-        console.error(`Job ${job.id} error:`, result.error);
+        log.error({ err: result.error, durationMs }, "job.use_case_error");
         throw new Error(result.error.message);
       }
 
       const outcome = result.value;
-      console.log(`Job ${job.id} result:`, outcome);
 
       if (outcome.status === "failed") {
-        // Throw error to trigger retry
+        log.warn({ reason: outcome.reason, durationMs }, "job.outcome_failed");
         throw new Error(`Summary failed: ${outcome.reason}`);
       }
 
+      log.info({ status: outcome.status, durationMs }, "job.success");
       return outcome;
     },
     {
       connection,
-      concurrency: 3, // Lower concurrency for n8n calls
+      concurrency: 3,
     }
   );
 
   // Event handlers
-  worker.on("completed", (job, result) => {
-    console.log(`Job ${job?.id} completed:`, result);
+  worker.on("completed", (job) => {
+    logger.debug({ jobId: job?.id, queue: QUEUE_NAME }, "job.completed");
   });
 
   worker.on("failed", (job, error) => {
-    console.error(`Job ${job?.id} failed:`, error.message);
+    logger.error(
+      { jobId: job?.id, queue: QUEUE_NAME, err: error },
+      "job.failed"
+    );
+    captureWorkerException(error, {
+      queue: QUEUE_NAME,
+      jobId: job?.id,
+      action: "SUMMARY",
+      userId: job?.data?.userId,
+    });
+  });
+
+  worker.on("stalled", (jobId) => {
+    logger.warn({ jobId, queue: QUEUE_NAME }, "job.stalled");
   });
 
   worker.on("error", (error) => {
-    console.error("Worker error:", error);
+    logger.error({ queue: QUEUE_NAME, err: error }, "worker.error");
   });
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log("Shutting down summary worker...");
+    logger.info({ queue: QUEUE_NAME }, "worker.shutting_down");
     await worker.close();
     await connection.quit();
     process.exit(0);
@@ -106,11 +136,11 @@ async function startWorker() {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  console.log("Summary worker started. Waiting for jobs...");
+  logger.info({ queue: QUEUE_NAME }, "worker.ready");
 }
 
 // Start the worker
 startWorker().catch((error) => {
-  console.error("Failed to start summary worker:", error);
+  logger.fatal({ queue: QUEUE_NAME, err: error }, "worker.start_failed");
   process.exit(1);
 });

@@ -46,10 +46,10 @@ export class BullMQAdapter implements QueuePort {
         attempts: 5,
         backoff: {
           type: "exponential",
-          delay: 5000, // Start with 5 seconds
+          delay: 30_000, // 30s → 1m → 2m → 4m → 8m
         },
-        removeOnComplete: true,
-        removeOnFail: false,
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
       }
     );
   }
@@ -68,10 +68,10 @@ export class BullMQAdapter implements QueuePort {
         attempts: 3,
         backoff: {
           type: "exponential",
-          delay: 10000, // Start with 10 seconds
+          delay: 30_000, // 30s → 1m → 2m
         },
-        removeOnComplete: true,
-        removeOnFail: false,
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
       }
     );
   }
@@ -92,10 +92,10 @@ export class BullMQAdapter implements QueuePort {
         attempts: 3,
         backoff: {
           type: "exponential",
-          delay: 10000,
+          delay: 30_000, // 30s → 1m → 2m
         },
-        removeOnComplete: true,
-        removeOnFail: false,
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
       }
     );
   }

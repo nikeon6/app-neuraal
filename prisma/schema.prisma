@@ -96,6 +96,7 @@ model Attachment {
 
   @@index([userId])
   @@index([entryId])
+  @@index([userId, status])
   @@map("attachments")
 }
 
@@ -119,6 +120,7 @@ model Reminder {
   @@index([entryId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([userId, channel, status])
   @@map("reminders")
 }
 
@@ -138,6 +140,7 @@ model Notification {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, createdAt])
+  @@index([userId, status])
   @@map("notifications")
 }
 

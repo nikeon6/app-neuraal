@@ -151,15 +151,15 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       expect(screen.getByText("Attachments")).toBeInTheDocument();
     });
 
-    it("should show loading state (header visible while loading)", () => {
+    it("should render nothing while loading (prevents flash)", () => {
       mockAttachmentsQuery.mockReturnValue({
         data: undefined,
         isLoading: true,
       });
-      renderPanel();
-      // The loading state is inside the expandable content, but the header should render
-      // when isLoading is true (since we don't hide the component during loading)
-      expect(screen.getByText("Attachments")).toBeInTheDocument();
+      const { container } = renderPanel();
+      // The component explicitly returns null during loading to prevent
+      // a brief flash of the panel header on entries with no attachments.
+      expect(container.innerHTML).toBe("");
     });
 
     it("should display attachment count in header", () => {

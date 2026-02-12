@@ -6,6 +6,7 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
   prisma: {
     topic: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
     },
