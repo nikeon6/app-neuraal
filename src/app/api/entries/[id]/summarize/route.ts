@@ -57,13 +57,15 @@ export async function POST(
     const inputChars = title.length + plainText.length;
 
     const config = getAiGuardrailsConfig();
+    const actionConfig = config.summary;
     const guardConfig = {
-      maxActivePerUser: config.summaryMaxActivePerUser,
-      maxActivePerEntry: config.summaryMaxActivePerEntry,
-      maxInputChars: config.summaryMaxInputChars,
-      rateLimitPerMinute: config.summaryRateLimitPerMinute,
-      rateLimitPerHour: config.summaryRateLimitPerHour,
-      monthlyQuotaRequests: config.summaryMonthlyQuotaRequests,
+      maxActivePerUser: actionConfig.maxActivePerUser,
+      maxActivePerEntry: actionConfig.maxActivePerEntry,
+      maxInputChars: actionConfig.maxInputChars,
+      maxInputBytes: 0,
+      rateLimitPerMinute: actionConfig.rateLimitPerMinute,
+      rateLimitPerHour: actionConfig.rateLimitPerHour,
+      monthlyQuotaRequests: actionConfig.monthlyQuotaRequests,
       rateLimitPrefix: config.rateLimitPrefix,
     };
 

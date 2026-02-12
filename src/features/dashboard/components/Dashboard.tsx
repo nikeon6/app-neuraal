@@ -14,6 +14,8 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
 import { WeeklyRecap } from "@/features/weekly-recap";
+import { AiUsagePanel } from "@/features/settings/components/AiUsagePanel";
+import { StorageUsagePanel } from "@/features/settings/components/StorageUsagePanel";
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
@@ -39,17 +41,6 @@ import { WeeklyRecap } from "@/features/weekly-recap";
  * - overflow-hidden en root + min-h-0 en flex children evita que el contenido empuje
  */
 
-// Placeholder component for sections not yet implemented
-function SectionPlaceholder({ title }: Readonly<{ title: string }>) {
-  return (
-    <div className="h-full w-full flex items-center justify-center p-4">
-      <div className="glass-panel rounded-2xl p-8 text-center max-w-md">
-        <h2 className="text-xl font-semibold text-white mb-2">{title}</h2>
-        <p className="text-white/50 text-sm">Coming soon</p>
-      </div>
-    </div>
-  );
-}
 
 export function Dashboard() {
   const {
@@ -191,7 +182,14 @@ export function Dashboard() {
       case "topics":
         return <TopicsSection />;
       case "settings":
-        return <SectionPlaceholder title="Settings" />;
+        return (
+          <div className="h-full overflow-y-auto pr-1 scrollbar-thin">
+            <div className="max-w-xl mx-auto py-4 space-y-6">
+              <StorageUsagePanel />
+              <AiUsagePanel />
+            </div>
+          </div>
+        );
       default:
         return <TasksContainer />;
     }

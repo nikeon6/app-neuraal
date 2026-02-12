@@ -61,6 +61,14 @@ model Entry {
   summaryFormat    String?   @map("summary_format") @db.VarChar(10) // "markdown" | "plain"
   summaryUpdatedAt DateTime? @map("summary_updated_at")
 
+  // AI-generated transcript fields (YouTube)
+  transcriptText      String?   @map("transcript_text") @db.Text
+  transcriptUpdatedAt DateTime? @map("transcript_updated_at")
+
+  // AI-generated OCR fields
+  ocrText      String?   @map("ocr_text") @db.Text
+  ocrUpdatedAt DateTime? @map("ocr_updated_at")
+
   // Optional: reference to Topic (not enforced by FK yet since user model doesn't exist)
   // topic     Topic?   @relation(fields: [topicId], references: [id])
 
@@ -139,6 +147,9 @@ model Notification {
 
 enum AiActionType {
   SUMMARY
+  TRANSCRIPT_YOUTUBE
+  OCR_IMAGE
+  REMINDER_WHATSAPP
 }
 
 /// Monthly usage per user and action (for quotas and UI).
@@ -201,13 +212,17 @@ model EntrySummaryRequest {
 
 /// Tracks async YouTube transcription requests.
 model TranscriptionRequest {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  entryId    String   @map("entry_id")
-  youtubeUrl String   @map("youtube_url") @db.VarChar(2048)
-  status     String   @db.VarChar(10) // "pending" | "submitted" | "done" | "failed"
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  entryId     String    @map("entry_id")
+  youtubeUrl  String    @map("youtube_url") @db.VarChar(2048)
+  status      String    @db.VarChar(10) // "pending" | "submitted" | "done" | "failed"
+  meta        Json?     // e.g. { truncated: true, format: "vtt" }
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  submittedAt DateTime? @map("submitted_at")
+  doneAt      DateTime? @map("done_at")
+  failedAt    DateTime? @map("failed_at")
 
   @@index([userId])
   @@index([entryId])

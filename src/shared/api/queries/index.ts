@@ -19,3 +19,5 @@ export {
 } from "./notifications";
 export { useEntryAttachmentsQuery, attachmentsQueryKey } from "./attachments";
 export { useStickiesQuery, stickiesQueryKey } from "./stickies";
+export { useAiUsageOverviewQuery, aiUsageQueryKey } from "./aiUsage";
+export { useStorageUsageQuery, storageUsageQueryKey } from "./storageUsage";

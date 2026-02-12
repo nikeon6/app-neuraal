@@ -53,6 +53,12 @@ export interface EntryRepository {
   updateContent(entryId: string, content: Record<string, unknown>): Promise<void>;
 
   /**
+   * Updates the transcript text of an entry.
+   * Used by the transcription callback handler.
+   */
+  updateTranscript(entryId: string, transcriptText: string): Promise<void>;
+
+  /**
    * Updates the topicId of an entry.
    * Used by auto-topic assignment.
    */

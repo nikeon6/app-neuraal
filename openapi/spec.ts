@@ -39,6 +39,8 @@ const spec = {
     { name: "Automations", description: "Webhook callbacks (HMAC-authenticated)" },
     { name: "Embeddings", description: "Vector embeddings and auto-topic classification" },
     { name: "Attachments", description: "File attachments for entries" },
+    { name: "AI", description: "AI usage, guardrails, and action tracking" },
+    { name: "Storage", description: "User storage usage and attachment limits" },
   ],
 
   // ---------------------------------------------------------------------------
@@ -193,6 +195,31 @@ const spec = {
           status: { type: "string" as const, enum: ["pending", "ready", "deleted"] },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
+        },
+      },
+
+      // ----- AI ---------------------------------------------------------------
+      AiActionType: {
+        type: "string" as const,
+        enum: ["SUMMARY", "TRANSCRIPT_YOUTUBE", "OCR_IMAGE", "REMINDER_WHATSAPP"],
+        description: "Available AI action types for usage tracking and guardrails",
+      },
+
+      AiUsageItem: {
+        type: "object" as const,
+        required: ["action", "month", "requestsUsed", "requestsLimit", "tokensUsed", "tokensLimit", "maxActivePerUser", "rateLimitPerMinute", "maxInputChars", "maxInputBytes"],
+        description: "Usage and limits for a single AI action in a given month",
+        properties: {
+          action: { $ref: "#/components/schemas/AiActionType" },
+          month: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02" },
+          requestsUsed: { type: "integer" as const, minimum: 0 },
+          requestsLimit: { type: "integer" as const, minimum: 0 },
+          tokensUsed: { type: "integer" as const, minimum: 0 },
+          tokensLimit: { type: "integer" as const, minimum: 0 },
+          maxActivePerUser: { type: "integer" as const, minimum: 0 },
+          rateLimitPerMinute: { type: "integer" as const, minimum: 0 },
+          maxInputChars: { type: "integer" as const, minimum: 0 },
+          maxInputBytes: { type: "integer" as const, minimum: 0 },
         },
       },
     },
@@ -759,34 +786,215 @@ const spec = {
       },
     },
 
-    "/api/ai/usage": {
-      get: {
+    "/api/entries/{id}/transcribe-youtube": {
+      post: {
         tags: ["Entries"],
-        summary: "Get AI usage and limits",
-        operationId: "getAiUsage",
-        description: "Returns current usage and limits for the authenticated user (e.g. summaries per month).",
-        parameters: [
-          { name: "action", in: "query" as const, schema: { type: "string" as const, enum: ["SUMMARY"], default: "SUMMARY" }, description: "AI action type" },
-          { name: "month", in: "query" as const, schema: { type: "string" as const, pattern: "^\\d{4}-(0[1-9]|1[0-2])$", example: "2026-02" }, description: "Month key YYYY-MM (default: current)" },
-        ],
+        summary: "Request YouTube transcript for an entry (async)",
+        operationId: "requestEntryTranscript",
+        description:
+          "Enqueues an async YouTube transcription. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409). Returns 202 Accepted when queued.",
+        parameters: [{ $ref: "#/components/parameters/ResourceId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["url"],
+                properties: {
+                  url: { type: "string" as const, format: "uri", description: "YouTube video URL to transcribe" },
+                },
+              },
+            },
+          },
+        },
         responses: {
-          "200": {
-            description: "Usage and limits",
+          "202": {
+            description: "Transcript generation started",
             content: {
               "application/json": {
                 schema: {
                   type: "object" as const,
-                  required: ["action", "month", "requestsUsed", "requestsLimit", "tokensUsed", "tokensLimit", "maxActivePerUser", "rateLimitPerMinute", "maxInputChars"],
+                  required: ["requestId", "notificationId", "message"],
                   properties: {
-                    action: { type: "string" as const, example: "SUMMARY" },
-                    month: { type: "string" as const, example: "2026-02" },
-                    requestsUsed: { type: "integer" as const, minimum: 0 },
-                    requestsLimit: { type: "integer" as const, minimum: 0 },
-                    tokensUsed: { type: "integer" as const, minimum: 0 },
-                    tokensLimit: { type: "integer" as const, minimum: 0 },
-                    maxActivePerUser: { type: "integer" as const, minimum: 1 },
-                    rateLimitPerMinute: { type: "integer" as const, minimum: 1 },
-                    maxInputChars: { type: "integer" as const, minimum: 1 },
+                    requestId: { type: "string" as const, format: "uuid" },
+                    notificationId: { type: "string" as const, format: "uuid" },
+                    message: { type: "string" as const },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "QUOTA_EXCEEDED — monthly transcript limit reached",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "409": {
+            description: "CONCURRENCY_LIMIT — another transcript already in progress for this user",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "429": {
+            description: "RATE_LIMITED — too many requests per minute",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+
+    "/api/entries/{id}/ocr": {
+      post: {
+        tags: ["Entries"],
+        summary: "Extract text or describe an image attachment (OCR / vision)",
+        operationId: "extractImageText",
+        description:
+          "Analyzes an image attachment using Ollama Vision. Mode 'scan' extracts text (OCR); mode 'describe' generates a description. Synchronous call. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409).",
+        parameters: [{ $ref: "#/components/parameters/ResourceId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["attachmentId"],
+                properties: {
+                  attachmentId: { type: "string" as const, format: "uuid", description: "Attachment ID of the image to analyze" },
+                  mode: { type: "string" as const, enum: ["scan", "describe"], default: "scan", description: "Vision analysis mode (default: scan)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Image analyzed successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["attachmentId", "extractedText", "mode"],
+                  properties: {
+                    attachmentId: { type: "string" as const, format: "uuid" },
+                    extractedText: { type: "string" as const, description: "Extracted text or image description" },
+                    mode: { type: "string" as const, enum: ["scan", "describe"] },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error or INPUT_TOO_LARGE (image too large)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "QUOTA_EXCEEDED — monthly OCR limit reached",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "409": {
+            description: "CONCURRENCY_LIMIT — another OCR request already in progress",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "429": {
+            description: "RATE_LIMITED — too many OCR requests per minute",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "502": {
+            description: "Ollama Vision backend error",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+
+    "/api/ai/usage": {
+      get: {
+        tags: ["AI"],
+        summary: "Get AI usage and limits",
+        operationId: "getAiUsage",
+        description:
+          "Returns current usage and limits for the authenticated user across all AI actions, or filtered by a single action. Returns an object with `month` and `items` array.",
+        parameters: [
+          {
+            name: "action",
+            in: "query" as const,
+            required: false,
+            schema: { $ref: "#/components/schemas/AiActionType" },
+            description: "Filter by a single AI action type. Omit to get all actions.",
+          },
+          {
+            name: "month",
+            in: "query" as const,
+            required: false,
+            schema: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02" },
+            description: "Month key YYYY-MM (default: current month)",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Usage and limits for the requested month",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["month", "items"],
+                  properties: {
+                    month: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02", description: "The month the usage data applies to" },
+                    items: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/AiUsageItem" },
+                      description: "Usage and limits per AI action",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/storage/usage": {
+      get: {
+        tags: ["Storage"],
+        summary: "Get user storage usage and limits",
+        operationId: "getStorageUsage",
+        description:
+          "Returns the authenticated user's current storage usage (total bytes) and configured limits (max per user, max per entry).",
+        responses: {
+          "200": {
+            description: "Storage usage and limits",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: [
+                    "usedBytes",
+                    "maxUserStorageBytes",
+                    "maxEntryAttachmentBytes",
+                  ],
+                  properties: {
+                    usedBytes: {
+                      type: "integer" as const,
+                      description: "Total bytes currently used by the user's active attachments",
+                      example: 52428800,
+                    },
+                    maxUserStorageBytes: {
+                      type: "integer" as const,
+                      description: "Maximum total storage allowed per user (in bytes)",
+                      example: 1073741824,
+                    },
+                    maxEntryAttachmentBytes: {
+                      type: "integer" as const,
+                      description: "Maximum total attachment size allowed per entry (in bytes)",
+                      example: 20971520,
+                    },
                   },
                 },
               },
@@ -901,6 +1109,8 @@ const spec = {
         tags: ["Reminders"],
         summary: "Create a reminder",
         operationId: "createReminder",
+        description:
+          "Creates a new reminder for an entry. When channel is 'whatsapp', AI guardrails are enforced: rate limit (429), monthly quota (403), concurrency (409).",
         requestBody: {
           required: true,
           content: {
@@ -933,8 +1143,19 @@ const spec = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "QUOTA_EXCEEDED — monthly WhatsApp reminder limit reached",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
           "404": { $ref: "#/components/responses/NotFound" },
-          "409": { $ref: "#/components/responses/Conflict" },
+          "409": {
+            description: "Conflict — duplicate reminder or CONCURRENCY_LIMIT for WhatsApp channel",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "429": {
+            description: "RATE_LIMITED — too many WhatsApp reminder requests per minute",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
         },
       },
     },
@@ -1114,6 +1335,82 @@ const spec = {
           "401": { $ref: "#/components/responses/Unauthorized" },
           "404": { $ref: "#/components/responses/NotFound" },
           "500": { $ref: "#/components/responses/InternalError" },
+        },
+      },
+    },
+
+    "/api/automations/entry-transcript/callback": {
+      post: {
+        tags: ["Automations"],
+        summary: "Entry transcript callback (from n8n)",
+        operationId: "entryTranscriptCallback",
+        description:
+          "Callback endpoint for n8n to deliver YouTube transcriptions. Authenticated via HMAC signature (NOT user auth).",
+        security: [], // No default auth — uses HMAC headers
+        parameters: [
+          {
+            name: "X-Timestamp",
+            in: "header" as const,
+            required: true,
+            schema: { type: "string" as const },
+            description: "Unix timestamp in ms used for HMAC computation",
+          },
+          {
+            name: "X-Signature",
+            in: "header" as const,
+            required: true,
+            schema: { type: "string" as const },
+            description: "HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody)",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["requestId", "userId", "entryId", "transcriptText"],
+                properties: {
+                  requestId: { type: "string" as const, format: "uuid" },
+                  userId: { type: "string" as const },
+                  entryId: { type: "string" as const, format: "uuid" },
+                  transcriptText: { type: "string" as const, description: "The transcribed text from the YouTube video" },
+                  format: { type: "string" as const, enum: ["markdown", "plain"], description: "Format of the transcript text (optional)" },
+                  usage: {
+                    type: "object" as const,
+                    description: "Token usage reported by the transcription model (optional)",
+                    properties: {
+                      promptTokens: { type: "integer" as const, minimum: 0 },
+                      completionTokens: { type: "integer" as const, minimum: 0 },
+                      totalTokens: { type: "integer" as const, minimum: 0 },
+                      model: { type: "string" as const },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Transcript processed",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: {
+                    ok: { type: "boolean" as const },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": {
+            description: "Missing or invalid HMAC signature",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
         },
       },
     },

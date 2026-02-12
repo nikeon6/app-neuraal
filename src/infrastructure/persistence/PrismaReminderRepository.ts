@@ -110,4 +110,15 @@ export class PrismaReminderRepository implements ReminderRepository {
 
     return result.isOk() ? result.value : null;
   }
+
+  async countPendingWhatsappByUserId(userId: string): Promise<number> {
+    const count = await prisma.reminder.count({
+      where: {
+        userId,
+        channel: "whatsapp",
+        status: "pending",
+      },
+    });
+    return count;
+  }
 }
