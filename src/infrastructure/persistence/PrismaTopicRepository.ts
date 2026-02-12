@@ -3,6 +3,7 @@ import type {
   TopicRepository,
   TopicSimilarityMatch,
 } from "@/application/ports/TopicRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma, pool } from "./prisma";
 
 /**
@@ -108,15 +109,30 @@ export class PrismaTopicRepository implements TopicRepository {
   }
 
   async save(topic: Topic): Promise<void> {
-    await prisma.topic.create({
-      data: {
-        id: topic.id,
-        userId: topic.userId,
-        name: topic.name.toString(),
-        color: topic.color.toString(),
-        createdAt: topic.createdAt,
-      },
-    });
+    try {
+      await prisma.topic.create({
+        data: {
+          id: topic.id,
+          userId: topic.userId,
+          name: topic.name.toString(),
+          color: topic.color.toString(),
+          createdAt: topic.createdAt,
+        },
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation — convert to a readable error
+      // so the API layer can return 409 instead of 500.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const fields = (error.meta?.target as string[]) ?? [];
+        throw new Error(
+          `Duplicate topic: unique constraint violated on [${fields.join(", ")}]`
+        );
+      }
+      throw error;
+    }
   }
 
   async update(topic: Topic): Promise<void> {
