@@ -9,6 +9,10 @@ import { ConfirmDialog } from "@/shared/ui";
 import type { ApiTopic } from "@/shared/api/sdk";
 import { TopicPill } from "./TopicPill";
 import { CreateTopicDialog } from "./CreateTopicDialog";
+import { cn } from "@/shared/lib/utils";
+
+/** Maximum topics per user (mirrors backend MAX_TOPICS_PER_USER). */
+const MAX_TOPICS = 12;
 
 // ============================================================================
 // TopicsSection Component (Main Container)
@@ -50,6 +54,7 @@ export function TopicsSection() {
   }, []);
 
   const hasTopics = topics.length > 0;
+  const isAtLimit = topics.length >= MAX_TOPICS;
 
   return (
     <section
@@ -66,7 +71,7 @@ export function TopicsSection() {
             {isLoading
               ? "Loading topics..."
               : hasTopics
-                ? `${topics.length} topic${topics.length !== 1 ? "s" : ""}`
+                ? `${topics.length}/${MAX_TOPICS} topic${topics.length !== 1 ? "s" : ""}`
                 : "Organize your tasks by topic"}
           </p>
         </div>
@@ -74,10 +79,17 @@ export function TopicsSection() {
           ref={addButtonRef}
           type="button"
           onClick={handleOpenCreate}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border backdrop-blur-sm bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_12px_-3px_rgba(56,189,248,0.25)] hover:from-sky-500/30 hover:to-indigo-500/25 hover:shadow-[0_0_16px_-3px_rgba(56,189,248,0.4)] hover:border-sky-400/50"
+          disabled={isAtLimit}
+          aria-label={isAtLimit ? `Topic limit reached (${MAX_TOPICS})` : "Add topic"}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border backdrop-blur-sm",
+            isAtLimit
+              ? "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"
+              : "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_12px_-3px_rgba(56,189,248,0.25)] hover:from-sky-500/30 hover:to-indigo-500/25 hover:shadow-[0_0_16px_-3px_rgba(56,189,248,0.4)] hover:border-sky-400/50"
+          )}
         >
           <Plus className="w-3.5 h-3.5" />
-          Add topic
+          {isAtLimit ? "Limit reached" : "Add topic"}
         </button>
       </div>
 

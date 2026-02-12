@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { CreateTopic } from "./CreateTopic";
+import { CreateTopic, MAX_TOPICS_PER_USER } from "./CreateTopic";
 import { InMemoryTopicRepository } from "../../test/InMemoryTopicRepository";
 
 describe("CreateTopic", () => {
@@ -162,6 +162,64 @@ describe("CreateTopic", () => {
     }
   });
 
+  it("should reject duplicate color for same user", async () => {
+    // Create first topic with blue color
+    await createTopic.execute({
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+    });
+
+    // Try to create another topic with the same color
+    const result = await createTopic.execute({
+      userId: "user-123",
+      name: "Health",
+      color: "#3b82f6",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("DUPLICATE_ERROR");
+      expect(result.error.message).toContain("Color");
+    }
+  });
+
+  it("should reject duplicate color case-insensitively", async () => {
+    await createTopic.execute({
+      userId: "user-123",
+      name: "Work",
+      color: "#aabbcc",
+    });
+
+    const result = await createTopic.execute({
+      userId: "user-123",
+      name: "Health",
+      color: "#AABBCC",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("DUPLICATE_ERROR");
+    }
+  });
+
+  it("should allow same color for different users", async () => {
+    const result1 = await createTopic.execute({
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+    });
+
+    const result2 = await createTopic.execute({
+      userId: "user-456",
+      name: "Health",
+      color: "#3b82f6",
+    });
+
+    expect(result1.isOk()).toBe(true);
+    expect(result2.isOk()).toBe(true);
+  });
+
   it("should allow same topic name for different users", async () => {
     // Create topic for user 1
     const result1 = await createTopic.execute({
@@ -198,5 +256,61 @@ describe("CreateTopic", () => {
       expect(result.error.code).toBe("VALIDATION_ERROR");
       expect(result.error.message).toContain("userId");
     }
+  });
+
+  it(`should reject creation when user already has ${MAX_TOPICS_PER_USER} topics`, async () => {
+    // Create MAX topics
+    const colors = [
+      "#3b82f6", "#22c55e", "#f59e0b", "#ef4444",
+      "#8b5cf6", "#ec4899", "#14b8a6", "#f97316",
+      "#6366f1", "#84cc16", "#06b6d4", "#d946ef",
+    ];
+
+    for (let i = 0; i < MAX_TOPICS_PER_USER; i++) {
+      const r = await createTopic.execute({
+        userId: "user-123",
+        name: `Topic ${i + 1}`,
+        color: colors[i],
+      });
+      expect(r.isOk()).toBe(true);
+    }
+
+    // Try to create one more
+    const result = await createTopic.execute({
+      userId: "user-123",
+      name: "One Too Many",
+      color: "#000000",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("QUOTA_EXCEEDED");
+      expect(result.error.message).toContain(`${MAX_TOPICS_PER_USER}`);
+    }
+  });
+
+  it("should allow topic creation for a different user even if first user is at limit", async () => {
+    const colors = [
+      "#3b82f6", "#22c55e", "#f59e0b", "#ef4444",
+      "#8b5cf6", "#ec4899", "#14b8a6", "#f97316",
+      "#6366f1", "#84cc16", "#06b6d4", "#d946ef",
+    ];
+
+    for (let i = 0; i < MAX_TOPICS_PER_USER; i++) {
+      await createTopic.execute({
+        userId: "user-123",
+        name: `Topic ${i + 1}`,
+        color: colors[i],
+      });
+    }
+
+    // Different user should still be able to create
+    const result = await createTopic.execute({
+      userId: "user-456",
+      name: "Work",
+      color: "#3b82f6",
+    });
+
+    expect(result.isOk()).toBe(true);
   });
 });

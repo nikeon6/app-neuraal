@@ -22,6 +22,14 @@ const COLOR_OPTIONS = [
   "#ec4899", // pink
   "#14b8a6", // teal
   "#f97316", // orange
+  "#6366f1", // indigo
+  "#84cc16", // lime
+  "#06b6d4", // cyan
+  "#d946ef", // fuchsia
+  "#e11d48", // rose
+  "#0891b2", // dark cyan
+  "#a855f7", // purple
+  "#ea580c", // burnt orange
 ] as const;
 
 // ============================================================================
@@ -66,7 +74,17 @@ export function CreateTopicDialog({
     );
   }, [trimmedName, existingTopics]);
 
-  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isSubmitting;
+  // Colors already used by existing topics
+  const usedColors = useMemo(() => {
+    const colors = new Set<string>();
+    for (const t of existingTopics) {
+      colors.add(t.color.toLowerCase());
+    }
+    return colors;
+  }, [existingTopics]);
+
+  const isColorUsed = color !== null && usedColors.has(color.toLowerCase());
+  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isColorUsed && !isSubmitting;
   const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
@@ -199,25 +217,37 @@ export function CreateTopicDialog({
               role="radiogroup"
               aria-label="Select color"
             >
-              {COLOR_OPTIONS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  data-testid={`color-option-${c}`}
-                  role="radio"
-                  aria-checked={color === c}
-                  aria-label={`Select color ${c}`}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    "w-8 h-8 rounded-full transition-all",
-                    "ring-offset-2 ring-offset-slate-900",
-                    color === c
-                      ? "ring-2 ring-white scale-110"
-                      : "hover:scale-105 opacity-70 hover:opacity-100"
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+              {COLOR_OPTIONS.map((c) => {
+                const isUsed = usedColors.has(c.toLowerCase());
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    data-testid={`color-option-${c}`}
+                    role="radio"
+                    aria-checked={color === c}
+                    aria-disabled={isUsed}
+                    aria-label={isUsed ? `Color ${c} (already in use)` : `Select color ${c}`}
+                    onClick={() => { if (!isUsed) setColor(c); }}
+                    className={cn(
+                      "relative w-8 h-8 rounded-full transition-all",
+                      "ring-offset-2 ring-offset-slate-900",
+                      isUsed
+                        ? "opacity-25 cursor-not-allowed"
+                        : color === c
+                          ? "ring-2 ring-white scale-110"
+                          : "hover:scale-105 opacity-70 hover:opacity-100"
+                    )}
+                    style={{ backgroundColor: c }}
+                  >
+                    {isUsed && (
+                      <span className="absolute inset-0 flex items-center justify-center text-white/80 text-xs font-bold">
+                        ✕
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

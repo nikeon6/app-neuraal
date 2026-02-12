@@ -3,6 +3,7 @@ import type {
   TopicRepository,
   TopicSimilarityMatch,
 } from "@/application/ports/TopicRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma, pool } from "./prisma";
 
 /**
@@ -82,16 +83,56 @@ export class PrismaTopicRepository implements TopicRepository {
     return result.isOk() ? result.value : null;
   }
 
-  async save(topic: Topic): Promise<void> {
-    await prisma.topic.create({
-      data: {
-        id: topic.id,
-        userId: topic.userId,
-        name: topic.name.toString(),
-        color: topic.color.toString(),
-        createdAt: topic.createdAt,
-      },
+  async findByUserIdAndColor(
+    userId: string,
+    color: string
+  ): Promise<Topic | null> {
+    const normalizedColor = color.trim().toLowerCase();
+
+    const record = await prisma.topic.findFirst({
+      where: { userId, color: normalizedColor },
     });
+
+    if (!record) {
+      return null;
+    }
+
+    const result = Topic.create({
+      id: record.id,
+      userId: record.userId,
+      name: record.name,
+      color: record.color,
+      createdAt: record.createdAt,
+    });
+
+    return result.isOk() ? result.value : null;
+  }
+
+  async save(topic: Topic): Promise<void> {
+    try {
+      await prisma.topic.create({
+        data: {
+          id: topic.id,
+          userId: topic.userId,
+          name: topic.name.toString(),
+          color: topic.color.toString(),
+          createdAt: topic.createdAt,
+        },
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation — convert to a readable error
+      // so the API layer can return 409 instead of 500.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const fields = (error.meta?.target as string[]) ?? [];
+        throw new Error(
+          `Duplicate topic: unique constraint violated on [${fields.join(", ")}]`
+        );
+      }
+      throw error;
+    }
   }
 
   async update(topic: Topic): Promise<void> {

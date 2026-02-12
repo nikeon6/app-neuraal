@@ -31,6 +31,8 @@ model Topic {
 
   // Ensure unique topic names per user (case-insensitive handled in app layer)
   @@unique([userId, name])
+  // Ensure unique topic colors per user (app-level check + DB safety net for races)
+  @@unique([userId, color])
   @@index([userId])
   @@map("topics")
 }
