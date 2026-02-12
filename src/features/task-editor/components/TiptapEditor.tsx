@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { common, createLowlight } from "lowlight";
 import { cn } from "@/shared/lib";
+import Underline from "@tiptap/extension-underline";
 import { CodeBlockWithLineNumbers } from "../extensions/CodeBlockWithLineNumbers";
 import { ImageAttachment } from "../extensions/ImageAttachment";
 import { FileAttachment } from "../extensions/FileAttachment";
@@ -110,6 +111,7 @@ export function TiptapEditor({
         // Disable the built-in codeBlock in favour of CodeBlockLowlight
         codeBlock: false,
       }),
+      Underline,
       Placeholder.configure({
         placeholder,
       }),

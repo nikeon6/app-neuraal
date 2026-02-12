@@ -82,6 +82,31 @@ export class PrismaTopicRepository implements TopicRepository {
     return result.isOk() ? result.value : null;
   }
 
+  async findByUserIdAndColor(
+    userId: string,
+    color: string
+  ): Promise<Topic | null> {
+    const normalizedColor = color.trim().toLowerCase();
+
+    const record = await prisma.topic.findFirst({
+      where: { userId, color: normalizedColor },
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    const result = Topic.create({
+      id: record.id,
+      userId: record.userId,
+      name: record.name,
+      color: record.color,
+      createdAt: record.createdAt,
+    });
+
+    return result.isOk() ? result.value : null;
+  }
+
   async save(topic: Topic): Promise<void> {
     await prisma.topic.create({
       data: {
