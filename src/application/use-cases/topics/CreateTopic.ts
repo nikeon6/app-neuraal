@@ -3,7 +3,14 @@ import { Topic } from "@/domain/entities/Topic";
 import type { TopicRepository } from "../../ports/TopicRepository";
 import type { TopicDTO } from "../../dto/TopicDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, duplicateError } from "../../core/UseCaseError";
+import {
+  validationError,
+  duplicateError,
+  quotaExceededError,
+} from "../../core/UseCaseError";
+
+/** Maximum number of topics a user can create. */
+export const MAX_TOPICS_PER_USER = 12;
 
 /**
  * Input for CreateTopic use case.
@@ -30,7 +37,17 @@ export class CreateTopic {
     const userId = input.userId.trim();
     const trimmedName = input.name.trim();
 
-    // Check for duplicate (case-insensitive)
+    // Check topic limit per user
+    const userTopics = await this.topicRepository.findByUserId(userId);
+    if (userTopics.length >= MAX_TOPICS_PER_USER) {
+      return err(
+        quotaExceededError(
+          `Maximum number of topics (${MAX_TOPICS_PER_USER}) reached`
+        )
+      );
+    }
+
+    // Check for duplicate name (case-insensitive)
     const existing = await this.topicRepository.findByUserIdAndName(
       userId,
       trimmedName
@@ -39,6 +56,18 @@ export class CreateTopic {
     if (existing) {
       return err(
         duplicateError(`Topic "${trimmedName}" already exists for this user`)
+      );
+    }
+
+    // Check for duplicate color (case-insensitive)
+    const existingColor = await this.topicRepository.findByUserIdAndColor(
+      userId,
+      input.color
+    );
+
+    if (existingColor) {
+      return err(
+        duplicateError(`Color "${input.color}" is already used by another topic`)
       );
     }
 

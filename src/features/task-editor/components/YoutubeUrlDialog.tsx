@@ -1,66 +1,167 @@
 "use client";
 
-/**
- * YoutubeUrlDialog — TEMPORARY STUB
- *
- * The real component was not committed from another machine.
- * This stub keeps the app building until the real file is pushed.
- * TODO: Remove this stub once the real YoutubeUrlDialog is available.
- */
+import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Youtube } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 
-interface YoutubeUrlDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (url: string) => void;
+// ============================================================================
+// YoutubeUrlDialog Component
+// ============================================================================
+
+export interface YoutubeUrlDialogProps {
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onSubmit: (url: string) => void;
 }
 
-export function YoutubeUrlDialog({ isOpen, onClose, onSubmit }: Readonly<YoutubeUrlDialogProps>) {
+/** Regex to loosely validate YouTube URLs. */
+const YOUTUBE_REGEX =
+  /^https?:\/\/(www\.)?(youtube\.com\/(watch|embed|shorts)|youtu\.be\/)/i;
+
+export function YoutubeUrlDialog({
+  isOpen,
+  onClose,
+  onSubmit,
+}: YoutubeUrlDialogProps) {
+  const [url, setUrl] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setUrl("");
+      // Small delay so the portal is mounted before focusing
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+  }, [isOpen]);
+
+  const trimmedUrl = url.trim();
+  const isValidUrl = YOUTUBE_REGEX.test(trimmedUrl);
+  const showError = trimmedUrl.length > 0 && !isValidUrl;
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!isValidUrl) return;
+      onSubmit(trimmedUrl);
+      setUrl("");
+      onClose();
+    },
+    [isValidUrl, trimmedUrl, onSubmit, onClose]
+  );
+
+  const handleCancel = useCallback(() => {
+    setUrl("");
+    onClose();
+  }, [onClose]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleCancel();
+      }
+    },
+    [handleCancel]
+  );
+
   if (!isOpen) return null;
 
-  return (
+  const dialogContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      onKeyDown={handleKeyDown}
     >
+      {/* Backdrop */}
       <div
-        className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleCancel}
+      />
+
+      {/* Dialog */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="youtube-url-title"
+        className="relative z-10 w-full max-w-md mx-4 bg-slate-900/95 border border-white/10 rounded-2xl p-6 shadow-2xl backdrop-blur-xl"
       >
-        <h3 className="text-white font-semibold text-lg mb-4">Add YouTube Video</h3>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const input = (e.currentTarget.elements.namedItem("url") as HTMLInputElement)?.value?.trim();
-            if (input) {
-              onSubmit(input);
-              onClose();
-            }
-          }}
-        >
-          <input
-            name="url"
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            autoFocus
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-sm"
-          />
-          <div className="flex justify-end gap-2 mt-4">
+        {/* Header with icon */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20">
+            <Youtube className="w-5 h-5 text-red-400" />
+          </div>
+          <div>
+            <h2
+              id="youtube-url-title"
+              className="text-lg font-semibold text-white"
+            >
+              Embed YouTube video
+            </h2>
+            <p className="text-xs text-white/40">
+              Paste the video URL below
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* URL input */}
+          <div className="space-y-2">
+            <label
+              htmlFor="youtube-url"
+              className="block text-sm font-medium text-white/70"
+            >
+              YouTube URL
+            </label>
+            <input
+              ref={inputRef}
+              id="youtube-url"
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className={cn(
+                "w-full px-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30",
+                "focus:outline-none focus:ring-2 focus:ring-red-500/40 transition-all",
+                showError
+                  ? "border-red-500/50"
+                  : "border-white/10 focus:border-red-500/40"
+              )}
+            />
+            {showError && (
+              <p className="text-sm text-red-400">
+                Enter a valid YouTube URL
+              </p>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white/80 hover:bg-white/5 transition-colors"
+              onClick={handleCancel}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-medium hover:bg-white/10 hover:text-white transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 rounded-lg text-sm bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition-colors font-medium"
+              disabled={!isValidUrl}
+              className={cn(
+                "flex-1 px-4 py-2.5 rounded-xl font-medium transition-all",
+                isValidUrl
+                  ? "bg-red-500 text-white hover:bg-red-400"
+                  : "bg-white/5 text-white/30 cursor-not-allowed"
+              )}
             >
-              Add
+              Embed
             </button>
           </div>
         </form>
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(dialogContent, document.body);
 }

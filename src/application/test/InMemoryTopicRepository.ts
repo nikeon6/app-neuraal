@@ -43,6 +43,20 @@ export class InMemoryTopicRepository implements TopicRepository {
     );
   }
 
+  async findByUserIdAndColor(
+    userId: string,
+    color: string
+  ): Promise<Topic | null> {
+    const normalizedColor = color.trim().toLowerCase();
+    return (
+      this.topics.find(
+        (t) =>
+          t.userId === userId &&
+          t.color.toString().toLowerCase() === normalizedColor
+      ) ?? null
+    );
+  }
+
   async save(topic: Topic): Promise<void> {
     this.topics.push(topic);
   }

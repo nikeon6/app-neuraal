@@ -201,10 +201,11 @@
   margin: 1rem 0;
 }
 
-/* ---- Bold / Italic / Strike ---- */
+/* ---- Bold / Italic / Strike / Underline ---- */
 .tiptap-editor .tiptap strong { color: rgba(255, 255, 255, 0.95); }
 .tiptap-editor .tiptap em { font-style: italic; }
 .tiptap-editor .tiptap s { color: rgba(255, 255, 255, 0.4); }
+.tiptap-editor .tiptap u { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---- Images (NodeView wrapper) ---- */
 .tiptap-editor .image-attachment-wrapper {

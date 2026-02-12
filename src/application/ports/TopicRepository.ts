@@ -25,9 +25,15 @@ export interface TopicRepository {
 
   /**
    * Finds a topic by user and name (case-insensitive).
-   * Used for duplicate detection.
+   * Used for duplicate name detection.
    */
   findByUserIdAndName(userId: string, name: string): Promise<Topic | null>;
+
+  /**
+   * Finds a topic by user and color (case-insensitive).
+   * Used for duplicate color detection.
+   */
+  findByUserIdAndColor(userId: string, color: string): Promise<Topic | null>;
 
   /**
    * Saves a new topic.
