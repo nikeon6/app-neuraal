@@ -170,6 +170,45 @@ async function buildApiError(response: Response): Promise<ApiError> {
 }
 
 // ---------------------------------------------------------------------------
+// Auth refresh helpers
+// ---------------------------------------------------------------------------
+
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempts to refresh the auth token. Returns true if successful.
+ * Deduplicates concurrent refresh attempts.
+ */
+async function attemptTokenRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Redirects to login page. Only runs in the browser.
+ */
+function redirectToLoginPage(): void {
+  if (typeof globalThis.window !== "undefined") {
+    globalThis.window.location.href = "/login";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Core fetch wrapper
 // ---------------------------------------------------------------------------
 
@@ -234,11 +273,45 @@ export async function apiFetch<T = unknown>(
       headers,
       body: hasBody ? JSON.stringify(body) : undefined,
       signal: combinedSignal,
+      credentials: "include",
       ...restInit,
     });
 
     // --- Error responses ----------------------------------------------------
     if (!response.ok) {
+      // 401 interceptor: attempt refresh and retry once
+      if (response.status === 401 && !path.startsWith("/api/auth/")) {
+        const refreshed = await attemptTokenRefresh();
+        if (refreshed) {
+          // Retry the original request
+          const retryResponse = await fetch(url, {
+            method: restInit.method ?? "GET",
+            headers,
+            body: hasBody ? JSON.stringify(body) : undefined,
+            credentials: "include",
+            ...restInit,
+          });
+
+          if (retryResponse.ok) {
+            if (retryResponse.status === 204) return null as T;
+            if (isJsonContentType(retryResponse)) return (await retryResponse.json()) as T;
+            return (await retryResponse.text()) as T;
+          }
+
+          // Retry also failed — redirect to login
+          if (retryResponse.status === 401) {
+            redirectToLoginPage();
+            throw await buildApiError(retryResponse);
+          }
+
+          throw await buildApiError(retryResponse);
+        } else {
+          // Refresh failed — redirect to login
+          redirectToLoginPage();
+          throw await buildApiError(response);
+        }
+      }
+
       throw await buildApiError(response);
     }
 

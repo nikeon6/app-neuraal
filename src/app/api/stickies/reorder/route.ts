@@ -9,7 +9,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  * Body: { items: [{ id, sortOrder, columnIndex }, ...] }
  */
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

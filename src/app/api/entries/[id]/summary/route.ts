@@ -11,7 +11,7 @@ interface RouteContext {
  * Clears the AI-generated summary from an entry.
  */
 export async function DELETE(req: NextRequest, ctx: RouteContext) {
-  const authResult = getAuthUserId(req);
+  const authResult = await getAuthUserId(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

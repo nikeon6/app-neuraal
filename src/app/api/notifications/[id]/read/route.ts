@@ -16,7 +16,7 @@ export async function POST(
   { params }: RouteParams
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

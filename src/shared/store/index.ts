@@ -38,8 +38,8 @@ export type DashboardSection =
  * Topics and entries come from TanStack Query (useTopicsQuery, useEntriesByDateQuery).
  */
 interface AppState {
-  isAuthenticated: boolean;
-  login: () => void;
+  user: { id: string; email: string } | null;
+  login: (user: { id: string; email: string }) => void;
   logout: () => void;
 
   selectedDate: Date;
@@ -81,9 +81,9 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
-      isAuthenticated: false,
-      login: () => set({ isAuthenticated: true }),
-      logout: () => set({ isAuthenticated: false }),
+      user: null,
+      login: (user) => set({ user }),
+      logout: () => set({ user: null }),
 
       selectedDate: new Date(),
       selectedDay: new Date().getDate(),
@@ -188,7 +188,7 @@ export const useStore = create<AppState>()(
     {
       name: "neuraal-storage",
       partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
+        user: state.user,
         topicPositions: state.topicPositions,
         dashboardSection: state.dashboardSection,
       }),

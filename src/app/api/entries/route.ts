@@ -10,7 +10,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

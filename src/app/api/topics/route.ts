@@ -15,7 +15,7 @@ import {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json(
       { error: authResult.error },
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json(
       { error: authResult.error },
@@ -106,14 +106,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const topic = result.value;
   const embeddingProvider = new OllamaEmbeddingProvider({
     baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    model: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+    model: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
   });
   const embeddingDim = process.env.EMBEDDING_DIM
     ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
     : DEFAULT_EMBEDDING_DIM;
   const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
     embeddingDim,
-    embeddingModel: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+    embeddingModel: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
   });
   rebuildUseCase.execute({ userId, topicId: topic.id }).catch((err) => {
     console.error(`[POST /api/topics] Failed to generate embedding for topic ${topic.id}:`, err);

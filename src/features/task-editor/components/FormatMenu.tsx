@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { motion } from "framer-motion";
 import {
   Bold,
@@ -21,6 +21,8 @@ import type { Editor } from "@tiptap/core";
 export interface FormatMenuProps {
   readonly editor: Editor;
   readonly onClose: () => void;
+  /** Ref to the trigger button so outside-click detection can exclude it. */
+  readonly triggerRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -28,19 +30,24 @@ export interface FormatMenuProps {
  * Provides heading level selection and inline mark toggles.
  * Works on selected text (toggle marks) or sets the format for new text.
  */
-export function FormatMenu({ editor, onClose }: FormatMenuProps) {
+export function FormatMenu({ editor, onClose, triggerRef }: FormatMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
+  // Close on click outside (excluding the trigger button so it can toggle closed)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        // If the click landed on the trigger button, let the trigger's onClick
+        // handle it (toggle closed). Don't call onClose() here to avoid the
+        // race condition where onClose sets false and then onClick toggles true.
+        if (triggerRef?.current?.contains(target)) return;
         onClose();
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+  }, [onClose, triggerRef]);
 
   // Close on Escape
   useEffect(() => {

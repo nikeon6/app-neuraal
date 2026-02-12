@@ -40,7 +40,7 @@ export async function POST(
   context: RouteContext
 ): Promise<NextResponse> {
   // 1. Auth
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -77,7 +77,7 @@ export async function POST(
   const objectStorage = new S3ObjectStorage();
   const ocrProvider = new OllamaVisionProvider({
     baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    model: process.env.OLLAMA_OCR_MODEL || "glm-ocr",
+    model: process.env.OLLAMA_OCR_MODEL || "glm-ocr:q8_0",
     timeoutMs: 120_000,
   });
 

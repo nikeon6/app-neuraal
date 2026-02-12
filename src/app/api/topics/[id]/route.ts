@@ -22,7 +22,7 @@ export async function PATCH(
   context: RouteContext
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -79,14 +79,14 @@ export async function PATCH(
   if (name) {
     const embeddingProvider = new OllamaEmbeddingProvider({
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-      model: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+      model: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
     });
     const embeddingDim = process.env.EMBEDDING_DIM
       ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
       : DEFAULT_EMBEDDING_DIM;
     const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
       embeddingDim,
-      embeddingModel: process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+      embeddingModel: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
     });
     rebuildUseCase.execute({ userId, topicId }).catch((err) => {
       console.error(`[PATCH /api/topics/${topicId}] Failed to regenerate embedding:`, err);
@@ -105,7 +105,7 @@ export async function DELETE(
   context: RouteContext
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
