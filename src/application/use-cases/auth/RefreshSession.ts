@@ -53,15 +53,31 @@ export class RefreshSession {
       now.getTime() + this.refreshTtlDays * 24 * 60 * 60 * 1000
     );
 
-    await this.refreshTokenRepository.rotateToken(
-      tokenHash,
-      {
-        userId: user.id,
-        tokenHash: newRefreshTokenHash,
-        expiresAt: refreshExpiresAt,
-      },
-      now
-    );
+    try {
+      await this.refreshTokenRepository.rotateToken(
+        tokenHash,
+        {
+          userId: user.id,
+          tokenHash: newRefreshTokenHash,
+          expiresAt: refreshExpiresAt,
+        },
+        now
+      );
+    } catch (error: unknown) {
+      // Atomic rotation failed — token was already consumed by a concurrent request.
+      // Treat as reuse: revoke all tokens for this user as a safety measure.
+      if (
+        error instanceof Error &&
+        error.message === "REFRESH_TOKEN_ALREADY_CONSUMED"
+      ) {
+        await this.refreshTokenRepository.revokeAllForUser(
+          storedToken.userId,
+          now
+        );
+        return err(unauthorizedError("Token reuse detected"));
+      }
+      throw error;
+    }
 
     const accessToken = await this.jwtService.sign(
       { sub: user.id, email: user.email.toString() },

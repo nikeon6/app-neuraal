@@ -22,55 +22,79 @@ function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * Next.js middleware for route protection.
- *
- * - Protects all routes except public ones
- * - Reads `access_token` cookie and verifies JWT signature (no DB call)
- * - If valid → continue
- * - If no token → redirect to /login
- * - If expired/invalid → redirect to /login (client-side refresh handles token renewal)
+ * Returns true if the request should skip auth checks entirely.
  */
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const { pathname } = request.nextUrl;
+function shouldSkipAuth(pathname: string, request: NextRequest): boolean {
+  if (isPublicPath(pathname)) return true;
 
-  // Allow public paths
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
-  }
-
-  // Allow static assets and Next.js internals
+  // Static assets and Next.js internals
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon") ||
     pathname.includes(".")
   ) {
+    return true;
+  }
+
+  // Dev fallback: x-user-id header in non-production
+  if (process.env.NODE_ENV !== "production") {
+    const devUserId = request.headers.get("x-user-id");
+    if (devUserId && devUserId.trim().length > 0) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns a 401 JSON response for unauthenticated API requests.
+ */
+function denyApiAccess(): NextResponse {
+  return NextResponse.json(
+    { error: "UNAUTHORIZED", message: "Authentication required" },
+    { status: 401 }
+  );
+}
+
+/**
+ * Returns the deny response appropriate for the route type:
+ * - API routes → 401 JSON (client interceptor can attempt refresh)
+ * - Page routes → redirect to /login
+ */
+function denyPageAccess(request: NextRequest): NextResponse {
+  const loginUrl = new URL("/login", request.url);
+  return NextResponse.redirect(loginUrl);
+}
+
+/**
+ * Next.js middleware for route protection.
+ *
+ * - Protects all routes except public ones
+ * - Reads `access_token` cookie and verifies JWT signature (no DB call)
+ * - API routes receive 401 JSON; page routes get redirected to /login
+ */
+export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+
+  if (shouldSkipAuth(pathname, request)) {
     return NextResponse.next();
   }
 
-  // Dev fallback: if x-user-id header is present and not production, allow through
-  // This keeps backward compatibility with dev tools/tests
-  if (process.env.NODE_ENV !== "production") {
-    const devUserId = request.headers.get("x-user-id");
-    if (devUserId && devUserId.trim().length > 0) {
-      return NextResponse.next();
-    }
-  }
+  const deny = pathname.startsWith("/api/")
+    ? () => denyApiAccess()
+    : () => denyPageAccess(request);
 
-  // Check for access_token cookie
   const accessToken = request.cookies.get("access_token")?.value;
 
   if (!accessToken) {
-    return redirectToLogin(request);
+    return deny();
   }
 
-  // Verify JWT signature (no DB call)
   const jwtSecret = process.env.AUTH_JWT_SECRET;
   if (!jwtSecret) {
-    // If no secret configured, allow through in development
-    if (process.env.NODE_ENV !== "production") {
-      return NextResponse.next();
-    }
-    return redirectToLogin(request);
+    // No secret configured — allow in development, deny in production
+    return process.env.NODE_ENV === "production"
+      ? deny()
+      : NextResponse.next();
   }
 
   try {
@@ -78,18 +102,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     await jwtVerify(accessToken, secret, { algorithms: ["HS256"] });
     return NextResponse.next();
   } catch {
-    // Token invalid or expired — redirect to login
-    // The client-side 401 interceptor will attempt refresh before this point
-    return redirectToLogin(request);
+    return deny();
   }
-}
-
-/**
- * Redirects to /login preserving the original URL as a query parameter.
- */
-function redirectToLogin(request: NextRequest): NextResponse {
-  const loginUrl = new URL("/login", request.url);
-  return NextResponse.redirect(loginUrl);
 }
 
 /**

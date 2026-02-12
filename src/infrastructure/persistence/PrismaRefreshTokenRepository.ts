@@ -72,25 +72,45 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
     >,
     now: Date
   ): Promise<RefreshTokenData> {
-    // Create new token
-    const newRecord = await prisma.refreshToken.create({
-      data: {
-        userId: newTokenData.userId,
-        tokenHash: newTokenData.tokenHash,
-        expiresAt: newTokenData.expiresAt,
-      },
-    });
+    // Atomic rotation: revoke old token (only if not already revoked) and create
+    // new token in a single transaction. The conditional updateMany ensures that
+    // concurrent requests with the same old token cannot both succeed — only the
+    // first one will match the WHERE clause; subsequent ones get count 0 and fail.
+    return await prisma.$transaction(async (tx) => {
+      // 1. Conditionally revoke old token (only if revokedAt IS NULL)
+      const revokeResult = await tx.refreshToken.updateMany({
+        where: {
+          tokenHash: oldTokenHash,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: now,
+          rotatedAt: now,
+        },
+      });
 
-    // Revoke old token
-    await prisma.refreshToken.updateMany({
-      where: { tokenHash: oldTokenHash },
-      data: {
-        revokedAt: now,
-        rotatedAt: now,
-        replacedById: newRecord.id,
-      },
-    });
+      // If no rows were updated, the old token was already revoked/rotated
+      // (concurrent request won the race). Abort — caller should treat as reuse.
+      if (revokeResult.count === 0) {
+        throw new Error("REFRESH_TOKEN_ALREADY_CONSUMED");
+      }
 
-    return toData(newRecord);
+      // 2. Create new token
+      const newRecord = await tx.refreshToken.create({
+        data: {
+          userId: newTokenData.userId,
+          tokenHash: newTokenData.tokenHash,
+          expiresAt: newTokenData.expiresAt,
+        },
+      });
+
+      // 3. Link old → new (for audit trail)
+      await tx.refreshToken.updateMany({
+        where: { tokenHash: oldTokenHash },
+        data: { replacedById: newRecord.id },
+      });
+
+      return toData(newRecord);
+    });
   }
 }
