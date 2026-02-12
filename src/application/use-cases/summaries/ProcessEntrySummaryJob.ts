@@ -8,11 +8,13 @@ import { UseCaseError } from "../../core/UseCaseError";
 
 /**
  * Input for ProcessEntrySummaryJob use case.
+ * plainTextForSummary: when set (e.g. truncated), send to n8n instead of entry content.
  */
 export interface ProcessEntrySummaryJobInput {
   requestId: string;
   userId: string;
   entryId: string;
+  plainTextForSummary?: string;
 }
 
 /**
@@ -50,7 +52,7 @@ export class ProcessEntrySummaryJob {
   async execute(
     input: ProcessEntrySummaryJobInput
   ): Promise<Result<ProcessEntrySummaryJobResult, UseCaseError>> {
-    const { requestId, userId, entryId } = input;
+    const { requestId, userId, entryId, plainTextForSummary } = input;
 
     // 1. Load summary request
     const request = await this.summaryRequestRepository.findById(requestId);
@@ -93,7 +95,7 @@ export class ProcessEntrySummaryJob {
       });
     }
 
-    // 4. Call automation service (include entry data so n8n can generate summary)
+    // 4. Call automation service (use plainTextForSummary when truncated, else entry content)
     const automationResult = await this.automationPort.requestEntrySummary({
       requestId,
       userId,
@@ -102,6 +104,7 @@ export class ProcessEntrySummaryJob {
       entryTitle: entry.title.toString(),
       entryType: entry.type.toString(),
       entryContent: entry.content.toJSON(),
+      plainTextForSummary,
     });
 
     if (automationResult.success) {

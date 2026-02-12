@@ -12,7 +12,7 @@ export interface ReminderPayload {
 
 /**
  * Payload sent to the automation service (n8n) for entry summaries.
- * Includes entry content so n8n can generate the summary without DB access.
+ * When plainTextForSummary is set (e.g. truncated input), n8n uses it instead of entry content.
  */
 export interface EntrySummaryPayload {
   requestId: string;
@@ -22,6 +22,8 @@ export interface EntrySummaryPayload {
   entryTitle: string;
   entryType: string;
   entryContent: Record<string, unknown>;
+  /** When set, use this text for summary instead of extracting from entryContent. */
+  plainTextForSummary?: string;
 }
 
 /**

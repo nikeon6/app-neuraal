@@ -67,6 +67,7 @@ describe("HandleEntrySummaryCallback", () => {
       summaryRequestRepository,
       notificationRepository,
       webhookSecret,
+      undefined, // recordAiUsage not needed for these tests
       () => "test-notif-id"
     );
   });

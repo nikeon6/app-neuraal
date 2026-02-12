@@ -8,11 +8,13 @@ export interface EnqueueReminderData {
 
 /**
  * Data for enqueuing an entry summary job.
+ * plainTextForSummary: when set (e.g. truncated), worker sends this to n8n instead of extracting from entry.
  */
 export interface EnqueueEntrySummaryData {
   requestId: string;
   userId: string;
   entryId: string;
+  plainTextForSummary?: string;
 }
 
 /**

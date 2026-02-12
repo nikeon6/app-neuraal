@@ -3,9 +3,12 @@ import {
   HandleEntrySummaryCallback,
   EntrySummaryCallbackPayload,
 } from "@/application/use-cases/summaries/HandleEntrySummaryCallback";
+import { RecordAiUsageFromCallback } from "@/application/use-cases/ai/RecordAiUsageFromCallback";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { PrismaSummaryRequestRepository } from "@/infrastructure/persistence/PrismaSummaryRequestRepository";
 import { PrismaNotificationRepository } from "@/infrastructure/persistence/PrismaNotificationRepository";
+import { PrismaAiUsageRepository } from "@/infrastructure/persistence/PrismaAiUsageRepository";
+import { SystemClock } from "@/infrastructure/auth/SystemClock";
 
 /**
  * POST /api/automations/entry-summary/callback
@@ -72,17 +75,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Create dependencies
   const entryRepository = new PrismaEntryRepository();
   const summaryRequestRepository = new PrismaSummaryRequestRepository();
   const notificationRepository = new PrismaNotificationRepository();
+  const aiUsageRepository = new PrismaAiUsageRepository();
+  const recordAiUsage = new RecordAiUsageFromCallback(
+    aiUsageRepository,
+    new SystemClock()
+  );
 
-  // Execute use case
   const handleCallback = new HandleEntrySummaryCallback(
     entryRepository,
     summaryRequestRepository,
     notificationRepository,
-    webhookSecret
+    webhookSecret,
+    recordAiUsage
   );
 
   const result = await handleCallback.execute({

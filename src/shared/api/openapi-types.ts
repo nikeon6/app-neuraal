@@ -4,6 +4,114 @@
  */
 
 export interface paths {
+    "/api/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a new user */
+        post: operations["registerUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log in with email and password */
+        post: operations["loginUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh access token
+         * @description Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.
+         */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log out (revoke tokens) */
+        post: operations["logoutUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current authenticated user */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request password reset
+         * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/topics": {
         parameters: {
             query?: never;
@@ -130,9 +238,29 @@ export interface paths {
         put?: never;
         /**
          * Request entry summary (async)
-         * @description Enqueues an async AI summary generation. Returns 202 Accepted.
+         * @description Enqueues an async AI summary generation. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409), max input (400). Returns 202 Accepted when accepted.
          */
         post: operations["requestEntrySummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get AI usage and limits
+         * @description Returns current usage and limits for the authenticated user (e.g. summaries per month).
+         */
+        get: operations["getAiUsage"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -338,69 +466,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/stickies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List user stickies */
-        get: operations["listStickies"];
-        put?: never;
-        /** Create a sticky */
-        post: operations["createSticky"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/stickies/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a sticky */
-        delete: operations["deleteSticky"];
-        options?: never;
-        head?: never;
-        /** Update a sticky */
-        patch: operations["updateSticky"];
-        trace?: never;
-    };
-    "/api/stickies/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Reorder stickies */
-        patch: operations["reorderStickies"];
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        UserResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+        };
         ErrorResponse: {
             error: {
                 /** @example NOT_FOUND */
                 code: string;
                 /** @example Resource not found */
                 message: string;
+                /** @description Optional extra data (e.g. RATE_LIMITED: remaining, resetAt) */
+                details?: Record<string, never>;
             };
         };
         Topic: {
@@ -465,7 +548,7 @@ export interface components {
             id: string;
             userId: string;
             /** @enum {string} */
-            type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED" | "SUMMARY_IN_PROGRESS" | "SUMMARY_DONE" | "SUMMARY_FAILED" | "TRANSCRIPTION_IN_PROGRESS" | "TRANSCRIPTION_DONE" | "TRANSCRIPTION_FAILED";
+            type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED" | "SUMMARY_IN_PROGRESS" | "SUMMARY_DONE" | "SUMMARY_FAILED";
             title: string;
             message: string;
             /** @enum {string} */
@@ -491,27 +574,6 @@ export interface components {
             kind: "inline" | "file";
             /** @enum {string} */
             status: "pending" | "ready" | "deleted";
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        Sticky: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            title: string;
-            /** @description TipTap/ProseMirror JSON content */
-            content: {
-                [key: string]: unknown;
-            };
-            version: number;
-            sortOrder: number;
-            /**
-             * @description 0 = left column, 1 = right column
-             * @enum {integer}
-             */
-            columnIndex: 0 | 1;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -555,6 +617,24 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description Forbidden (e.g. quota exceeded) */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Too many requests (rate limit) */
+        RateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Internal server error */
         InternalError: {
             headers: {
@@ -575,6 +655,164 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    registerUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description User registered. Auth cookies set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: components["schemas"]["UserResponse"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    loginUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Login successful. Auth cookies set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: components["schemas"]["UserResponse"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tokens refreshed. New cookies set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logoutUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logged out. Cookies cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: components["schemas"]["UserResponse"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Request processed (always succeeds) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
     listTopics: {
         parameters: {
             query?: never;
@@ -913,10 +1151,82 @@ export interface operations {
                     };
                 };
             };
-            400: components["responses"]["BadRequest"];
+            /** @description Validation or INPUT_TOO_LARGE (max input chars exceeded) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
+            /** @description QUOTA_EXCEEDED — monthly summary limit reached */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description CONCURRENCY_LIMIT — another summary already in progress for this entry or user */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED — too many requests (details may include remaining, resetAt) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAiUsage: {
+        parameters: {
+            query?: {
+                /** @description AI action type */
+                action?: "SUMMARY";
+                /** @description Month key YYYY-MM (default: current) */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage and limits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example SUMMARY */
+                        action: string;
+                        /** @example 2026-02 */
+                        month: string;
+                        requestsUsed: number;
+                        requestsLimit: number;
+                        tokensUsed: number;
+                        tokensLimit: number;
+                        maxActivePerUser: number;
+                        rateLimitPerMinute: number;
+                        maxInputChars: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     autoAssignTopic: {
@@ -1303,160 +1613,6 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    listStickies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of stickies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        stickies: components["schemas"]["Sticky"][];
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createSticky: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    title: string;
-                    content: {
-                        [key: string]: unknown;
-                    };
-                    /** @enum {integer} */
-                    columnIndex?: 0 | 1;
-                };
-            };
-        };
-        responses: {
-            /** @description Sticky created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        sticky: components["schemas"]["Sticky"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    deleteSticky: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Sticky deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    updateSticky: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    version: number;
-                    title?: string;
-                    content?: {
-                        [key: string]: unknown;
-                    };
-                    /** @enum {integer} */
-                    columnIndex?: 0 | 1;
-                };
-            };
-        };
-        responses: {
-            /** @description Sticky updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        sticky: components["schemas"]["Sticky"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
-    };
-    reorderStickies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    items: {
-                        /** Format: uuid */
-                        id: string;
-                        sortOrder: number;
-                        /** @enum {integer} */
-                        columnIndex: 0 | 1;
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Stickies reordered */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
         };
     };
 }

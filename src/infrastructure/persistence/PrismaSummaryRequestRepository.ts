@@ -14,6 +14,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
         userId: request.userId,
         entryId: request.entryId,
         status: request.status.toString(),
+        meta: request.meta ?? undefined,
         createdAt: request.createdAt,
       },
     });
@@ -51,6 +52,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
       where: { id: request.id },
       data: {
         status: request.status.toString(),
+        meta: request.meta ?? undefined,
       },
     });
   }
@@ -73,11 +75,21 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
     return this.toDomain(record);
   }
 
+  async countActiveByUserId(userId: string): Promise<number> {
+    return prisma.entrySummaryRequest.count({
+      where: {
+        userId,
+        status: { in: ["pending", "submitted"] },
+      },
+    });
+  }
+
   private toDomain(record: {
     id: string;
     userId: string;
     entryId: string;
     status: string;
+    meta: unknown;
     createdAt: Date;
     updatedAt: Date;
   }): EntrySummaryRequest | null {
@@ -86,6 +98,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
       userId: record.userId,
       entryId: record.entryId,
       status: record.status,
+      meta: (record.meta as Record<string, unknown>) ?? null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });

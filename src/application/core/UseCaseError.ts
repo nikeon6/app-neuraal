@@ -8,14 +8,19 @@ export type UseCaseErrorCode =
   | "UNAUTHORIZED"
   | "CONFLICT"
   | "QUOTA_EXCEEDED"
+  | "RATE_LIMITED"
+  | "CONCURRENCY_LIMIT"
+  | "INPUT_TOO_LARGE"
   | "INTERNAL_ERROR";
 
 /**
  * Structured error for use case failures.
+ * details: optional payload for API (e.g. RATE_LIMITED: { remaining, resetAt }).
  */
 export interface UseCaseError {
   code: UseCaseErrorCode;
   message: string;
+  details?: unknown;
 }
 
 /**
@@ -65,4 +70,26 @@ export function conflictError(message: string): UseCaseError {
  */
 export function quotaExceededError(message: string): UseCaseError {
   return { code: "QUOTA_EXCEEDED", message };
+}
+
+/**
+ * Creates a rate limit exceeded error (429).
+ * details may include { remaining: number, resetAt: string (ISO) } for the API.
+ */
+export function rateLimitedError(message: string, details?: unknown): UseCaseError {
+  return { code: "RATE_LIMITED", message, details };
+}
+
+/**
+ * Creates a concurrency limit error (e.g. max active requests).
+ */
+export function concurrencyLimitError(message: string): UseCaseError {
+  return { code: "CONCURRENCY_LIMIT", message };
+}
+
+/**
+ * Creates an input too large error (e.g. max chars exceeded).
+ */
+export function inputTooLargeError(message: string): UseCaseError {
+  return { code: "INPUT_TOO_LARGE", message };
 }

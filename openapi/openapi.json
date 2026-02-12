@@ -13,16 +13,16 @@
   ],
   "tags": [
     {
+      "name": "Auth",
+      "description": "Authentication endpoints (register, login, refresh, logout, me, recover)"
+    },
+    {
       "name": "Topics",
       "description": "User topic/category management"
     },
     {
       "name": "Entries",
       "description": "Task and note entries"
-    },
-    {
-      "name": "Stickies",
-      "description": "Persistent sticky notes (not date-bound)"
     },
     {
       "name": "Reminders",
@@ -47,6 +47,12 @@
   ],
   "components": {
     "securitySchemes": {
+      "CookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_token",
+        "description": "JWT access token sent as httpOnly cookie."
+      },
       "DevUserIdHeader": {
         "type": "apiKey",
         "in": "header",
@@ -57,10 +63,27 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Future JWT auth (not enforced yet)."
+        "description": "JWT access token via Authorization header (alternative to cookie auth)."
       }
     },
     "schemas": {
+      "UserResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "required": [
@@ -81,6 +104,10 @@
               "message": {
                 "type": "string",
                 "example": "Resource not found"
+              },
+              "details": {
+                "type": "object",
+                "description": "Optional extra data (e.g. RATE_LIMITED: remaining, resetAt)"
               }
             }
           }
@@ -307,10 +334,7 @@
               "REMINDER_CANCELED",
               "SUMMARY_IN_PROGRESS",
               "SUMMARY_DONE",
-              "SUMMARY_FAILED",
-              "TRANSCRIPTION_IN_PROGRESS",
-              "TRANSCRIPTION_DONE",
-              "TRANSCRIPTION_FAILED"
+              "SUMMARY_FAILED"
             ]
           },
           "title": {
@@ -407,62 +431,6 @@
             "format": "date-time"
           }
         }
-      },
-      "Sticky": {
-        "type": "object",
-        "required": [
-          "id",
-          "userId",
-          "title",
-          "content",
-          "version",
-          "sortOrder",
-          "columnIndex",
-          "createdAt",
-          "updatedAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string",
-            "maxLength": 120
-          },
-          "content": {
-            "type": "object",
-            "additionalProperties": true,
-            "description": "TipTap/ProseMirror JSON content"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "columnIndex": {
-            "type": "integer",
-            "enum": [
-              0,
-              1
-            ],
-            "description": "0 = left column, 1 = right column"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
       }
     },
     "responses": {
@@ -506,6 +474,26 @@
           }
         }
       },
+      "Forbidden": {
+        "description": "Forbidden (e.g. quota exceeded)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests (rate limit)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
       "InternalError": {
         "description": "Internal server error",
         "content": {
@@ -532,10 +520,264 @@
   },
   "security": [
     {
-      "DevUserIdHeader": []
+      "CookieAuth": []
     }
   ],
   "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user",
+        "operationId": "registerUser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User registered. Auth cookies set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user"
+                  ],
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/UserResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Log in with email and password",
+        "operationId": "loginUser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful. Auth cookies set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user"
+                  ],
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/UserResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh access token",
+        "operationId": "refreshSession",
+        "description": "Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed. New cookies set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Log out (revoke tokens)",
+        "operationId": "logoutUser",
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "Logged out. Cookies cleared."
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get current authenticated user",
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "Current user info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user"
+                  ],
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/UserResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/recover": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request password reset",
+        "operationId": "requestPasswordReset",
+        "description": "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request processed (always succeeds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
     "/api/topics": {
       "get": {
         "tags": [
@@ -1075,7 +1317,7 @@
         ],
         "summary": "Request entry summary (async)",
         "operationId": "requestEntrySummary",
-        "description": "Enqueues an async AI summary generation. Returns 202 Accepted.",
+        "description": "Enqueues an async AI summary generation. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409), max input (400). Returns 202 Accepted when accepted.",
         "parameters": [
           {
             "$ref": "#/components/parameters/ResourceId"
@@ -1111,16 +1353,148 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "description": "Validation or INPUT_TOO_LARGE (max input chars exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "QUOTA_EXCEEDED — monthly summary limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "description": "CONCURRENCY_LIMIT — another summary already in progress for this entry or user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED — too many requests (details may include remaining, resetAt)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/usage": {
+      "get": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "Get AI usage and limits",
+        "operationId": "getAiUsage",
+        "description": "Returns current usage and limits for the authenticated user (e.g. summaries per month).",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUMMARY"
+              ],
+              "default": "SUMMARY"
+            },
+            "description": "AI action type"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-02"
+            },
+            "description": "Month key YYYY-MM (default: current)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage and limits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "action",
+                    "month",
+                    "requestsUsed",
+                    "requestsLimit",
+                    "tokensUsed",
+                    "tokensLimit",
+                    "maxActivePerUser",
+                    "rateLimitPerMinute",
+                    "maxInputChars"
+                  ],
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "example": "SUMMARY"
+                    },
+                    "month": {
+                      "type": "string",
+                      "example": "2026-02"
+                    },
+                    "requestsUsed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "requestsLimit": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tokensUsed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tokensLimit": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "maxActivePerUser": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "rateLimitPerMinute": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "maxInputChars": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -1860,271 +2234,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/stickies": {
-      "get": {
-        "tags": [
-          "Stickies"
-        ],
-        "summary": "List user stickies",
-        "operationId": "listStickies",
-        "responses": {
-          "200": {
-            "description": "List of stickies",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "stickies"
-                  ],
-                  "properties": {
-                    "stickies": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Sticky"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Stickies"
-        ],
-        "summary": "Create a sticky",
-        "operationId": "createSticky",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "title",
-                  "content"
-                ],
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "content": {
-                    "type": "object",
-                    "additionalProperties": true
-                  },
-                  "columnIndex": {
-                    "type": "integer",
-                    "enum": [
-                      0,
-                      1
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Sticky created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "sticky"
-                  ],
-                  "properties": {
-                    "sticky": {
-                      "$ref": "#/components/schemas/Sticky"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/stickies/{id}": {
-      "patch": {
-        "tags": [
-          "Stickies"
-        ],
-        "summary": "Update a sticky",
-        "operationId": "updateSticky",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/ResourceId"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "version"
-                ],
-                "properties": {
-                  "version": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "title": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "content": {
-                    "type": "object",
-                    "additionalProperties": true
-                  },
-                  "columnIndex": {
-                    "type": "integer",
-                    "enum": [
-                      0,
-                      1
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sticky updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "sticky"
-                  ],
-                  "properties": {
-                    "sticky": {
-                      "$ref": "#/components/schemas/Sticky"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Stickies"
-        ],
-        "summary": "Delete a sticky",
-        "operationId": "deleteSticky",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/ResourceId"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Sticky deleted"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/stickies/reorder": {
-      "patch": {
-        "tags": [
-          "Stickies"
-        ],
-        "summary": "Reorder stickies",
-        "operationId": "reorderStickies",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "items"
-                ],
-                "properties": {
-                  "items": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "id",
-                        "sortOrder",
-                        "columnIndex"
-                      ],
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "sortOrder": {
-                          "type": "integer",
-                          "minimum": 0
-                        },
-                        "columnIndex": {
-                          "type": "integer",
-                          "enum": [
-                            0,
-                            1
-                          ]
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Stickies reordered"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }

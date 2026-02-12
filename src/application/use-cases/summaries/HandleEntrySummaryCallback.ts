@@ -4,6 +4,7 @@ import { SummaryText, SummaryFormat } from "../../../domain/value-objects/Summar
 import { EntryRepository } from "../../ports/EntryRepository";
 import { SummaryRequestRepository } from "../../ports/SummaryRequestRepository";
 import { NotificationRepository } from "../../ports/NotificationRepository";
+import type { RecordAiUsageFromCallback } from "../ai/RecordAiUsageFromCallback";
 import {
   UseCaseError,
   notFoundError,
@@ -11,6 +12,18 @@ import {
   validationError,
 } from "../../core/UseCaseError";
 import crypto from "crypto";
+
+/**
+ * Optional usage from n8n (if LLM node exposes it).
+ */
+export interface EntrySummaryCallbackUsage {
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costCents?: number;
+}
 
 /**
  * Callback payload from n8n.
@@ -21,6 +34,7 @@ export interface EntrySummaryCallbackPayload {
   entryId: string;
   summary: string;
   format: SummaryFormat;
+  usage?: EntrySummaryCallbackUsage;
 }
 
 /**
@@ -65,6 +79,7 @@ export class HandleEntrySummaryCallback {
     private readonly summaryRequestRepository: SummaryRequestRepository,
     private readonly notificationRepository: NotificationRepository,
     private readonly webhookSecret: string,
+    private readonly recordAiUsage?: RecordAiUsageFromCallback,
     private readonly generateId: () => string = () => crypto.randomUUID()
   ) {}
 
@@ -142,6 +157,16 @@ export class HandleEntrySummaryCallback {
 
     if (notificationResult.isOk()) {
       await this.notificationRepository.create(notificationResult.value);
+    }
+
+    // Record AI usage from callback (tokens + ledger) if handler injected
+    if (this.recordAiUsage) {
+      await this.recordAiUsage.execute({
+        userId: request.userId,
+        action: "SUMMARY",
+        requestId: payload.requestId,
+        usage: payload.usage,
+      });
     }
 
     return ok({ success: true });

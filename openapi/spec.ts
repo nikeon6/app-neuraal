@@ -31,6 +31,7 @@ const spec = {
   servers: [{ url: "http://localhost:3000", description: "Local development" }],
 
   tags: [
+    { name: "Auth", description: "Authentication endpoints (register, login, refresh, logout, me, recover)" },
     { name: "Topics", description: "User topic/category management" },
     { name: "Entries", description: "Task and note entries" },
     { name: "Reminders", description: "Scheduled reminders for entries" },
@@ -45,6 +46,12 @@ const spec = {
   // ---------------------------------------------------------------------------
   components: {
     securitySchemes: {
+      CookieAuth: {
+        type: "apiKey" as const,
+        in: "cookie" as const,
+        name: "access_token",
+        description: "JWT access token sent as httpOnly cookie.",
+      },
       DevUserIdHeader: {
         type: "apiKey" as const,
         in: "header" as const,
@@ -56,12 +63,20 @@ const spec = {
         type: "http" as const,
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "Future JWT auth (not enforced yet).",
+        description: "JWT access token via Authorization header (alternative to cookie auth).",
       },
     },
 
     schemas: {
       // ----- Shared ---------------------------------------------------------
+      UserResponse: {
+        type: "object" as const,
+        required: ["id", "email"],
+        properties: {
+          id: { type: "string" as const, format: "uuid" },
+          email: { type: "string" as const, format: "email" },
+        },
+      },
       ErrorResponse: {
         type: "object" as const,
         required: ["error"],
@@ -72,6 +87,7 @@ const spec = {
             properties: {
               code: { type: "string" as const, example: "NOT_FOUND" },
               message: { type: "string" as const, example: "Resource not found" },
+              details: { type: "object" as const, description: "Optional extra data (e.g. RATE_LIMITED: remaining, resetAt)" },
             },
           },
         },
@@ -185,12 +201,194 @@ const spec = {
   // ---------------------------------------------------------------------------
   // Security (default for all endpoints — dev header)
   // ---------------------------------------------------------------------------
-  security: [{ DevUserIdHeader: [] }],
+  security: [{ CookieAuth: [] }],
 
   // ---------------------------------------------------------------------------
   // Paths
   // ---------------------------------------------------------------------------
   paths: {
+    // =====================================================================
+    // Auth
+    // =====================================================================
+    "/api/auth/register": {
+      post: {
+        tags: ["Auth"],
+        summary: "Register a new user",
+        operationId: "registerUser",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["email", "password"],
+                properties: {
+                  email: { type: "string" as const, format: "email" },
+                  password: { type: "string" as const, minLength: 8, maxLength: 128 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "User registered. Auth cookies set.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["user"],
+                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "409": { $ref: "#/components/responses/Conflict" },
+        },
+      },
+    },
+
+    "/api/auth/login": {
+      post: {
+        tags: ["Auth"],
+        summary: "Log in with email and password",
+        operationId: "loginUser",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["email", "password"],
+                properties: {
+                  email: { type: "string" as const, format: "email" },
+                  password: { type: "string" as const },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Login successful. Auth cookies set.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["user"],
+                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/auth/refresh": {
+      post: {
+        tags: ["Auth"],
+        summary: "Refresh access token",
+        operationId: "refreshSession",
+        description: "Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.",
+        security: [],
+        responses: {
+          "200": {
+            description: "Tokens refreshed. New cookies set.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Log out (revoke tokens)",
+        operationId: "logoutUser",
+        security: [],
+        responses: {
+          "204": { description: "Logged out. Cookies cleared." },
+        },
+      },
+    },
+
+    "/api/auth/me": {
+      get: {
+        tags: ["Auth"],
+        summary: "Get current authenticated user",
+        operationId: "getMe",
+        responses: {
+          "200": {
+            description: "Current user info",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["user"],
+                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/auth/recover": {
+      post: {
+        tags: ["Auth"],
+        summary: "Request password reset",
+        operationId: "requestPasswordReset",
+        description: "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["email"],
+                properties: {
+                  email: { type: "string" as const, format: "email" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Request processed (always succeeds)",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+        },
+      },
+    },
+
     // =====================================================================
     // Topics
     // =====================================================================
@@ -519,7 +717,8 @@ const spec = {
         tags: ["Entries"],
         summary: "Request entry summary (async)",
         operationId: "requestEntrySummary",
-        description: "Enqueues an async AI summary generation. Returns 202 Accepted.",
+        description:
+          "Enqueues an async AI summary generation. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409), max input (400). Returns 202 Accepted when accepted.",
         parameters: [{ $ref: "#/components/parameters/ResourceId" }],
         responses: {
           "202": {
@@ -538,10 +737,62 @@ const spec = {
               },
             },
           },
-          "400": { $ref: "#/components/responses/BadRequest" },
+          "400": {
+            description: "Validation or INPUT_TOO_LARGE (max input chars exceeded)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
           "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "QUOTA_EXCEEDED — monthly summary limit reached",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
           "404": { $ref: "#/components/responses/NotFound" },
-          "409": { $ref: "#/components/responses/Conflict" },
+          "409": {
+            description: "CONCURRENCY_LIMIT — another summary already in progress for this entry or user",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "429": {
+            description: "RATE_LIMITED — too many requests (details may include remaining, resetAt)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+
+    "/api/ai/usage": {
+      get: {
+        tags: ["Entries"],
+        summary: "Get AI usage and limits",
+        operationId: "getAiUsage",
+        description: "Returns current usage and limits for the authenticated user (e.g. summaries per month).",
+        parameters: [
+          { name: "action", in: "query" as const, schema: { type: "string" as const, enum: ["SUMMARY"], default: "SUMMARY" }, description: "AI action type" },
+          { name: "month", in: "query" as const, schema: { type: "string" as const, pattern: "^\\d{4}-(0[1-9]|1[0-2])$", example: "2026-02" }, description: "Month key YYYY-MM (default: current)" },
+        ],
+        responses: {
+          "200": {
+            description: "Usage and limits",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["action", "month", "requestsUsed", "requestsLimit", "tokensUsed", "tokensLimit", "maxActivePerUser", "rateLimitPerMinute", "maxInputChars"],
+                  properties: {
+                    action: { type: "string" as const, example: "SUMMARY" },
+                    month: { type: "string" as const, example: "2026-02" },
+                    requestsUsed: { type: "integer" as const, minimum: 0 },
+                    requestsLimit: { type: "integer" as const, minimum: 0 },
+                    tokensUsed: { type: "integer" as const, minimum: 0 },
+                    tokensLimit: { type: "integer" as const, minimum: 0 },
+                    maxActivePerUser: { type: "integer" as const, minimum: 1 },
+                    rateLimitPerMinute: { type: "integer" as const, minimum: 1 },
+                    maxInputChars: { type: "integer" as const, minimum: 1 },
+                  },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
         },
       },
     },
@@ -1030,6 +1281,14 @@ const withRefs = {
       },
       Conflict: {
         description: "Conflict (duplicate or version mismatch)",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+      },
+      Forbidden: {
+        description: "Forbidden (e.g. quota exceeded)",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+      },
+      RateLimited: {
+        description: "Too many requests (rate limit)",
         content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
       },
       InternalError: {

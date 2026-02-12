@@ -14,6 +14,7 @@ interface SummaryJobData {
   requestId: string;
   userId: string;
   entryId: string;
+  plainTextForSummary?: string;
 }
 
 /**
@@ -57,6 +58,7 @@ async function startWorker() {
         requestId: job.data.requestId,
         userId: job.data.userId,
         entryId: job.data.entryId,
+        plainTextForSummary: job.data.plainTextForSummary,
       });
 
       if (result.isErr()) {
