@@ -9,7 +9,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  * Lists all stickies for the authenticated user.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * Creates a new sticky for the authenticated user.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

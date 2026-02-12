@@ -9,6 +9,7 @@ export interface EntrySummaryRequestProps {
   userId: string;
   entryId: string;
   status: string;
+  meta?: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,7 @@ export class EntrySummaryRequest {
   readonly userId: string;
   readonly entryId: string;
   readonly status: RequestStatus;
+  readonly meta: Record<string, unknown> | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -30,6 +32,7 @@ export class EntrySummaryRequest {
     userId: string,
     entryId: string,
     status: RequestStatus,
+    meta: Record<string, unknown> | null,
     createdAt: Date,
     updatedAt: Date
   ) {
@@ -37,6 +40,7 @@ export class EntrySummaryRequest {
     this.userId = userId;
     this.entryId = entryId;
     this.status = status;
+    this.meta = meta;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -72,6 +76,7 @@ export class EntrySummaryRequest {
         props.userId.trim(),
         props.entryId.trim(),
         statusResult.value,
+        props.meta ?? null,
         props.createdAt,
         props.updatedAt
       )
@@ -80,15 +85,21 @@ export class EntrySummaryRequest {
 
   /**
    * Creates a new EntrySummaryRequest with pending status.
-   * Convenience factory for creating new requests.
+   * meta: optional e.g. { truncated: true, plainTextForSummary: "..." }
    */
-  static createNew(id: string, userId: string, entryId: string): EntrySummaryRequest {
+  static createNew(
+    id: string,
+    userId: string,
+    entryId: string,
+    meta?: Record<string, unknown> | null
+  ): EntrySummaryRequest {
     const now = new Date();
     return new EntrySummaryRequest(
       id,
       userId,
       entryId,
       RequestStatus.pending(),
+      meta ?? null,
       now,
       now
     );
@@ -103,6 +114,7 @@ export class EntrySummaryRequest {
       this.userId,
       this.entryId,
       RequestStatus.submitted(),
+      this.meta,
       this.createdAt,
       new Date()
     );
@@ -117,6 +129,7 @@ export class EntrySummaryRequest {
       this.userId,
       this.entryId,
       RequestStatus.done(),
+      this.meta,
       this.createdAt,
       new Date()
     );
@@ -131,6 +144,7 @@ export class EntrySummaryRequest {
       this.userId,
       this.entryId,
       RequestStatus.failed(),
+      this.meta,
       this.createdAt,
       new Date()
     );
@@ -158,6 +172,7 @@ export class EntrySummaryRequest {
     userId: string;
     entryId: string;
     status: string;
+    meta: Record<string, unknown> | null;
     createdAt: Date;
     updatedAt: Date;
   } {
@@ -166,6 +181,7 @@ export class EntrySummaryRequest {
       userId: this.userId,
       entryId: this.entryId,
       status: this.status.toString(),
+      meta: this.meta,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

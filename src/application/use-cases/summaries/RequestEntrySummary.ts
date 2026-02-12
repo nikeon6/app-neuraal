@@ -1,10 +1,13 @@
 import { Result, ok, err } from "../../../domain/core/Result";
 import { EntrySummaryRequest } from "../../../domain/entities/EntrySummaryRequest";
 import { Notification } from "../../../domain/entities/Notification";
+import { MonthKey } from "../../../domain/value-objects/MonthKey";
 import { EntryRepository } from "../../ports/EntryRepository";
 import { NotificationRepository } from "../../ports/NotificationRepository";
 import { SummaryRequestRepository } from "../../ports/SummaryRequestRepository";
 import { QueuePort } from "../../ports/QueuePort";
+import { AiUsageRepository } from "../../ports/AiUsageRepository";
+import { ClockPort } from "../../ports/ClockPort";
 import {
   UseCaseError,
   notFoundError,
@@ -13,10 +16,12 @@ import {
 
 /**
  * Input for RequestEntrySummary use case.
+ * plainTextForSummary: when set (e.g. truncated), sent to n8n instead of entry content.
  */
 export interface RequestEntrySummaryInput {
   userId: string;
   entryId: string;
+  plainTextForSummary?: string;
 }
 
 /**
@@ -46,6 +51,8 @@ export class RequestEntrySummary {
     private readonly notificationRepository: NotificationRepository,
     private readonly summaryRequestRepository: SummaryRequestRepository,
     private readonly queuePort: QueuePort,
+    private readonly aiUsageRepository: AiUsageRepository,
+    private readonly clock: ClockPort,
     private readonly generateRequestId: () => string = () => crypto.randomUUID(),
     private readonly generateNotificationId: () => string = () =>
       crypto.randomUUID()
@@ -54,7 +61,7 @@ export class RequestEntrySummary {
   async execute(
     input: RequestEntrySummaryInput
   ): Promise<Result<RequestEntrySummaryOutput, UseCaseError>> {
-    const { userId, entryId } = input;
+    const { userId, entryId, plainTextForSummary } = input;
 
     // 1. Validate entry exists and belongs to user
     const entry = await this.entryRepository.findById(entryId);
@@ -75,41 +82,66 @@ export class RequestEntrySummary {
     const notificationId = this.generateNotificationId();
     const now = new Date();
 
-    // 3. Create EntrySummaryRequest
+    // 3. Create EntrySummaryRequest (with meta if truncated)
+    const meta =
+      plainTextForSummary !== undefined
+        ? { truncated: true, plainTextForSummary }
+        : undefined;
     const summaryRequest = EntrySummaryRequest.createNew(
       requestId,
       userId,
-      entryId
+      entryId,
+      meta
     );
     await this.summaryRequestRepository.save(summaryRequest);
 
-    // 4. Create SUMMARY_IN_PROGRESS notification
-    const notificationResult = Notification.create({
-      id: notificationId,
+    // 4. Reserve quota (consume 1); revert if enqueue fails
+    const monthKey = MonthKey.fromDate(this.clock.now()).toString();
+    await this.aiUsageRepository.incrementRequests(
       userId,
-      type: "SUMMARY_IN_PROGRESS",
-      title: "Summary in Progress",
-      message: `Generating summary for "${entry.title.toString()}"...`,
-      status: "unread",
-      payload: { requestId, entryId },
-      createdAt: now,
-    });
+      "SUMMARY",
+      monthKey,
+      1
+    );
 
-    if (notificationResult.isOk()) {
-      await this.notificationRepository.create(notificationResult.value);
+    try {
+      // 5. Create SUMMARY_IN_PROGRESS notification
+      const notificationResult = Notification.create({
+        id: notificationId,
+        userId,
+        type: "SUMMARY_IN_PROGRESS",
+        title: "Summary in Progress",
+        message: `Generating summary for "${entry.title.toString()}"...`,
+        status: "unread",
+        payload: { requestId, entryId },
+        createdAt: now,
+      });
+
+      if (notificationResult.isOk()) {
+        await this.notificationRepository.create(notificationResult.value);
+      }
+
+      // 6. Enqueue summary job
+      await this.queuePort.enqueueEntrySummary({
+        requestId,
+        userId,
+        entryId,
+        plainTextForSummary,
+      });
+
+      return ok({
+        requestId,
+        notificationId,
+      });
+    } catch {
+      // Revert quota if we failed before n8n
+      await this.aiUsageRepository.incrementRequests(
+        userId,
+        "SUMMARY",
+        monthKey,
+        -1
+      );
+      throw new Error("Failed to enqueue summary job");
     }
-
-    // 5. Enqueue summary job
-    await this.queuePort.enqueueEntrySummary({
-      requestId,
-      userId,
-      entryId,
-    });
-
-    // 6. Return IDs for 202 Accepted response
-    return ok({
-      requestId,
-      notificationId,
-    });
   }
 }

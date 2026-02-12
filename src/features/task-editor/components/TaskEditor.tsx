@@ -45,7 +45,7 @@ import type { ContentMenuItem, TaskEditorUIState } from "../types";
 import { YoutubeUrlDialog } from "./YoutubeUrlDialog";
 import { FormatMenu } from "./FormatMenu";
 
-const AUTOSAVE_DEBOUNCE_MS = 1000;
+const AUTOSAVE_DEBOUNCE_MS = 1800;
 
 /** Sentinel value for "auto-classify" topic mode. Not a real topic ID. */
 const AUTO_TOPIC = "__auto__" as const;
@@ -276,6 +276,7 @@ export function TaskEditor({
   const titleRef = useRef<HTMLInputElement>(null);
   const tiptapRef = useRef<TiptapEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formatTriggerRef = useRef<HTMLButtonElement>(null);
   const draftRef = useRef({
     title: entry.title,
     contentJson: (entry.content && typeof entry.content === "object" && Object.keys(entry.content).length > 0
@@ -571,8 +572,7 @@ export function TaskEditor({
   // Summarize (async — result arrives via Notifications)
   // ---------------------------------------------------------------------------
   const [isSummarizing, setIsSummarizing] = useState(false);
-  // Track the summaryUpdatedAt at the time of clicking summarize,
-  // so we know when the summary has actually arrived from the callback.
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
   const summaryRequestedAtRef = useRef<string | null>(null);
 
   // When the entry's summaryUpdatedAt changes after we requested a summary,
@@ -590,24 +590,37 @@ export function TaskEditor({
 
   const handleSummarize = useCallback(async () => {
     if (isSummarizing) return;
+    setSummarizeError(null);
     setIsSummarizing(true);
     summaryRequestedAtRef.current = new Date().toISOString();
     try {
       await summarizeEntryAndInvalidate(queryClient, entry.id);
-      // Summary is async (202). Keep isSummarizing=true until the
-      // entry.summaryUpdatedAt changes (detected by the effect above).
       console.info("[TaskEditor] Summary requested. Waiting for result...");
     } catch (error) {
-      // On error, clear thinking state immediately
       setIsSummarizing(false);
       summaryRequestedAtRef.current = null;
       if (error instanceof ApiError) {
         if (error.status === 404) {
           await queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
           onClose?.();
-        } else {
-          console.error("[TaskEditor] summarize failed:", error);
+          return;
         }
+        if (error.status === 429) {
+          const details = error.details as { resetAt?: string; remaining?: number } | undefined;
+          const resetAt = details?.resetAt ? new Date(details.resetAt) : null;
+          const waitSec = resetAt ? Math.max(1, Math.ceil((resetAt.getTime() - Date.now()) / 1000)) : null;
+          setSummarizeError(waitSec ? `Too many requests. Try again in ${waitSec} seconds.` : "Too many requests. Try again later.");
+          return;
+        }
+        if (error.status === 403) {
+          setSummarizeError("Monthly summary limit reached. Resets next month.");
+          return;
+        }
+        if (error.status === 409) {
+          setSummarizeError("A summary is already in progress for this entry.");
+          return;
+        }
+        console.error("[TaskEditor] summarize failed:", error);
       } else {
         console.error("[TaskEditor] summarize failed:", error);
       }
@@ -1054,6 +1067,19 @@ export function TaskEditor({
               <Brain className={cn("w-4 h-4 @[380px]:w-5 @[380px]:h-5", isSummarizing && "animate-pulse")} />
             </button>
           </div>
+          {summarizeError && (
+            <p className="text-xs text-amber-400 mt-1 flex items-center gap-1" role="alert">
+              {summarizeError}
+              <button
+                type="button"
+                aria-label="Dismiss"
+                className="text-white/60 hover:text-white ml-1"
+                onClick={() => setSummarizeError(null)}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
@@ -1174,6 +1200,7 @@ export function TaskEditor({
 
               <div className="relative">
                 <button
+                  ref={formatTriggerRef}
                   type="button"
                   aria-label="Text format"
                   aria-haspopup="true"
@@ -1196,6 +1223,7 @@ export function TaskEditor({
                     <FormatMenu
                       editor={tiptapRef.current.editor}
                       onClose={() => setIsFormatMenuOpen(false)}
+                      triggerRef={formatTriggerRef}
                     />
                   )}
                 </AnimatePresence>

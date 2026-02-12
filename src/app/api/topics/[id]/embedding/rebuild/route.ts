@@ -19,7 +19,7 @@ export async function POST(
   context: RouteContext
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -45,7 +45,7 @@ export async function POST(
   const embeddingProvider = new OllamaEmbeddingProvider({
     baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
     model:
-      process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+      process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
   });
 
   const embeddingDim = process.env.EMBEDDING_DIM
@@ -53,7 +53,7 @@ export async function POST(
     : DEFAULT_EMBEDDING_DIM;
 
   const embeddingModel =
-    process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest";
+    process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:4b";
 
   const useCase = new RebuildTopicEmbedding(topicRepo, embeddingProvider, {
     embeddingDim,

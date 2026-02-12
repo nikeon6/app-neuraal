@@ -30,4 +30,10 @@ export interface SummaryRequestRepository {
    * Used to check if there's already an active summary request.
    */
   findActiveByEntryId(entryId: string): Promise<EntrySummaryRequest | null>;
+
+  /**
+   * Counts active (pending or submitted) summary requests for a user.
+   * Used for per-user concurrency limit.
+   */
+  countActiveByUserId(userId: string): Promise<number>;
 }

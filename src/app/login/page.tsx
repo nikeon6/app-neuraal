@@ -2,42 +2,78 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
-import { ArrowRight } from "lucide-react";
+import { post, ApiError } from "@/shared/api/apiClient";
+import { ArrowRight, Brain } from "lucide-react";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login, isAuthenticated } = useStore();
+  const [loading, setLoading] = useState(false);
+  const { login, user } = useStore();
   const router = useRouter();
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       router.push("/");
+      return;
     }
-  }, [isAuthenticated, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+    // Also check server-side auth state
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (data?.user) {
+          login(data.user);
+          router.push("/");
+        }
+      })
+      .catch(() => {
+        // Not authenticated, stay on login
+      });
+  }, [user, login, router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Basic validation (in a real app, this would be server-side)
-    if (!username.trim() || !password.trim()) {
-      setError("Please enter username and password");
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter email and password");
       return;
     }
 
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters");
-      return;
+    setLoading(true);
+    try {
+      const data = await post<{ user: { id: string; email: string } }>(
+        "/api/auth/login",
+        { email, password }
+      );
+      login(data.user);
+      router.push("/");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 429) {
+          setError(err.message || "Too many attempts. Please wait a few minutes.");
+        } else if (err.status === 401) {
+          setError("Invalid email or password");
+        } else if (err.status === 400) {
+          setError(err.message || "Invalid input");
+        } else {
+          setError("Login failed. Please try again.");
+        }
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    // Demo login - in production this would call an API
-    login();
-    router.push("/");
   };
 
   return (
@@ -54,8 +90,12 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
-        {/* Header */}
+        {/* Header with Neuraal branding */}
         <div className="text-center mb-10">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Brain className="w-10 h-10 text-primary" />
+            <span className="text-2xl font-bold text-white tracking-wide">Neuraal</span>
+          </div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
           <p className="text-white/40">Sign in to access your daily log</p>
         </div>
@@ -74,19 +114,19 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="text-xs font-medium text-white/60 uppercase tracking-wider"
             >
-              Username
+              Email
             </label>
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              placeholder="Enter your username"
-              autoComplete="username"
+              placeholder="you@example.com"
+              autoComplete="email"
             />
           </div>
 
@@ -110,12 +150,29 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-primary/90 transition-colors group"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-primary/90 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Sign In</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <span>{loading ? "Signing in..." : "Sign In"}</span>
+            {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
+
+        {/* Links */}
+        <div className="mt-6 text-center space-y-2">
+          <Link
+            href="/register"
+            className="text-sm text-white/40 hover:text-white/70 transition-colors block"
+          >
+            Create account
+          </Link>
+          <Link
+            href="/recover"
+            className="text-sm text-white/40 hover:text-white/70 transition-colors block"
+          >
+            Forgot password?
+          </Link>
+        </div>
       </motion.div>
     </div>
   );

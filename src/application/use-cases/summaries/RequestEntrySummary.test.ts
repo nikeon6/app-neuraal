@@ -3,14 +3,18 @@ import { RequestEntrySummary } from "./RequestEntrySummary";
 import { InMemoryEntryRepository } from "../../test/InMemoryEntryRepository";
 import { InMemoryNotificationRepository } from "../../test/InMemoryNotificationRepository";
 import { InMemorySummaryRequestRepository } from "../../test/InMemorySummaryRequestRepository";
+import { InMemoryAiUsageRepository } from "../../test/InMemoryAiUsageRepository";
 import { FakeQueuePort } from "../../test/FakeQueuePort";
+import { FakeClock } from "../../test/FakeClock";
 import { Entry } from "../../../domain/entities/Entry";
 
 describe("RequestEntrySummary", () => {
   let entryRepository: InMemoryEntryRepository;
   let notificationRepository: InMemoryNotificationRepository;
   let summaryRequestRepository: InMemorySummaryRequestRepository;
+  let aiUsageRepository: InMemoryAiUsageRepository;
   let queuePort: FakeQueuePort;
+  let clock: FakeClock;
   let useCase: RequestEntrySummary;
 
   const userId = "user-123";
@@ -41,12 +45,16 @@ describe("RequestEntrySummary", () => {
     entryRepository = new InMemoryEntryRepository();
     notificationRepository = new InMemoryNotificationRepository();
     summaryRequestRepository = new InMemorySummaryRequestRepository();
+    aiUsageRepository = new InMemoryAiUsageRepository();
     queuePort = new FakeQueuePort();
+    clock = new FakeClock();
     useCase = new RequestEntrySummary(
       entryRepository,
       notificationRepository,
       summaryRequestRepository,
       queuePort,
+      aiUsageRepository,
+      clock,
       () => "test-request-id",
       () => "test-notif-id"
     );
@@ -101,6 +109,20 @@ describe("RequestEntrySummary", () => {
       expect(jobs[0].requestId).toBe("test-request-id");
       expect(jobs[0].userId).toBe(userId);
       expect(jobs[0].entryId).toBe(entryId);
+    });
+
+    it("should increment monthly usage when request is created", async () => {
+      await createTestEntry();
+
+      await useCase.execute({ userId, entryId });
+
+      const monthly = await aiUsageRepository.getMonthly(
+        userId,
+        "SUMMARY",
+        "2026-02"
+      );
+      expect(monthly).not.toBeNull();
+      expect(monthly!.requestsUsed).toBe(1);
     });
   });
 
@@ -171,6 +193,8 @@ describe("RequestEntrySummary", () => {
         notificationRepository,
         summaryRequestRepository,
         queuePort,
+        aiUsageRepository,
+        clock,
         () => `request-${++callCount}`,
         () => `notif-${callCount}`
       );
@@ -195,6 +219,8 @@ describe("RequestEntrySummary", () => {
         notificationRepository,
         summaryRequestRepository,
         queuePort,
+        aiUsageRepository,
+        clock,
         () => `request-${++callCount}`,
         () => `notif-${callCount}`
       );

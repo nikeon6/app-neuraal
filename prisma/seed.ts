@@ -18,6 +18,20 @@ async function main() {
   console.log("🌱 Seeding database...\n");
 
   // ---------------------------------------------------------------------------
+  // 0. Ensure pgvector extension and embedding column exist
+  //    (Prisma's driver adapter may skip vector columns during migrations)
+  // ---------------------------------------------------------------------------
+  const embeddingDim = process.env.EMBEDDING_DIM
+    ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
+    : 4096; // default matches qwen3-embedding:latest (8b)
+  console.log(`  📦 Ensuring pgvector extension and embedding column (dim=${embeddingDim})...`);
+  await pool.query("CREATE EXTENSION IF NOT EXISTS vector;");
+  await pool.query(
+    `ALTER TABLE "topics" ADD COLUMN IF NOT EXISTS "embedding" vector(${embeddingDim});`
+  );
+  console.log("  ✅ pgvector ready\n");
+
+  // ---------------------------------------------------------------------------
   // 1. Topics
   // ---------------------------------------------------------------------------
   const topicsData = [

@@ -6,7 +6,7 @@ import type { OcrPort } from "@/application/ports/OcrPort";
 export interface OllamaVisionConfig {
   /** Ollama base URL, e.g. "http://localhost:11434" */
   baseUrl: string;
-  /** Vision model name, e.g. "glm-ocr" */
+  /** Vision model name, e.g. "glm-ocr:q8_0" */
   model: string;
   /** Request timeout in milliseconds (default: 90_000 — generous for large images) */
   timeoutMs?: number;

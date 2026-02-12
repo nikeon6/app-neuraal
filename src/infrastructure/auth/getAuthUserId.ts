@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { JoseJwtService } from "./JoseJwtService";
 
 /**
  * Auth error response.
@@ -17,36 +18,46 @@ export type AuthResult =
 
 /**
  * Extracts the authenticated user ID from the request.
- * 
- * TODO: Replace this temporary implementation with real auth when implemented.
- * Current implementation reads from "x-user-id" header for development.
- * 
- * Future implementation should:
- * - Parse JWT from httpOnly cookie
- * - Verify token signature and expiration
- * - Extract userId from token payload
- * 
+ *
+ * Priority chain:
+ * 1. Cookie `access_token` → verify JWT → extract userId
+ * 2. Dev fallback: `x-user-id` header if NODE_ENV !== "production"
+ * 3. Else → UNAUTHORIZED
+ *
  * @param request - The incoming Next.js request
  * @returns AuthResult with userId on success, or error on failure
  */
-export function getAuthUserId(request: NextRequest): AuthResult {
-  // TODO: Replace with real JWT auth when implemented
-  // This is a temporary solution for development/testing
-  
-  const userId = request.headers.get("x-user-id");
+export async function getAuthUserId(request: NextRequest): Promise<AuthResult> {
+  // 1. Try JWT from cookie
+  const accessToken = request.cookies.get("access_token")?.value;
 
-  if (!userId || userId.trim().length === 0) {
-    return {
-      ok: false,
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Authentication required. Provide x-user-id header.",
-      },
-    };
+  if (accessToken) {
+    const jwtSecret = process.env.AUTH_JWT_SECRET;
+    if (jwtSecret) {
+      const jwtService = new JoseJwtService(jwtSecret);
+      const payload = await jwtService.verify(accessToken);
+
+      if (payload) {
+        return { ok: true, userId: payload.sub };
+      }
+    }
+    // If token exists but is invalid/expired, fall through to dev fallback
   }
 
+  // 2. Dev fallback: x-user-id header (non-production only)
+  if (process.env.NODE_ENV !== "production") {
+    const userId = request.headers.get("x-user-id");
+    if (userId && userId.trim().length > 0) {
+      return { ok: true, userId: userId.trim() };
+    }
+  }
+
+  // 3. No valid auth found
   return {
-    ok: true,
-    userId: userId.trim(),
+    ok: false,
+    error: {
+      code: "UNAUTHORIZED",
+      message: "Authentication required.",
+    },
   };
 }

@@ -17,7 +17,7 @@ export class FakeEmbeddingProvider implements EmbeddingProviderPort {
   /** Pre-defined responses: text → vector */
   private responses: Map<string, number[]> = new Map();
 
-  constructor(dim: number = 768) {
+  constructor(dim: number = 4096) {
     this.dim = dim;
   }
 

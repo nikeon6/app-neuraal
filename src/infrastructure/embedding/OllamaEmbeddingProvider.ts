@@ -5,7 +5,7 @@ import type { EmbeddingProviderPort } from "@/application/ports/EmbeddingProvide
  */
 export interface OllamaEmbeddingConfig {
   baseUrl: string; // e.g. "http://localhost:11434"
-  model: string; // e.g. "nomic-embed-text-v2-moe:latest"
+  model: string; // e.g. "qwen3-embedding:latest"
   timeoutMs?: number; // default 30000
 }
 

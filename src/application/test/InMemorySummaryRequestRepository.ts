@@ -36,17 +36,19 @@ export class InMemorySummaryRequestRepository
   async findActiveByEntryId(
     entryId: string
   ): Promise<EntrySummaryRequest | null> {
-    // Find the latest non-terminal request for this entry
     const activeRequests = this.requests.filter(
       (r) => r.entryId === entryId && !r.isTerminal()
     );
-    if (activeRequests.length === 0) {
-      return null;
-    }
-    // Return the most recent one
+    if (activeRequests.length === 0) return null;
     return activeRequests.sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     )[0];
+  }
+
+  async countActiveByUserId(userId: string): Promise<number> {
+    return this.requests.filter(
+      (r) => r.userId === userId && !r.isTerminal()
+    ).length;
   }
 
   /**

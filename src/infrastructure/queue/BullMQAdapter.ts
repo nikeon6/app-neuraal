@@ -61,6 +61,7 @@ export class BullMQAdapter implements QueuePort {
         requestId: data.requestId,
         userId: data.userId,
         entryId: data.entryId,
+        plainTextForSummary: data.plainTextForSummary,
       },
       {
         jobId: `summary-${data.requestId}`,
