@@ -1,19 +1,16 @@
-import type { AiUsageRepository } from "@/application/ports/AiUsageRepository";
+import type { AiUsageRepository, AiUsageMonthlyRecord, AiUsageLedgerEntry } from "@/application/ports/AiUsageRepository";
 import { pool } from "./prisma";
 
 /**
  * PrismaAiUsageRepository implemented with raw SQL via the pg pool.
- * This avoids relying on Prisma client delegates (aiUsageMonthly / aiUsageLedger)
- * which can be undefined in some Next.js/Turbopack contexts.
+ * Supports all AiActionType values (SUMMARY, TRANSCRIPT_YOUTUBE, OCR_IMAGE, REMINDER_WHATSAPP).
  */
 export class PrismaAiUsageRepository implements AiUsageRepository {
   async getMonthly(
     userId: string,
     action: string,
     monthKey: string
-  ): Promise<import("@/application/ports/AiUsageRepository").AiUsageMonthlyRecord | null> {
-    if (action !== "SUMMARY") return null;
-
+  ): Promise<AiUsageMonthlyRecord | null> {
     const result = await pool.query<{
       user_id: string;
       action: string;
@@ -45,8 +42,6 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
     monthKey: string,
     delta: number
   ): Promise<void> {
-    if (action !== "SUMMARY") return;
-
     await pool.query(
       `INSERT INTO ai_usage_monthly (id, user_id, action, month_key, requests_used, tokens_used, created_at, updated_at)
        VALUES (gen_random_uuid(), $1, $2::"AiActionType", $3, $4, 0, NOW(), NOW())
@@ -62,8 +57,6 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
     monthKey: string,
     delta: number
   ): Promise<void> {
-    if (action !== "SUMMARY") return;
-
     await pool.query(
       `INSERT INTO ai_usage_monthly (id, user_id, action, month_key, requests_used, tokens_used, created_at, updated_at)
        VALUES (gen_random_uuid(), $1, $2::"AiActionType", $3, 0, $4, NOW(), NOW())
@@ -73,19 +66,7 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
     );
   }
 
-  async addLedgerEntry(entry: {
-    userId: string;
-    action: string;
-    requestId?: string;
-    model?: string;
-    promptTokens?: number;
-    completionTokens?: number;
-    totalTokens?: number;
-    costCents?: number;
-    metaJson?: Record<string, unknown>;
-  }): Promise<void> {
-    if (entry.action !== "SUMMARY") return;
-
+  async addLedgerEntry(entry: AiUsageLedgerEntry): Promise<void> {
     await pool.query(
       `INSERT INTO ai_usage_ledger (id, user_id, action, request_id, model, prompt_tokens, completion_tokens, total_tokens, cost_cents, meta_json, created_at)
        VALUES (gen_random_uuid(), $1, $2::"AiActionType", $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())`,

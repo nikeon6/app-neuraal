@@ -1,10 +1,10 @@
 import { Result, ok, err } from "../core/Result";
 
-const VALID_ACTIONS = ["SUMMARY"] as const;
+const VALID_ACTIONS = ["SUMMARY", "TRANSCRIPT_YOUTUBE", "OCR_IMAGE", "REMINDER_WHATSAPP"] as const;
 export type AiActionType = (typeof VALID_ACTIONS)[number];
 
 /**
- * AI action type value object (SUMMARY, future: TRANSCRIPT, OCR, etc.).
+ * AI action type value object.
  */
 export class AiAction {
   private readonly value: AiActionType;
@@ -26,6 +26,18 @@ export class AiAction {
 
   static summary(): AiAction {
     return new AiAction("SUMMARY");
+  }
+
+  static transcriptYoutube(): AiAction {
+    return new AiAction("TRANSCRIPT_YOUTUBE");
+  }
+
+  static ocrImage(): AiAction {
+    return new AiAction("OCR_IMAGE");
+  }
+
+  static reminderWhatsapp(): AiAction {
+    return new AiAction("REMINDER_WHATSAPP");
   }
 
   toString(): string {

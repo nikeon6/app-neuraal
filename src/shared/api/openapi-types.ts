@@ -247,6 +247,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/entries/{id}/transcribe-youtube": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request YouTube transcript for an entry (async)
+         * @description Enqueues an async YouTube transcription. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409). Returns 202 Accepted when queued.
+         */
+        post: operations["requestEntryTranscript"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entries/{id}/ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract text or describe an image attachment (OCR / vision)
+         * @description Analyzes an image attachment using Ollama Vision. Mode 'scan' extracts text (OCR); mode 'describe' generates a description. Synchronous call. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409).
+         */
+        post: operations["extractImageText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/usage": {
         parameters: {
             query?: never;
@@ -256,9 +296,29 @@ export interface paths {
         };
         /**
          * Get AI usage and limits
-         * @description Returns current usage and limits for the authenticated user (e.g. summaries per month).
+         * @description Returns current usage and limits for the authenticated user across all AI actions, or filtered by a single action. Returns an object with `month` and `items` array.
          */
         get: operations["getAiUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/storage/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user storage usage and limits
+         * @description Returns the authenticated user's current storage usage (total bytes) and configured limits (max per user, max per entry).
+         */
+        get: operations["getStorageUsage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -313,7 +373,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a reminder */
+        /**
+         * Create a reminder
+         * @description Creates a new reminder for an entry. When channel is 'whatsapp', AI guardrails are enforced: rate limit (429), monthly quota (403), concurrency (409).
+         */
         post: operations["createReminder"];
         delete?: never;
         options?: never;
@@ -386,6 +449,26 @@ export interface paths {
          * @description Callback endpoint for n8n to deliver AI-generated summaries. Authenticated via HMAC signature (NOT x-user-id).
          */
         post: operations["entrySummaryCallback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automations/entry-transcript/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Entry transcript callback (from n8n)
+         * @description Callback endpoint for n8n to deliver YouTube transcriptions. Authenticated via HMAC signature (NOT user auth).
+         */
+        post: operations["entryTranscriptCallback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -578,6 +661,25 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /**
+         * @description Available AI action types for usage tracking and guardrails
+         * @enum {string}
+         */
+        AiActionType: "SUMMARY" | "TRANSCRIPT_YOUTUBE" | "OCR_IMAGE" | "REMINDER_WHATSAPP";
+        /** @description Usage and limits for a single AI action in a given month */
+        AiUsageItem: {
+            action: components["schemas"]["AiActionType"];
+            /** @example 2026-02 */
+            month: string;
+            requestsUsed: number;
+            requestsLimit: number;
+            tokensUsed: number;
+            tokensLimit: number;
+            maxActivePerUser: number;
+            rateLimitPerMinute: number;
+            maxInputChars: number;
+            maxInputBytes: number;
         };
     };
     responses: {
@@ -1191,12 +1293,181 @@ export interface operations {
             };
         };
     };
+    requestEntryTranscript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uri
+                     * @description YouTube video URL to transcribe
+                     */
+                    url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Transcript generation started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        requestId: string;
+                        /** Format: uuid */
+                        notificationId: string;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description QUOTA_EXCEEDED — monthly transcript limit reached */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONCURRENCY_LIMIT — another transcript already in progress for this user */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED — too many requests per minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    extractImageText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description Attachment ID of the image to analyze
+                     */
+                    attachmentId: string;
+                    /**
+                     * @description Vision analysis mode (default: scan)
+                     * @default scan
+                     * @enum {string}
+                     */
+                    mode?: "scan" | "describe";
+                };
+            };
+        };
+        responses: {
+            /** @description Image analyzed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        attachmentId: string;
+                        /** @description Extracted text or image description */
+                        extractedText: string;
+                        /** @enum {string} */
+                        mode: "scan" | "describe";
+                    };
+                };
+            };
+            /** @description Validation error or INPUT_TOO_LARGE (image too large) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description QUOTA_EXCEEDED — monthly OCR limit reached */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description CONCURRENCY_LIMIT — another OCR request already in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED — too many OCR requests per minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ollama Vision backend error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     getAiUsage: {
         parameters: {
             query?: {
-                /** @description AI action type */
-                action?: "SUMMARY";
-                /** @description Month key YYYY-MM (default: current) */
+                /** @description Filter by a single AI action type. Omit to get all actions. */
+                action?: components["schemas"]["AiActionType"];
+                /** @description Month key YYYY-MM (default: current month) */
                 month?: string;
             };
             header?: never;
@@ -1205,24 +1476,57 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Usage and limits */
+            /** @description Usage and limits for the requested month */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @example SUMMARY */
-                        action: string;
-                        /** @example 2026-02 */
+                        /**
+                         * @description The month the usage data applies to
+                         * @example 2026-02
+                         */
                         month: string;
-                        requestsUsed: number;
-                        requestsLimit: number;
-                        tokensUsed: number;
-                        tokensLimit: number;
-                        maxActivePerUser: number;
-                        rateLimitPerMinute: number;
-                        maxInputChars: number;
+                        /** @description Usage and limits per AI action */
+                        items: components["schemas"]["AiUsageItem"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getStorageUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Storage usage and limits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Total bytes currently used by the user's active attachments
+                         * @example 52428800
+                         */
+                        usedBytes: number;
+                        /**
+                         * @description Maximum total storage allowed per user (in bytes)
+                         * @example 1073741824
+                         */
+                        maxUserStorageBytes: number;
+                        /**
+                         * @description Maximum total attachment size allowed per entry (in bytes)
+                         * @example 20971520
+                         */
+                        maxEntryAttachmentBytes: number;
                     };
                 };
             };
@@ -1337,8 +1641,34 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            /** @description QUOTA_EXCEEDED — monthly WhatsApp reminder limit reached */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description Conflict — duplicate reminder or CONCURRENCY_LIMIT for WhatsApp channel */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED — too many WhatsApp reminder requests per minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     updateReminder: {
@@ -1480,6 +1810,67 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    entryTranscriptCallback: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unix timestamp in ms used for HMAC computation */
+                "X-Timestamp": string;
+                /** @description HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody) */
+                "X-Signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    requestId: string;
+                    userId: string;
+                    /** Format: uuid */
+                    entryId: string;
+                    /** @description The transcribed text from the YouTube video */
+                    transcriptText: string;
+                    /**
+                     * @description Format of the transcript text (optional)
+                     * @enum {string}
+                     */
+                    format?: "markdown" | "plain";
+                    /** @description Token usage reported by the transcription model (optional) */
+                    usage?: {
+                        promptTokens?: number;
+                        completionTokens?: number;
+                        totalTokens?: number;
+                        model?: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Transcript processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Missing or invalid HMAC signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     initAttachmentUpload: {

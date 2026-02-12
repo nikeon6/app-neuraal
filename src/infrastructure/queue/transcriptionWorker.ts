@@ -1,16 +1,16 @@
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { ProcessTranscriptionJob } from "../../application/use-cases/transcriptions/ProcessTranscriptionJob";
+import { ProcessEntryTranscriptJob } from "../../application/use-cases/transcripts/ProcessEntryTranscriptJob";
 import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
-import { PrismaTranscriptionRequestRepository } from "../persistence/PrismaTranscriptionRequestRepository";
+import { PrismaTranscriptRequestRepository } from "../persistence/PrismaTranscriptRequestRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
 
 /**
- * Job data structure for transcription jobs.
+ * Job data structure for transcript jobs.
  */
-interface TranscriptionJobData {
+interface TranscriptJobData {
   requestId: string;
   userId: string;
   entryId: string;
@@ -18,44 +18,38 @@ interface TranscriptionJobData {
 }
 
 /**
- * Creates and starts the transcription worker.
+ * Creates and starts the transcript worker.
  */
 async function startWorker() {
-  console.log("Starting transcription worker...");
+  console.log("Starting transcript worker...");
 
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-  const connection = new IORedis(redisUrl, {
-    maxRetriesPerRequest: null,
-  });
+  const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
-  // Build callback URL from env
   const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-  const callbackUrl = `${appBaseUrl}/api/automations/entry-transcription/callback`;
+  const callbackUrl = `${appBaseUrl}/api/automations/entry-transcript/callback`;
 
   // Create dependencies
   const entryRepository = new PrismaEntryRepository();
-  const transcriptionRequestRepository =
-    new PrismaTranscriptionRequestRepository();
+  const transcriptRequestRepository = new PrismaTranscriptRequestRepository();
   const notificationRepository = new PrismaNotificationRepository();
   const automationPort = new N8NClient();
 
-  const processTranscriptionJob = new ProcessTranscriptionJob(
+  const processJob = new ProcessEntryTranscriptJob(
     entryRepository,
-    transcriptionRequestRepository,
+    transcriptRequestRepository,
     notificationRepository,
     automationPort,
     callbackUrl
   );
 
   // Create worker
-  const worker = new Worker<TranscriptionJobData>(
+  const worker = new Worker<TranscriptJobData>(
     "transcriptions",
-    async (job: Job<TranscriptionJobData>) => {
-      console.log(
-        `Processing job ${job.id} for transcription request ${job.data.requestId}`
-      );
+    async (job: Job<TranscriptJobData>) => {
+      console.log(`Processing job ${job.id} for transcript request ${job.data.requestId}`);
 
-      const result = await processTranscriptionJob.execute({
+      const result = await processJob.execute({
         requestId: job.data.requestId,
         userId: job.data.userId,
         entryId: job.data.entryId,
@@ -71,15 +65,12 @@ async function startWorker() {
       console.log(`Job ${job.id} result:`, outcome);
 
       if (outcome.status === "failed") {
-        throw new Error(`Transcription failed: ${outcome.reason}`);
+        throw new Error(`Transcript failed: ${outcome.reason}`);
       }
 
       return outcome;
     },
-    {
-      connection,
-      concurrency: 3,
-    }
+    { connection, concurrency: 3 }
   );
 
   // Event handlers
@@ -97,7 +88,7 @@ async function startWorker() {
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log("Shutting down transcription worker...");
+    console.log("Shutting down transcript worker...");
     await worker.close();
     await connection.quit();
     process.exit(0);
@@ -106,11 +97,11 @@ async function startWorker() {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  console.log("Transcription worker started. Waiting for jobs...");
+  console.log("Transcript worker started. Waiting for jobs...");
 }
 
 // Start the worker
 startWorker().catch((error) => {
-  console.error("Failed to start transcription worker:", error);
+  console.error("Failed to start transcript worker:", error);
   process.exit(1);
 });
