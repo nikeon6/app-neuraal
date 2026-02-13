@@ -33,6 +33,10 @@
       "description": "In-app notifications"
     },
     {
+      "name": "Stickies",
+      "description": "Sticky notes (kanban-style)"
+    },
+    {
       "name": "Automations",
       "description": "Webhook callbacks (HMAC-authenticated)"
     },
@@ -77,10 +81,7 @@
     "schemas": {
       "UserResponse": {
         "type": "object",
-        "required": [
-          "id",
-          "email"
-        ],
+        "required": ["id", "email"],
         "properties": {
           "id": {
             "type": "string",
@@ -94,16 +95,11 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "properties": {
           "error": {
             "type": "object",
-            "required": [
-              "code",
-              "message"
-            ],
+            "required": ["code", "message"],
             "properties": {
               "code": {
                 "type": "string",
@@ -123,13 +119,7 @@
       },
       "Topic": {
         "type": "object",
-        "required": [
-          "id",
-          "userId",
-          "name",
-          "color",
-          "createdAt"
-        ],
+        "required": ["id", "userId", "name", "color", "createdAt"],
         "properties": {
           "id": {
             "type": "string",
@@ -182,10 +172,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "task",
-              "note"
-            ]
+            "enum": ["task", "note"]
           },
           "title": {
             "type": "string",
@@ -197,16 +184,10 @@
             "description": "TipTap/ProseMirror JSON content"
           },
           "topicId": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "completed": {
-            "type": [
-              "boolean",
-              "null"
-            ],
+            "type": ["boolean", "null"],
             "description": "null for notes"
           },
           "version": {
@@ -227,27 +208,14 @@
             "format": "date-time"
           },
           "summary": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "summaryFormat": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "markdown",
-              "plain",
-              null
-            ]
+            "type": ["string", "null"],
+            "enum": ["markdown", "plain", null]
           },
           "summaryUpdatedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           }
         }
@@ -282,28 +250,15 @@
           },
           "channel": {
             "type": "string",
-            "enum": [
-              "whatsapp",
-              "email",
-              "push",
-              "sms"
-            ]
+            "enum": ["whatsapp", "email", "push", "sms"]
           },
           "message": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 500
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "sent",
-              "canceled",
-              "failed"
-            ]
+            "enum": ["pending", "sent", "canceled", "failed"]
           },
           "createdAt": {
             "type": "string",
@@ -342,7 +297,10 @@
               "REMINDER_CANCELED",
               "SUMMARY_IN_PROGRESS",
               "SUMMARY_DONE",
-              "SUMMARY_FAILED"
+              "SUMMARY_FAILED",
+              "TRANSCRIPTION_IN_PROGRESS",
+              "TRANSCRIPTION_DONE",
+              "TRANSCRIPTION_FAILED"
             ]
           },
           "title": {
@@ -355,16 +313,10 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "unread",
-              "read"
-            ]
+            "enum": ["unread", "read"]
           },
           "payload": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": true,
             "description": "Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type."
           },
@@ -417,18 +369,58 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "inline",
-              "file"
-            ]
+            "enum": ["inline", "file"]
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "ready",
-              "deleted"
-            ]
+            "enum": ["pending", "ready", "deleted"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Sticky": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "title",
+          "content",
+          "version",
+          "sortOrder",
+          "columnIndex",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "version": {
+            "type": "integer"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "columnIndex": {
+            "type": "integer"
           },
           "createdAt": {
             "type": "string",
@@ -602,9 +594,7 @@
   "paths": {
     "/api/auth/register": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Register a new user",
         "operationId": "registerUser",
         "security": [],
@@ -614,10 +604,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
+                "required": ["email", "password"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -640,9 +627,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "user"
-                  ],
+                  "required": ["user"],
                   "properties": {
                     "user": {
                       "$ref": "#/components/schemas/UserResponse"
@@ -663,9 +648,7 @@
     },
     "/api/auth/login": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Log in with email and password",
         "operationId": "loginUser",
         "security": [],
@@ -675,10 +658,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
+                "required": ["email", "password"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -699,9 +679,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "user"
-                  ],
+                  "required": ["user"],
                   "properties": {
                     "user": {
                       "$ref": "#/components/schemas/UserResponse"
@@ -722,9 +700,7 @@
     },
     "/api/auth/refresh": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Refresh access token",
         "operationId": "refreshSession",
         "description": "Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.",
@@ -736,9 +712,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "ok"
-                  ],
+                  "required": ["ok"],
                   "properties": {
                     "ok": {
                       "type": "boolean"
@@ -756,9 +730,7 @@
     },
     "/api/auth/logout": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Log out (revoke tokens)",
         "operationId": "logoutUser",
         "security": [],
@@ -771,9 +743,7 @@
     },
     "/api/auth/me": {
       "get": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Get current authenticated user",
         "operationId": "getMe",
         "responses": {
@@ -783,9 +753,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "user"
-                  ],
+                  "required": ["user"],
                   "properties": {
                     "user": {
                       "$ref": "#/components/schemas/UserResponse"
@@ -803,9 +771,7 @@
     },
     "/api/auth/recover": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Request password reset",
         "operationId": "requestPasswordReset",
         "description": "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
@@ -816,9 +782,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email"
-                ],
+                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -836,9 +800,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "ok"
-                  ],
+                  "required": ["ok"],
                   "properties": {
                     "ok": {
                       "type": "boolean"
@@ -856,9 +818,7 @@
     },
     "/api/topics": {
       "get": {
-        "tags": [
-          "Topics"
-        ],
+        "tags": ["Topics"],
         "summary": "List user topics",
         "operationId": "listTopics",
         "responses": {
@@ -868,9 +828,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "topics"
-                  ],
+                  "required": ["topics"],
                   "properties": {
                     "topics": {
                       "type": "array",
@@ -889,9 +847,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Topics"
-        ],
+        "tags": ["Topics"],
         "summary": "Create a topic",
         "operationId": "createTopic",
         "requestBody": {
@@ -900,10 +856,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "color"
-                ],
+                "required": ["name", "color"],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -926,9 +879,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "topic"
-                  ],
+                  "required": ["topic"],
                   "properties": {
                     "topic": {
                       "$ref": "#/components/schemas/Topic"
@@ -952,9 +903,7 @@
     },
     "/api/topics/{id}": {
       "patch": {
-        "tags": [
-          "Topics"
-        ],
+        "tags": ["Topics"],
         "summary": "Update a topic",
         "operationId": "updateTopic",
         "parameters": [
@@ -990,9 +939,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "topic"
-                  ],
+                  "required": ["topic"],
                   "properties": {
                     "topic": {
                       "$ref": "#/components/schemas/Topic"
@@ -1017,9 +964,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Topics"
-        ],
+        "tags": ["Topics"],
         "summary": "Delete a topic",
         "operationId": "deleteTopic",
         "parameters": [
@@ -1045,9 +990,7 @@
     },
     "/api/topics/{id}/embedding/rebuild": {
       "post": {
-        "tags": [
-          "Embeddings"
-        ],
+        "tags": ["Embeddings"],
         "summary": "Rebuild topic embedding",
         "operationId": "rebuildTopicEmbedding",
         "description": "Recalculates the embedding vector for a topic using Ollama. Useful after renaming.",
@@ -1063,10 +1006,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "topicId",
-                    "embeddingUpdatedAt"
-                  ],
+                  "required": ["topicId", "embeddingUpdatedAt"],
                   "properties": {
                     "topicId": {
                       "type": "string",
@@ -1095,9 +1035,7 @@
     },
     "/api/entries": {
       "get": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "List entries by date",
         "operationId": "listEntries",
         "parameters": [
@@ -1119,9 +1057,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "entries"
-                  ],
+                  "required": ["entries"],
                   "properties": {
                     "entries": {
                       "type": "array",
@@ -1143,9 +1079,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Create an entry",
         "operationId": "createEntry",
         "requestBody": {
@@ -1154,12 +1088,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "date",
-                  "type",
-                  "title",
-                  "content"
-                ],
+                "required": ["date", "type", "title", "content"],
                 "properties": {
                   "date": {
                     "type": "string",
@@ -1167,10 +1096,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "task",
-                      "note"
-                    ]
+                    "enum": ["task", "note"]
                   },
                   "title": {
                     "type": "string",
@@ -1181,10 +1107,7 @@
                     "additionalProperties": true
                   },
                   "topicId": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": ["string", "null"]
                   },
                   "completed": {
                     "type": "boolean"
@@ -1201,9 +1124,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "entry"
-                  ],
+                  "required": ["entry"],
                   "properties": {
                     "entry": {
                       "$ref": "#/components/schemas/Entry"
@@ -1224,9 +1145,7 @@
     },
     "/api/entries/{id}": {
       "patch": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Update an entry",
         "operationId": "updateEntry",
         "description": "Updates entry fields with optimistic concurrency (version check).",
@@ -1255,20 +1174,14 @@
                     "additionalProperties": true
                   },
                   "topicId": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": ["string", "null"]
                   },
                   "completed": {
                     "type": "boolean"
                   },
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "task",
-                      "note"
-                    ],
+                    "enum": ["task", "note"],
                     "description": "Change entry type"
                   }
                 }
@@ -1283,9 +1196,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "entry"
-                  ],
+                  "required": ["entry"],
                   "properties": {
                     "entry": {
                       "$ref": "#/components/schemas/Entry"
@@ -1310,9 +1221,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Delete an entry",
         "operationId": "deleteEntry",
         "parameters": [
@@ -1338,9 +1247,7 @@
     },
     "/api/entries/reorder": {
       "patch": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Reorder entries for a date",
         "operationId": "reorderEntries",
         "description": "Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).",
@@ -1350,10 +1257,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "date",
-                  "orderedIds"
-                ],
+                "required": ["date", "orderedIds"],
                 "properties": {
                   "date": {
                     "type": "string",
@@ -1388,9 +1292,7 @@
     },
     "/api/entries/{id}/summarize": {
       "post": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Request entry summary (async)",
         "operationId": "requestEntrySummary",
         "description": "Enqueues an async AI summary generation. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409), max input (400). Returns 202 Accepted when accepted.",
@@ -1406,11 +1308,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "requestId",
-                    "notificationId",
-                    "message"
-                  ],
+                  "required": ["requestId", "notificationId", "message"],
                   "properties": {
                     "requestId": {
                       "type": "string",
@@ -1479,9 +1377,7 @@
     },
     "/api/entries/{id}/transcribe-youtube": {
       "post": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Request YouTube transcript for an entry (async)",
         "operationId": "requestEntryTranscript",
         "description": "Enqueues an async YouTube transcription. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409). Returns 202 Accepted when queued.",
@@ -1496,9 +1392,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "url"
-                ],
+                "required": ["url"],
                 "properties": {
                   "url": {
                     "type": "string",
@@ -1517,11 +1411,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "requestId",
-                    "notificationId",
-                    "message"
-                  ],
+                  "required": ["requestId", "notificationId", "message"],
                   "properties": {
                     "requestId": {
                       "type": "string",
@@ -1587,9 +1477,7 @@
     },
     "/api/entries/{id}/ocr": {
       "post": {
-        "tags": [
-          "Entries"
-        ],
+        "tags": ["Entries"],
         "summary": "Extract text or describe an image attachment (OCR / vision)",
         "operationId": "extractImageText",
         "description": "Analyzes an image attachment using Ollama Vision. Mode 'scan' extracts text (OCR); mode 'describe' generates a description. Synchronous call. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409).",
@@ -1604,9 +1492,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "attachmentId"
-                ],
+                "required": ["attachmentId"],
                 "properties": {
                   "attachmentId": {
                     "type": "string",
@@ -1615,10 +1501,7 @@
                   },
                   "mode": {
                     "type": "string",
-                    "enum": [
-                      "scan",
-                      "describe"
-                    ],
+                    "enum": ["scan", "describe"],
                     "default": "scan",
                     "description": "Vision analysis mode (default: scan)"
                   }
@@ -1634,11 +1517,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "attachmentId",
-                    "extractedText",
-                    "mode"
-                  ],
+                  "required": ["attachmentId", "extractedText", "mode"],
                   "properties": {
                     "attachmentId": {
                       "type": "string",
@@ -1650,10 +1529,7 @@
                     },
                     "mode": {
                       "type": "string",
-                      "enum": [
-                        "scan",
-                        "describe"
-                      ]
+                      "enum": ["scan", "describe"]
                     }
                   }
                 }
@@ -1721,9 +1597,7 @@
     },
     "/api/ai/usage": {
       "get": {
-        "tags": [
-          "AI"
-        ],
+        "tags": ["AI"],
         "summary": "Get AI usage and limits",
         "operationId": "getAiUsage",
         "description": "Returns current usage and limits for the authenticated user across all AI actions, or filtered by a single action. Returns an object with `month` and `items` array.",
@@ -1756,10 +1630,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "month",
-                    "items"
-                  ],
+                  "required": ["month", "items"],
                   "properties": {
                     "month": {
                       "type": "string",
@@ -1787,9 +1658,7 @@
     },
     "/api/storage/usage": {
       "get": {
-        "tags": [
-          "Storage"
-        ],
+        "tags": ["Storage"],
         "summary": "Get user storage usage and limits",
         "operationId": "getStorageUsage",
         "description": "Returns the authenticated user's current storage usage (total bytes) and configured limits (max per user, max per entry).",
@@ -1834,9 +1703,7 @@
     },
     "/api/entries/{id}/auto-topic": {
       "post": {
-        "tags": [
-          "Embeddings"
-        ],
+        "tags": ["Embeddings"],
         "summary": "Auto-assign topic to entry",
         "operationId": "autoAssignTopic",
         "description": "Generates an embedding for the entry text, finds the best matching topic by cosine similarity, and assigns it if the score meets the threshold.",
@@ -1870,28 +1737,18 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "entryId",
-                    "selectedTopicId",
-                    "score"
-                  ],
+                  "required": ["entryId", "selectedTopicId", "score"],
                   "properties": {
                     "entryId": {
                       "type": "string",
                       "format": "uuid"
                     },
                     "selectedTopicId": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
+                      "type": ["string", "null"],
                       "format": "uuid"
                     },
                     "score": {
-                      "type": [
-                        "number",
-                        "null"
-                      ],
+                      "type": ["number", "null"],
                       "description": "Similarity score 0..1"
                     }
                   }
@@ -1916,9 +1773,7 @@
     },
     "/api/entries/{id}/attachments": {
       "get": {
-        "tags": [
-          "Attachments"
-        ],
+        "tags": ["Attachments"],
         "summary": "List attachments for an entry",
         "operationId": "listEntryAttachments",
         "parameters": [
@@ -1933,10 +1788,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "attachments",
-                    "usage"
-                  ],
+                  "required": ["attachments", "usage"],
                   "properties": {
                     "attachments": {
                       "type": "array",
@@ -1983,9 +1835,7 @@
     },
     "/api/reminders": {
       "post": {
-        "tags": [
-          "Reminders"
-        ],
+        "tags": ["Reminders"],
         "summary": "Create a reminder",
         "operationId": "createReminder",
         "description": "Creates a new reminder for an entry. When channel is 'whatsapp', AI guardrails are enforced: rate limit (429), monthly quota (403), concurrency (409).",
@@ -1995,11 +1845,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "entryId",
-                  "scheduledAt",
-                  "channel"
-                ],
+                "required": ["entryId", "scheduledAt", "channel"],
                 "properties": {
                   "entryId": {
                     "type": "string",
@@ -2011,18 +1857,10 @@
                   },
                   "channel": {
                     "type": "string",
-                    "enum": [
-                      "whatsapp",
-                      "email",
-                      "push",
-                      "sms"
-                    ]
+                    "enum": ["whatsapp", "email", "push", "sms"]
                   },
                   "message": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
+                    "type": ["string", "null"],
                     "maxLength": 500
                   }
                 }
@@ -2037,9 +1875,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "reminder"
-                  ],
+                  "required": ["reminder"],
                   "properties": {
                     "reminder": {
                       "$ref": "#/components/schemas/Reminder"
@@ -2093,9 +1929,7 @@
     },
     "/api/reminders/{id}": {
       "patch": {
-        "tags": [
-          "Reminders"
-        ],
+        "tags": ["Reminders"],
         "summary": "Update a reminder",
         "operationId": "updateReminder",
         "parameters": [
@@ -2116,25 +1950,15 @@
                   },
                   "channel": {
                     "type": "string",
-                    "enum": [
-                      "whatsapp",
-                      "email",
-                      "push",
-                      "sms"
-                    ]
+                    "enum": ["whatsapp", "email", "push", "sms"]
                   },
                   "message": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
+                    "type": ["string", "null"],
                     "maxLength": 500
                   },
                   "status": {
                     "type": "string",
-                    "enum": [
-                      "canceled"
-                    ]
+                    "enum": ["canceled"]
                   }
                 }
               }
@@ -2148,9 +1972,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "reminder"
-                  ],
+                  "required": ["reminder"],
                   "properties": {
                     "reminder": {
                       "$ref": "#/components/schemas/Reminder"
@@ -2177,9 +1999,7 @@
     },
     "/api/notifications": {
       "get": {
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "summary": "List notifications",
         "operationId": "listNotifications",
         "parameters": [
@@ -2201,9 +2021,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "notifications"
-                  ],
+                  "required": ["notifications"],
                   "properties": {
                     "notifications": {
                       "type": "array",
@@ -2227,9 +2045,7 @@
     },
     "/api/notifications/{id}/read": {
       "post": {
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "summary": "Mark notification as read",
         "operationId": "markNotificationRead",
         "parameters": [
@@ -2244,9 +2060,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "success"
-                  ],
+                  "required": ["success"],
                   "properties": {
                     "success": {
                       "type": "boolean"
@@ -2268,11 +2082,192 @@
         }
       }
     },
+    "/api/stickies": {
+      "get": {
+        "tags": ["Stickies"],
+        "summary": "List stickies",
+        "operationId": "listStickies",
+        "responses": {
+          "200": {
+            "description": "List of stickies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["stickies"],
+                  "properties": {
+                    "stickies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Sticky"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Stickies"],
+        "summary": "Create sticky",
+        "operationId": "createSticky",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "columnIndex": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sticky created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["sticky"],
+                  "properties": {
+                    "sticky": {
+                      "$ref": "#/components/schemas/Sticky"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/stickies/{id}": {
+      "patch": {
+        "tags": ["Stickies"],
+        "summary": "Update sticky",
+        "operationId": "updateSticky",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "columnIndex": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sticky updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["sticky"],
+                  "properties": {
+                    "sticky": {
+                      "$ref": "#/components/schemas/Sticky"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Stickies"],
+        "summary": "Delete sticky",
+        "operationId": "deleteSticky",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sticky deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/automations/entry-summary/callback": {
       "post": {
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "summary": "Entry summary callback (from n8n)",
         "operationId": "entrySummaryCallback",
         "description": "Callback endpoint for n8n to deliver AI-generated summaries. Authenticated via HMAC signature (NOT x-user-id).",
@@ -2327,10 +2322,7 @@
                   },
                   "format": {
                     "type": "string",
-                    "enum": [
-                      "markdown",
-                      "plain"
-                    ]
+                    "enum": ["markdown", "plain"]
                   }
                 }
               }
@@ -2344,9 +2336,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "success"
-                  ],
+                  "required": ["success"],
                   "properties": {
                     "success": {
                       "type": "boolean"
@@ -2376,9 +2366,7 @@
     },
     "/api/automations/entry-transcript/callback": {
       "post": {
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "summary": "Entry transcript callback (from n8n)",
         "operationId": "entryTranscriptCallback",
         "description": "Callback endpoint for n8n to deliver YouTube transcriptions. Authenticated via HMAC signature (NOT user auth).",
@@ -2433,10 +2421,7 @@
                   },
                   "format": {
                     "type": "string",
-                    "enum": [
-                      "markdown",
-                      "plain"
-                    ],
+                    "enum": ["markdown", "plain"],
                     "description": "Format of the transcript text (optional)"
                   },
                   "usage": {
@@ -2472,9 +2457,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "ok"
-                  ],
+                  "required": ["ok"],
                   "properties": {
                     "ok": {
                       "type": "boolean"
@@ -2502,9 +2485,7 @@
     },
     "/api/attachments/init": {
       "post": {
-        "tags": [
-          "Attachments"
-        ],
+        "tags": ["Attachments"],
         "summary": "Initialize attachment upload",
         "operationId": "initAttachmentUpload",
         "description": "Creates an attachment record and returns a presigned PUT URL for uploading.",
@@ -2539,10 +2520,7 @@
                   },
                   "kind": {
                     "type": "string",
-                    "enum": [
-                      "inline",
-                      "file"
-                    ]
+                    "enum": ["inline", "file"]
                   }
                 }
               }
@@ -2556,10 +2534,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "attachment",
-                    "presignedPutUrl"
-                  ],
+                  "required": ["attachment", "presignedPutUrl"],
                   "properties": {
                     "attachment": {
                       "$ref": "#/components/schemas/Attachment"
@@ -2597,9 +2572,7 @@
     },
     "/api/attachments/complete": {
       "post": {
-        "tags": [
-          "Attachments"
-        ],
+        "tags": ["Attachments"],
         "summary": "Complete attachment upload",
         "operationId": "completeAttachmentUpload",
         "description": "Marks an attachment as ready after successful upload to S3.",
@@ -2609,9 +2582,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "attachmentId"
-                ],
+                "required": ["attachmentId"],
                 "properties": {
                   "attachmentId": {
                     "type": "string",
@@ -2629,9 +2600,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "attachment"
-                  ],
+                  "required": ["attachment"],
                   "properties": {
                     "attachment": {
                       "$ref": "#/components/schemas/Attachment"
@@ -2655,9 +2624,7 @@
     },
     "/api/attachments/{id}": {
       "delete": {
-        "tags": [
-          "Attachments"
-        ],
+        "tags": ["Attachments"],
         "summary": "Delete an attachment",
         "operationId": "deleteAttachment",
         "parameters": [
@@ -2683,9 +2650,7 @@
     },
     "/api/attachments/{id}/download": {
       "get": {
-        "tags": [
-          "Attachments"
-        ],
+        "tags": ["Attachments"],
         "summary": "Get attachment download URL",
         "operationId": "getAttachmentDownloadUrl",
         "parameters": [
@@ -2700,9 +2665,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "presignedGetUrl"
-                  ],
+                  "required": ["presignedGetUrl"],
                   "properties": {
                     "presignedGetUrl": {
                       "type": "string",

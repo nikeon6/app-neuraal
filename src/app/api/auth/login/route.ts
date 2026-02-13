@@ -19,6 +19,9 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,
+    RATE_LIMITED: 429,
+    CONCURRENCY_LIMIT: 429,
+    INPUT_TOO_LARGE: 413,
     INTERNAL_ERROR: 500,
   };
   return map[code] ?? 500;
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const rateLimitCheck = loginRateLimiter.check(clientIp);
   if (!rateLimitCheck.allowed) {
     const retryAfterSeconds = Math.ceil(
-      (rateLimitCheck.retryAfterMs ?? 300_000) / 1000
+      (rateLimitCheck.retryAfterMs ?? 300_000) / 1000,
     );
     return NextResponse.json(
       {
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         headers: {
           "Retry-After": String(retryAfterSeconds),
         },
-      }
+      },
     );
   }
 
@@ -73,14 +76,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.email || !body.password) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "email and password are required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "email and password are required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -93,10 +101,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new CryptoRefreshTokenService(),
     new SystemClock(),
     config.accessTtlSeconds,
-    config.refreshTtlDays
+    config.refreshTtlDays,
   );
 
-  const result = await useCase.execute({ email: body.email, password: body.password });
+  const result = await useCase.execute({
+    email: body.email,
+    password: body.password,
+  });
 
   if (result.isErr()) {
     const { code, message } = result.error;
@@ -109,7 +120,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // If this failure triggered a lockout, return 429 with info
       if (!rateLimitResult.allowed) {
         const retryAfterSeconds = Math.ceil(
-          (rateLimitResult.retryAfterMs ?? 300_000) / 1000
+          (rateLimitResult.retryAfterMs ?? 300_000) / 1000,
         );
         return NextResponse.json(
           {
@@ -123,7 +134,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             headers: {
               "Retry-After": String(retryAfterSeconds),
             },
-          }
+          },
         );
       }
 
@@ -134,10 +145,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           status,
           headers: {
             "X-RateLimit-Remaining": String(
-              rateLimitResult.remainingAttempts ?? 0
+              rateLimitResult.remainingAttempts ?? 0,
             ),
           },
-        }
+        },
       );
     }
 

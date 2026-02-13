@@ -73,8 +73,12 @@ export function ImageAttachmentComponent({
 
       if (visionState === "loading" || visionState === "queued") return;
 
-      const entryId = (editor.storage.image?.entryId ??
-        editor.storage.imageAttachment?.entryId) as string | undefined;
+      const storage = editor.storage as {
+        image?: { entryId?: string };
+        imageAttachment?: { entryId?: string };
+      };
+      const entryId = (storage.image?.entryId ??
+        storage.imageAttachment?.entryId) as string | undefined;
       if (!entryId || !attachmentId) return;
 
       setActiveMode(mode);

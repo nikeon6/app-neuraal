@@ -2,6 +2,7 @@ import type {
   TranscriptRequestData,
   TranscriptRequestRepository,
 } from "@/application/ports/TranscriptRequestRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 function toData(record: {
@@ -34,7 +35,10 @@ function toData(record: {
 
 export class PrismaTranscriptRequestRepository implements TranscriptRequestRepository {
   async create(
-    data: Omit<TranscriptRequestData, "updatedAt" | "submittedAt" | "doneAt" | "failedAt">
+    data: Omit<
+      TranscriptRequestData,
+      "updatedAt" | "submittedAt" | "doneAt" | "failedAt"
+    >,
   ): Promise<TranscriptRequestData> {
     const record = await prisma.transcriptionRequest.create({
       data: {
@@ -43,18 +47,22 @@ export class PrismaTranscriptRequestRepository implements TranscriptRequestRepos
         entryId: data.entryId,
         youtubeUrl: data.youtubeUrl,
         status: data.status,
-        meta: data.meta ?? undefined,
+        meta: (data.meta ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
     return toData(record);
   }
 
   async findById(id: string): Promise<TranscriptRequestData | null> {
-    const record = await prisma.transcriptionRequest.findUnique({ where: { id } });
+    const record = await prisma.transcriptionRequest.findUnique({
+      where: { id },
+    });
     return record ? toData(record) : null;
   }
 
-  async findActiveByEntryId(entryId: string): Promise<TranscriptRequestData | null> {
+  async findActiveByEntryId(
+    entryId: string,
+  ): Promise<TranscriptRequestData | null> {
     const record = await prisma.transcriptionRequest.findFirst({
       where: {
         entryId,
@@ -81,24 +89,32 @@ export class PrismaTranscriptRequestRepository implements TranscriptRequestRepos
     });
   }
 
-  async markDone(id: string, now: Date, meta?: Record<string, unknown>): Promise<void> {
+  async markDone(
+    id: string,
+    now: Date,
+    meta?: Record<string, unknown>,
+  ): Promise<void> {
     await prisma.transcriptionRequest.update({
       where: { id },
       data: {
         status: "done",
         doneAt: now,
-        ...(meta && { meta }),
+        ...(meta != null && { meta: meta as Prisma.InputJsonValue }),
       },
     });
   }
 
-  async markFailed(id: string, now: Date, meta?: Record<string, unknown>): Promise<void> {
+  async markFailed(
+    id: string,
+    now: Date,
+    meta?: Record<string, unknown>,
+  ): Promise<void> {
     await prisma.transcriptionRequest.update({
       where: { id },
       data: {
         status: "failed",
         failedAt: now,
-        ...(meta && { meta }),
+        ...(meta != null && { meta: meta as Prisma.InputJsonValue }),
       },
     });
   }

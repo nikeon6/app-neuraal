@@ -118,9 +118,7 @@ export const YoutubeEmbed = Youtube.extend({
       // Loading overlay
       const loadingOverlay = document.createElement("div");
       loadingOverlay.className = "youtube-embed-loading-overlay";
-      const loadingSpinner = makeSvg(
-        '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>'
-      );
+      const loadingSpinner = makeSvg('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>');
       loadingSpinner.classList.add("youtube-embed-spinner");
       const loadingLabel = document.createElement("span");
       loadingLabel.className = "youtube-embed-loading-label";
@@ -139,12 +137,13 @@ export const YoutubeEmbed = Youtube.extend({
       // Transcribe button
       const transcribeBtn = document.createElement("button");
       transcribeBtn.type = "button";
-      transcribeBtn.className = "youtube-embed-btn youtube-embed-btn-transcribe";
+      transcribeBtn.className =
+        "youtube-embed-btn youtube-embed-btn-transcribe";
 
       const transcribeIcon = makeSvg(
         '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>' +
           '<path d="M14 2v4a2 2 0 0 0 2 2h4"/>' +
-          '<path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'
+          '<path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
       );
       transcribeIcon.classList.add("youtube-embed-btn-icon");
       const transcribeLabel = document.createElement("span");
@@ -157,7 +156,7 @@ export const YoutubeEmbed = Youtube.extend({
       deleteBtn.className = "youtube-embed-btn youtube-embed-btn-delete";
       deleteBtn.title = "Remove video";
       const deleteIcon = makeSvg(
-        '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
+        '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
       );
       deleteIcon.classList.add("youtube-embed-btn-icon");
       const deleteLabel = document.createElement("span");
@@ -174,7 +173,7 @@ export const YoutubeEmbed = Youtube.extend({
       const reqBrainIcon = makeSvg(
         '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>' +
           '<path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>' +
-          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>'
+          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
       );
       reqBrainIcon.classList.add("youtube-embed-panel-icon");
       const reqTitle = document.createElement("span");
@@ -192,13 +191,14 @@ export const YoutubeEmbed = Youtube.extend({
       resultPanel.className = "youtube-embed-panel youtube-embed-panel-result";
 
       const resultHeader = document.createElement("div");
-      resultHeader.className = "youtube-embed-panel-header youtube-embed-panel-header-between";
+      resultHeader.className =
+        "youtube-embed-panel-header youtube-embed-panel-header-between";
       const resultLeft = document.createElement("div");
       resultLeft.className = "youtube-embed-panel-header-left";
       const resBrainIcon = makeSvg(
         '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>' +
           '<path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>' +
-          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>'
+          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
       );
       resBrainIcon.classList.add("youtube-embed-panel-icon");
       const resTitle = document.createElement("span");
@@ -215,7 +215,7 @@ export const YoutubeEmbed = Youtube.extend({
       copyBtn.className = "youtube-embed-panel-copy";
       const copyIcon = makeSvg(
         '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>' +
-          '<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
+          '<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
       );
       copyIcon.classList.add("youtube-embed-panel-btn-icon");
       const copyLabel = document.createElement("span");
@@ -246,7 +246,7 @@ export const YoutubeEmbed = Youtube.extend({
       const errBrainIcon = makeSvg(
         '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>' +
           '<path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>' +
-          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>'
+          '<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
       );
       errBrainIcon.classList.add("youtube-embed-panel-icon-error");
       const errTitle = document.createElement("span");
@@ -262,7 +262,13 @@ export const YoutubeEmbed = Youtube.extend({
       errorPanel.append(errorHeader, errorBody, retryBtn);
 
       // ---- Assemble root ----
-      root.append(videoContainer, actionBar, requestedPanel, resultPanel, errorPanel);
+      root.append(
+        videoContainer,
+        actionBar,
+        requestedPanel,
+        resultPanel,
+        errorPanel,
+      );
 
       // ---- Event handlers ----
 
@@ -323,7 +329,10 @@ export const YoutubeEmbed = Youtube.extend({
       toggleBtn.addEventListener("mousedown", (e) => {
         prevent(e);
         expanded = !expanded;
-        resultContent.classList.toggle("youtube-embed-panel-content-expanded", expanded);
+        resultContent.classList.toggle(
+          "youtube-embed-panel-content-expanded",
+          expanded,
+        );
         chevronDown.style.transform = expanded ? "rotate(180deg)" : "";
         toggleBtn.title = expanded ? "Collapse" : "Expand";
       });
@@ -336,7 +345,8 @@ export const YoutubeEmbed = Youtube.extend({
       async function handleTranscribe(): Promise<void> {
         if (transcribeState === "loading") return;
 
-        const entryId = editor.storage.youtube?.entryId as string | undefined;
+        const entryId = (editor.storage as { youtube?: { entryId?: string } })
+          .youtube?.entryId as string | undefined;
         const src = currentNode.attrs.src as string | undefined;
         if (!entryId || !src) return;
 
@@ -349,7 +359,9 @@ export const YoutubeEmbed = Youtube.extend({
           transcribeState = "done";
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Transcription request failed";
+            error instanceof Error
+              ? error.message
+              : "Transcription request failed";
           transcribeError = message;
           transcribeState = "error";
         }
@@ -367,22 +379,26 @@ export const YoutubeEmbed = Youtube.extend({
         iframe.height = String(height);
 
         // Loading overlay
-        loadingOverlay.style.display = transcribeState === "loading" ? "flex" : "none";
+        loadingOverlay.style.display =
+          transcribeState === "loading" ? "flex" : "none";
 
         // Transcribe button states
         if (transcribeState === "loading") {
           transcribeBtn.disabled = true;
-          transcribeBtn.className = "youtube-embed-btn youtube-embed-btn-transcribe youtube-embed-btn-loading";
+          transcribeBtn.className =
+            "youtube-embed-btn youtube-embed-btn-transcribe youtube-embed-btn-loading";
           transcribeLabel.textContent = "Transcribing...";
           transcribeBtn.title = "Transcription in progress...";
         } else if (hasTranscription) {
           transcribeBtn.disabled = false;
-          transcribeBtn.className = "youtube-embed-btn youtube-embed-btn-transcribe youtube-embed-btn-done";
+          transcribeBtn.className =
+            "youtube-embed-btn youtube-embed-btn-transcribe youtube-embed-btn-done";
           transcribeLabel.textContent = "Transcribed";
           transcribeBtn.title = "Transcription available";
         } else {
           transcribeBtn.disabled = false;
-          transcribeBtn.className = "youtube-embed-btn youtube-embed-btn-transcribe";
+          transcribeBtn.className =
+            "youtube-embed-btn youtube-embed-btn-transcribe";
           transcribeLabel.textContent = "Transcribe";
           transcribeBtn.title = "Transcribe video with AI";
         }
@@ -425,9 +441,9 @@ export const YoutubeEmbed = Youtube.extend({
           if (!target) return false;
           return Boolean(
             target.closest(".youtube-embed-actions") ||
-              target.closest(".youtube-embed-panel-copy") ||
-              target.closest(".youtube-embed-panel-toggle") ||
-              target.closest(".youtube-embed-panel-retry")
+            target.closest(".youtube-embed-panel-copy") ||
+            target.closest(".youtube-embed-panel-toggle") ||
+            target.closest(".youtube-embed-panel-retry"),
           );
         },
         // Tell ProseMirror to ignore all DOM mutations inside this NodeView.

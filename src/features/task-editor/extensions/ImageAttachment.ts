@@ -54,8 +54,7 @@ export const ImageAttachment = Image.extend({
       /** Which mode produced the visionResult: "scan" or "describe". */
       visionMode: {
         default: null,
-        parseHTML: (element: HTMLElement) =>
-          element.dataset.visionMode ?? null,
+        parseHTML: (element: HTMLElement) => element.dataset.visionMode ?? null,
         renderHTML: (attributes: Record<string, unknown>) => {
           if (!attributes.visionMode) return {};
           return { "data-vision-mode": attributes.visionMode };
@@ -111,7 +110,10 @@ export const ImageAttachment = Image.extend({
 
       // Helper to create inline SVG icons
       const makeSvg = (paths: string, vb = "0 0 24 24") => {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const svg = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg",
+        );
         svg.setAttribute("viewBox", vb);
         svg.setAttribute("fill", "none");
         svg.setAttribute("stroke", "currentColor");
@@ -129,8 +131,8 @@ export const ImageAttachment = Image.extend({
       scanBtn.title = "Extract text from image (OCR)";
       const scanIcon = makeSvg(
         '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>' +
-        '<path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>' +
-        '<path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/>'
+          '<path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>' +
+          '<path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/>',
       );
       const scanLabel = document.createElement("span");
       scanLabel.textContent = "Scan";
@@ -139,11 +141,12 @@ export const ImageAttachment = Image.extend({
       // Describe button — Sparkles icon
       const describeBtn = document.createElement("button");
       describeBtn.type = "button";
-      describeBtn.className = "image-attachment-btn image-attachment-btn-action";
+      describeBtn.className =
+        "image-attachment-btn image-attachment-btn-action";
       describeBtn.title = "Describe image with AI";
       const describeIcon = makeSvg(
         '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>' +
-        '<circle cx="12" cy="12" r="3"/>'
+          '<circle cx="12" cy="12" r="3"/>',
       );
       const describeLabel = document.createElement("span");
       describeLabel.textContent = "Describe";
@@ -155,7 +158,7 @@ export const ImageAttachment = Image.extend({
       deleteBtn.className = "image-attachment-btn image-attachment-btn-delete";
       deleteBtn.title = "Remove image";
       const deleteIcon = makeSvg(
-        '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
+        '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
       );
       deleteBtn.appendChild(deleteIcon);
 
@@ -173,7 +176,10 @@ export const ImageAttachment = Image.extend({
       headerLeft.className = "image-attachment-result-header-left";
 
       // Brain icon (inline SVG — matches lucide Brain)
-      const brainIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const brainIcon = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "svg",
+      );
       brainIcon.setAttribute("viewBox", "0 0 24 24");
       brainIcon.setAttribute("fill", "none");
       brainIcon.setAttribute("stroke", "currentColor");
@@ -205,7 +211,10 @@ export const ImageAttachment = Image.extend({
       const copyBtn = document.createElement("button");
       copyBtn.type = "button";
       copyBtn.className = "image-attachment-result-copy";
-      const copyIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const copyIcon = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "svg",
+      );
       copyIcon.setAttribute("viewBox", "0 0 24 24");
       copyIcon.setAttribute("fill", "none");
       copyIcon.setAttribute("stroke", "currentColor");
@@ -223,27 +232,34 @@ export const ImageAttachment = Image.extend({
         e.preventDefault();
         e.stopPropagation();
         if (!lastVisionText) return;
-        navigator.clipboard.writeText(lastVisionText).then(() => {
-          copyLabel.textContent = "Copied!";
-          copyBtn.style.color = "rgb(52, 211, 153)"; // emerald-400
-          setTimeout(() => {
-            copyLabel.textContent = "Copy";
-            copyBtn.style.color = "";
-          }, 2000);
-        }).catch(() => {
-          // Fallback: try deprecated execCommand
-          try {
-            const ta = document.createElement("textarea");
-            ta.value = lastVisionText;
-            ta.style.cssText = "position:fixed;left:-9999px";
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand("copy");
-            document.body.removeChild(ta);
+        navigator.clipboard
+          .writeText(lastVisionText)
+          .then(() => {
             copyLabel.textContent = "Copied!";
-            setTimeout(() => { copyLabel.textContent = "Copy"; }, 2000);
-          } catch { /* ignore */ }
-        });
+            copyBtn.style.color = "rgb(52, 211, 153)"; // emerald-400
+            setTimeout(() => {
+              copyLabel.textContent = "Copy";
+              copyBtn.style.color = "";
+            }, 2000);
+          })
+          .catch(() => {
+            // Fallback: try deprecated execCommand
+            try {
+              const ta = document.createElement("textarea");
+              ta.value = lastVisionText;
+              ta.style.cssText = "position:fixed;left:-9999px";
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              document.body.removeChild(ta);
+              copyLabel.textContent = "Copied!";
+              setTimeout(() => {
+                copyLabel.textContent = "Copy";
+              }, 2000);
+            } catch {
+              /* ignore */
+            }
+          });
       });
 
       resultHeader.append(headerLeft, copyBtn);
@@ -283,10 +299,14 @@ export const ImageAttachment = Image.extend({
       refreshView(node);
 
       async function runVision(mode: VisionMode): Promise<void> {
-        if (processingState === "loading" || processingState === "queued") return;
+        if (processingState === "loading" || processingState === "queued")
+          return;
 
-        const entryId = editor.storage.image?.entryId as string | undefined;
-        const attachmentId = currentNode.attrs.attachmentId as string | undefined;
+        const entryId = (editor.storage as { image?: { entryId?: string } })
+          .image?.entryId as string | undefined;
+        const attachmentId = currentNode.attrs.attachmentId as
+          | string
+          | undefined;
         if (!entryId || !attachmentId) return;
 
         activeMode = mode;
@@ -316,7 +336,7 @@ export const ImageAttachment = Image.extend({
             getPos,
             currentNode,
             result.extractedText,
-            mode
+            mode,
           );
           refreshResult();
         } catch (error) {
@@ -402,7 +422,7 @@ export const ImageAttachment = Image.extend({
           if (!target) return false;
           return Boolean(
             target.closest(".image-attachment-controls") ||
-              target.closest(".image-attachment-result")
+            target.closest(".image-attachment-result"),
           );
         },
         ignoreMutation() {
@@ -417,18 +437,19 @@ export const ImageAttachment = Image.extend({
 });
 
 function persistVisionToNode(
-  editor: { state: { doc: { nodeAt: (pos: number) => { type: { name: string }; attrs: Record<string, unknown> } | null }; tr: { setNodeMarkup: (pos: number, type?: unknown, attrs?: Record<string, unknown>) => void } }; view: { dispatch: (tr: unknown) => void }; isDestroyed?: boolean },
-  getPos: () => number,
+  editor: import("@tiptap/core").Editor,
+  getPos: () => number | undefined,
   currentNode: { attrs: Record<string, unknown> },
   text: string,
-  mode: VisionMode
+  mode: VisionMode,
 ): void {
   if (!editor || editor.isDestroyed) return;
   const pos = getPos();
   if (typeof pos !== "number") return;
 
   const nodeAtPos = editor.state.doc.nodeAt(pos);
-  const baseAttrs = nodeAtPos?.type.name === "image" ? nodeAtPos.attrs : currentNode.attrs;
+  const baseAttrs =
+    nodeAtPos?.type.name === "image" ? nodeAtPos.attrs : currentNode.attrs;
 
   const tr = editor.state.tr;
   tr.setNodeMarkup(pos, undefined, {

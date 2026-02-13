@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useImperativeHandle, useCallback, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useImperativeHandle,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -20,10 +26,20 @@ const lowlight = createLowlight(common);
 // Types
 // ---------------------------------------------------------------------------
 
+/** Extension storage we attach (image, youtube) for entryId. */
+type ExtensionStorage = {
+  image?: { entryId?: string };
+  youtube?: { entryId?: string };
+};
+
 export interface TiptapEditorHandle {
-  editor: ReturnType<typeof useEditor>;
+  editor: ReturnType<typeof useEditor> | null;
   /** Insert an image node at the current cursor position. */
-  insertImage: (attrs: { src: string; alt?: string; attachmentId?: string }) => void;
+  insertImage: (attrs: {
+    src: string;
+    alt?: string;
+    attachmentId?: string;
+  }) => void;
   /** Insert a code block at the current cursor position. */
   insertCodeBlock: (language?: string) => void;
   /** Insert a YouTube embed at the current cursor position. */
@@ -41,14 +57,14 @@ export interface TiptapEditorHandle {
    * to avoid autosave loops. Returns the updated JSON if any node was modified.
    */
   syncYoutubeTranscriptions: (
-    transcriptions: Map<string, string>
+    transcriptions: Map<string, string>,
   ) => Record<string, unknown> | null;
   /**
    * Inject vision results into image nodes, keyed by attachmentId.
    * Like syncYoutubeTranscriptions, suppresses onUpdate to avoid loops.
    */
   syncImageVisionResults: (
-    visionResults: Map<string, { text: string; mode: string }>
+    visionResults: Map<string, { text: string; mode: string }>,
   ) => Record<string, unknown> | null;
 }
 
@@ -121,45 +137,42 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     onFilePasteRef.current = onFilePaste;
   }, [onFilePaste]);
 
-  const handlePaste = useCallback(
-    (_view: unknown, event: ClipboardEvent) => {
-      const items = event.clipboardData?.items;
-      if (!items) return false;
+  const handlePaste = useCallback((_view: unknown, event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return false;
 
-      const imageFiles: File[] = [];
-      const otherFiles: File[] = [];
+    const imageFiles: File[] = [];
+    const otherFiles: File[] = [];
 
-      for (const item of items) {
-        if (item.kind === "file") {
-          const file = item.getAsFile();
-          if (!file) continue;
+    for (const item of items) {
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (!file) continue;
 
-          if (item.type.startsWith("image/")) {
-            imageFiles.push(file);
-          } else {
-            otherFiles.push(file);
-          }
+        if (item.type.startsWith("image/")) {
+          imageFiles.push(file);
+        } else {
+          otherFiles.push(file);
         }
       }
+    }
 
-      // Handle image paste
-      if (imageFiles.length > 0 && onImagePasteRef.current) {
-        event.preventDefault();
-        onImagePasteRef.current(imageFiles);
-        return true;
-      }
+    // Handle image paste
+    if (imageFiles.length > 0 && onImagePasteRef.current) {
+      event.preventDefault();
+      onImagePasteRef.current(imageFiles);
+      return true;
+    }
 
-      // Handle non-image file paste
-      if (otherFiles.length > 0 && onFilePasteRef.current) {
-        event.preventDefault();
-        onFilePasteRef.current(otherFiles);
-        return true;
-      }
+    // Handle non-image file paste
+    if (otherFiles.length > 0 && onFilePasteRef.current) {
+      event.preventDefault();
+      onFilePasteRef.current(otherFiles);
+      return true;
+    }
 
-      return false;
-    },
-    []
-  );
+    return false;
+  }, []);
 
   const extensions = useMemo(
     () => [
@@ -191,7 +204,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
         },
       }),
     ],
-    [placeholder]
+    [placeholder],
   );
 
   const editorProps = useMemo(
@@ -201,28 +214,31 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       },
       handlePaste,
     }),
-    [handlePaste]
+    [handlePaste],
   );
 
-  const editor = useEditor({
-    // Prevent SSR hydration mismatch — Tiptap must only render on client
-    immediatelyRender: false,
-    extensions,
-    content: isValidContent(content) ? content : undefined,
-    editable,
-    editorProps,
-    onUpdate: ({ editor: ed }) => {
-      if (skipUpdateRef.current) {
-        skipUpdateRef.current = false;
-        return;
-      }
-      const json = ed.getJSON() as Record<string, unknown>;
-      onUpdate(json);
+  const editor = useEditor(
+    {
+      // Prevent SSR hydration mismatch — Tiptap must only render on client
+      immediatelyRender: false,
+      extensions,
+      content: isValidContent(content) ? content : undefined,
+      editable,
+      editorProps,
+      onUpdate: ({ editor: ed }) => {
+        if (skipUpdateRef.current) {
+          skipUpdateRef.current = false;
+          return;
+        }
+        const json = ed.getJSON() as Record<string, unknown>;
+        onUpdate(json);
+      },
+      onFocus: () => {
+        onFocus?.();
+      },
     },
-    onFocus: () => {
-      onFocus?.();
-    },
-  }, [extensions, editorProps]);
+    [extensions, editorProps],
+  );
 
   // Update editable when prop changes
   useEffect(() => {
@@ -241,7 +257,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   useEffect(() => {
     if (!editor) return;
     const placeholderExt = editor.extensionManager.extensions.find(
-      (ext) => ext.name === "placeholder"
+      (ext) => ext.name === "placeholder",
     );
     if (placeholderExt) {
       placeholderExt.options.placeholder = placeholder;
@@ -253,14 +269,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   // Pass entryId to extension storage (used by OCR and transcription features)
   useEffect(() => {
     if (editor && entryId) {
-      // ImageAttachment extension storage (OCR feature)
-      if (editor.storage.image) {
-        editor.storage.image.entryId = entryId;
-      }
-      // YoutubeEmbed extension storage (transcription feature)
-      if (editor.storage.youtube) {
-        editor.storage.youtube.entryId = entryId;
-      }
+      const storage = editor.storage as ExtensionStorage;
+      if (storage.image) storage.image.entryId = entryId;
+      if (storage.youtube) storage.youtube.entryId = entryId;
     }
   }, [editor, entryId]);
 
@@ -293,7 +304,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       if (!editor) return;
       editor.chain().focus().setImage(attrs).run();
     },
-    [editor]
+    [editor],
   );
 
   const insertCodeBlock = useCallback(
@@ -316,9 +327,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
                 const parentPos = $from.before(d);
                 const endPos = parentPos + parentNode.nodeSize;
                 // Insert a new code block after the current one
-                const newBlock = state.schema.nodes.codeBlock.create(
-                  { language: lang }
-                );
+                const newBlock = state.schema.nodes.codeBlock.create({
+                  language: lang,
+                });
                 tr.insert(endPos, newBlock);
                 return true;
               }
@@ -338,7 +349,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
           .run();
       }
     },
-    [editor]
+    [editor],
   );
 
   const insertYoutube = useCallback(
@@ -346,7 +357,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       if (!editor) return;
       editor.commands.setYoutubeVideo({ src: url });
     },
-    [editor]
+    [editor],
   );
 
   const insertFileNode = useCallback(
@@ -366,12 +377,13 @@ export const TiptapEditor = React.memo(function TiptapEditor({
         })
         .run();
     },
-    [editor]
+    [editor],
   );
 
   const syncYoutubeTranscriptions = useCallback(
     (transcriptions: Map<string, string>): Record<string, unknown> | null => {
-      if (!editor || editor.isDestroyed || transcriptions.size === 0) return null;
+      if (!editor || editor.isDestroyed || transcriptions.size === 0)
+        return null;
 
       const { tr } = editor.state;
       let modified = false;
@@ -398,14 +410,15 @@ export const TiptapEditor = React.memo(function TiptapEditor({
 
       return editor.getJSON() as Record<string, unknown>;
     },
-    [editor]
+    [editor],
   );
 
   const syncImageVisionResults = useCallback(
     (
-      visionResults: Map<string, { text: string; mode: string }>
+      visionResults: Map<string, { text: string; mode: string }>,
     ): Record<string, unknown> | null => {
-      if (!editor || editor.isDestroyed || visionResults.size === 0) return null;
+      if (!editor || editor.isDestroyed || visionResults.size === 0)
+        return null;
 
       const { tr } = editor.state;
       let modified = false;
@@ -432,7 +445,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
 
       return editor.getJSON() as Record<string, unknown>;
     },
-    [editor]
+    [editor],
   );
 
   useImperativeHandle(
@@ -446,7 +459,15 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       syncYoutubeTranscriptions,
       syncImageVisionResults,
     }),
-    [editor, insertImage, insertCodeBlock, insertYoutube, insertFileNode, syncYoutubeTranscriptions, syncImageVisionResults]
+    [
+      editor,
+      insertImage,
+      insertCodeBlock,
+      insertYoutube,
+      insertFileNode,
+      syncYoutubeTranscriptions,
+      syncImageVisionResults,
+    ],
   );
 
   return (
@@ -457,7 +478,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       <EditorContent editor={editor} />
     </div>
   );
-})
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -465,5 +486,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
 
 /** Check if content is a valid TipTap JSON object. */
 function isValidContent(content: Record<string, unknown>): boolean {
-  return content && typeof content === "object" && Object.keys(content).length > 0;
+  return (
+    content && typeof content === "object" && Object.keys(content).length > 0
+  );
 }

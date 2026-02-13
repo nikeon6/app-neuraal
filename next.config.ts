@@ -41,10 +41,13 @@ const sentryEnabled = !!(
 
 export default sentryEnabled
   ? withSentryConfig(nextConfig, {
-      // Suppress Sentry source map upload in dev (no auth token needed)
       silent: true,
-      // Disable source map upload unless SENTRY_AUTH_TOKEN is set
-      disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
-      disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
-    })
+      // Disable source map upload unless SENTRY_AUTH_TOKEN is set (Sentry SDK option)
+      ...(process.env.SENTRY_AUTH_TOKEN
+        ? {}
+        : {
+            disableServerWebpackPlugin: true,
+            disableClientWebpackPlugin: true,
+          }),
+    } as Parameters<typeof withSentryConfig>[1])
   : nextConfig;

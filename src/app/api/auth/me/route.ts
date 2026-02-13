@@ -12,6 +12,9 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,
+    RATE_LIMITED: 429,
+    CONCURRENCY_LIMIT: 429,
+    INPUT_TOO_LARGE: 413,
     INTERNAL_ERROR: 500,
   };
   return map[code] ?? 500;
