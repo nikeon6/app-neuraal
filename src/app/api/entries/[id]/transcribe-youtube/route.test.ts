@@ -133,6 +133,20 @@ describe("POST /api/entries/[id]/transcribe-youtube", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 for invalid JSON", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: "{",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
   it("maps guard RATE_LIMITED to 429", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.guardExecute.mockResolvedValue(err("RATE_LIMITED", "limit"));
@@ -146,6 +160,101 @@ describe("POST /api/entries/[id]/transcribe-youtube", () => {
     );
     const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(429);
+  });
+
+  it("maps guard QUOTA_EXCEEDED to 403", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockResolvedValue(err("QUOTA_EXCEEDED", "quota"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(403);
+  });
+
+  it("maps guard CONCURRENCY_LIMIT to 409", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockResolvedValue(err("CONCURRENCY_LIMIT", "busy"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(409);
+  });
+
+  it("maps unknown guard error code to 400", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockResolvedValue(err("INTERNAL_ERROR", "guard failed"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("maps use-case NOT_FOUND to 404", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.transcriptExecute.mockResolvedValue(
+      err("NOT_FOUND", "entry missing"),
+    );
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(404);
+    expect(mocks.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps non-NOT_FOUND use-case errors to 400", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.transcriptExecute.mockResolvedValue(
+      err("CONFLICT", "already queued"),
+    );
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 500 on unexpected exception", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.transcriptExecute.mockRejectedValue(new Error("network down"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcribe-youtube",
+      {
+        method: "POST",
+        body: JSON.stringify({ url: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(500);
   });
 
   it("returns 202 on success", async () => {

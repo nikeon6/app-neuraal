@@ -19,8 +19,14 @@ vi.mock("@/infrastructure/auth/getAuthUserId", () => ({
 
 vi.mock("@/application/use-cases/ai/GuardAiAction", () => ({
   GuardAiAction: class {
+    private readonly checker: { countActiveByUserId: () => Promise<number> };
+
+    constructor(checker: { countActiveByUserId: () => Promise<number> }) {
+      this.checker = checker;
+    }
+
     execute(...args: unknown[]) {
-      return mocks.guardExecute(...args);
+      return mocks.guardExecute(this.checker, ...args);
     }
   },
 }));
@@ -134,7 +140,10 @@ describe("POST /api/entries/[id]/ocr", () => {
     vi.clearAllMocks();
     mocks.acquire.mockResolvedValue({ acquired: true, current: 1 });
     mocks.release.mockResolvedValue(undefined);
-    mocks.guardExecute.mockResolvedValue(ok({}));
+    mocks.guardExecute.mockImplementation(async (checker) => {
+      await checker.countActiveByUserId();
+      return ok({});
+    });
     mocks.consumeExecute.mockResolvedValue(ok({}));
     mocks.aiAddLedger.mockResolvedValue(undefined);
     mocks.entryFindById.mockResolvedValue(null);
@@ -172,6 +181,137 @@ describe("POST /api/entries/[id]/ocr", () => {
     });
     const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(429);
+    expect(mocks.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps guard QUOTA_EXCEEDED to 403", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockResolvedValue(err("QUOTA_EXCEEDED", "quota"));
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(403);
+  });
+
+  it("maps guard CONCURRENCY_LIMIT to 409", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockImplementation(async (checker) => {
+      const active = await checker.countActiveByUserId();
+      if (active >= 1) return err("CONCURRENCY_LIMIT", "busy");
+      return ok({});
+    });
+    mocks.acquire.mockResolvedValue({ acquired: false, current: 1 });
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(409);
+    expect(mocks.acquire).toHaveBeenCalled();
+  });
+
+  it("maps guard INPUT_TOO_LARGE to 400", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.guardExecute.mockResolvedValue(err("INPUT_TOO_LARGE", "too big"));
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when attachmentId is missing", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("maps use-case NOT_FOUND to 404", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.extractExecute.mockResolvedValue(err("NOT_FOUND", "not found"));
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(404);
+  });
+
+  it("maps use-case INTERNAL_ERROR to 502", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.extractExecute.mockResolvedValue(err("INTERNAL_ERROR", "upstream"));
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(502);
+  });
+
+  it("falls back to scan mode for unknown mode values", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.extractExecute.mockResolvedValue(
+      ok({ attachmentId: "a1", extractedText: "text" }),
+    );
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1", mode: "random" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(200);
+    expect(mocks.extractExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "scan" }),
+    );
+  });
+
+  it("persists vision result and supports describe mode", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.extractExecute.mockResolvedValue(
+      ok({ attachmentId: "a1", extractedText: "detected" }),
+    );
+    mocks.entryFindById.mockResolvedValue({
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [
+            {
+              type: "image",
+              attrs: { attachmentId: "a1", alt: "img" },
+            },
+          ],
+        }),
+      },
+    });
+    const req = new NextRequest("http://localhost:3000/api/entries/e1/ocr", {
+      method: "POST",
+      body: JSON.stringify({ attachmentId: "a1", mode: "describe" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(200);
+    expect(mocks.extractExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "describe" }),
+    );
+    expect(mocks.entryUpdateContent).toHaveBeenCalledTimes(1);
+    const updatedDoc = mocks.entryUpdateContent.mock.calls[0]?.[1] as {
+      content: Array<{ attrs: Record<string, unknown> }>;
+    };
+    expect(updatedDoc.content[0]?.attrs.visionResult).toBe("detected");
+    expect(updatedDoc.content[0]?.attrs.visionMode).toBe("describe");
   });
 
   it("returns 200 on success", async () => {

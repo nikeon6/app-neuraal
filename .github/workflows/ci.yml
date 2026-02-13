@@ -31,7 +31,7 @@ jobs:
       - run: pnpm typecheck
 
   unit-tests:
-    name: Unit & Integration Tests
+    name: Unit, Integration & Coverage Gate
     runs-on: ubuntu-latest
     needs: lint-and-typecheck
     steps:
@@ -47,7 +47,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:run
+      - run: pnpm test:coverage
         env:
           NODE_OPTIONS: --max_old_space_size=4096
 
