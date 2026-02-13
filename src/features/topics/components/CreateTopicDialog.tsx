@@ -14,22 +14,22 @@ const MAX_TOPIC_NAME_LENGTH = 18;
 // Color Options for Topic Creation
 // ============================================================================
 const COLOR_OPTIONS = [
-  "#3b82f6", // blue
-  "#22c55e", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#ec4899", // pink
-  "#14b8a6", // teal
-  "#f97316", // orange
-  "#6366f1", // indigo
-  "#84cc16", // lime
-  "#06b6d4", // cyan
-  "#d946ef", // fuchsia
-  "#e11d48", // rose
-  "#0891b2", // dark cyan
-  "#a855f7", // purple
-  "#ea580c", // burnt orange
+  "#d5eff2", //  1
+  "#22c55e", // green 2
+  "#f59e0b", // amber 3
+  "#ef4444", // red 4
+  "#3b82f6", // blue original 5
+  "#ec4899", // pink 6
+  "#14b8a6", // teal 7
+  "#f97316", // orange 8
+  "#6366f1", // indigo 9
+  "#84cc16", // lime 10
+  "#f20519", //11
+  "#d946ef", // fuchsia 12
+  "#f2e963", // yellow 13
+  "#0891b2", // dark cyan 14
+  "#a855f7", // purple 15
+  "#302b27", // burnt orange 16
 ] as const;
 
 // ============================================================================
