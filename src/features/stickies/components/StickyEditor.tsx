@@ -6,7 +6,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/shared/lib";
 import { ConfirmDialog } from "@/shared/ui";
 import { MinimalTiptapEditor } from "@/shared/ui";
-import { updateStickyAndInvalidate, deleteStickyAndInvalidate } from "@/shared/api/mutations";
+import {
+  updateStickyAndInvalidate,
+  deleteStickyAndInvalidate,
+} from "@/shared/api/mutations";
 import type { ApiSticky } from "@/shared/api/sdk";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
@@ -17,8 +20,14 @@ export interface StickyEditorProps {
   onClose?: () => void;
 }
 
-function defaultContent(content: ApiSticky["content"]): Record<string, unknown> {
-  if (content && typeof content === "object" && Object.keys(content).length > 0) {
+function defaultContent(
+  content: ApiSticky["content"],
+): Record<string, unknown> {
+  if (
+    content &&
+    typeof content === "object" &&
+    Object.keys(content).length > 0
+  ) {
     return content as Record<string, unknown>;
   }
   return {};
@@ -28,9 +37,9 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(sticky.title);
   const [contentJson, setContentJson] = useState<Record<string, unknown>>(() =>
-    defaultContent(sticky.content)
+    defaultContent(sticky.content),
   );
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedHashRef = useRef<string>("");
@@ -63,7 +72,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
       const result = await updateStickyAndInvalidate(
         queryClient,
         sticky.id,
-        payload
+        payload,
       );
       if (result) {
         versionRef.current = result.version;
@@ -92,7 +101,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
       setContentJson(json);
       triggerAutoSave();
     },
-    [triggerAutoSave]
+    [triggerAutoSave],
   );
 
   const handleConfirmDelete = useCallback(async () => {
@@ -109,7 +118,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
     <div
       className={cn(
         "glass-panel rounded-xl pt-2 px-4 pb-3 flex flex-col min-h-0 border border-white/10",
-        "group"
+        "group",
       )}
       style={{ minHeight: `${COLLAPSED_MIN_HEIGHT_PX}px` }}
       data-testid="sticky-editor"

@@ -1,12 +1,16 @@
 /**
  * UI types for the Calendar feature
- * 
+ *
  * These are presentation/view state types specific to the calendar
  * sidebar and day selection. Not domain types.
  */
 
-import type { ISODate, TopicId } from "@/shared/types";
-import type { CalendarDay, CalendarRange, TopicBubbleData } from "@/shared/types";
+import type { ISODate } from "@/shared/types";
+import type {
+  CalendarDay,
+  CalendarRange,
+  TopicBubbleData,
+} from "@/shared/types";
 
 // ============================================================================
 // Calendar View State
@@ -89,5 +93,5 @@ export interface TopicBubbleUI extends TopicBubbleData {
 export type CreateCalendarDayUI = (
   day: CalendarDay,
   selectedDate: ISODate | undefined,
-  today: ISODate
+  today: ISODate,
 ) => CalendarDayUI;

@@ -13,7 +13,7 @@ import type { TiptapEditorHandle } from "../components/TiptapEditor";
  */
 export function useResolveAttachmentUrls(
   editorRef: React.RefObject<TiptapEditorHandle | null>,
-  content: Record<string, unknown>
+  content: Record<string, unknown>,
 ) {
   const resolvedRef = useRef(new Set<string>());
 
@@ -50,10 +50,10 @@ export function useResolveAttachmentUrls(
       const results = await Promise.allSettled(
         imagesToResolve.map(async (img) => {
           const { presignedGetUrl } = await attachmentsSdk.getDownloadUrl(
-            img.attachmentId
+            img.attachmentId,
           );
           return { ...img, newSrc: presignedGetUrl };
-        })
+        }),
       );
 
       // Apply URL updates
@@ -85,7 +85,5 @@ export function useResolveAttachmentUrls(
     }, 200);
 
     return () => clearTimeout(timer);
-    // Only run when content reference changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, editorRef]);
 }

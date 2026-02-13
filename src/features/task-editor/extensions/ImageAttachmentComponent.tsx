@@ -21,18 +21,25 @@ export function ImageAttachmentComponent({
   editor,
   getPos,
 }: Readonly<NodeViewProps>) {
-  const { src, alt, uploading, attachmentId, visionResult, visionMode: persistedVisionMode } = node.attrs;
+  const {
+    src,
+    alt,
+    uploading,
+    attachmentId,
+    visionResult,
+    visionMode: persistedVisionMode,
+  } = node.attrs;
 
   // Initialize vision state from persisted node attrs (restored after remount)
   const [visionState, setVisionState] = useState<
     "idle" | "queued" | "loading" | "done" | "error"
   >(visionResult ? "done" : "idle");
   const [visionText, setVisionText] = useState<string>(
-    (visionResult as string) || ""
+    (visionResult as string) || "",
   );
   const [visionError, setVisionError] = useState<string>("");
   const [activeMode, setActiveMode] = useState<VisionMode | null>(
-    (persistedVisionMode as VisionMode) || null
+    (persistedVisionMode as VisionMode) || null,
   );
   const [copied, setCopied] = useState(false);
   const [queueAhead, setQueueAhead] = useState(0);
@@ -87,11 +94,7 @@ export function ImageAttachmentComponent({
         const result = await visionQueue.enqueue(() => {
           // Transition from queued to loading when our turn comes
           setVisionState("loading");
-          return entriesSdk.analyzeImage(
-            entryId,
-            attachmentId as string,
-            mode
-          );
+          return entriesSdk.analyzeImage(entryId, attachmentId as string, mode);
         });
         setVisionText(result.extractedText);
         setVisionState("done");
@@ -105,7 +108,7 @@ export function ImageAttachmentComponent({
         setVisionState("error");
       }
     },
-    [visionState, editor, attachmentId]
+    [visionState, editor, attachmentId, getPos],
   );
 
   const handleCopyText = useCallback(
@@ -129,7 +132,7 @@ export function ImageAttachmentComponent({
         setTimeout(() => setCopied(false), 2000);
       }
     },
-    [visionText]
+    [visionText],
   );
 
   const isProcessing = visionState === "loading" || visionState === "queued";
@@ -140,7 +143,8 @@ export function ImageAttachmentComponent({
       const ahead = queueAhead > 0 ? ` (${queueAhead} ahead)` : "";
       return `Queued${ahead}...`;
     }
-    if (activeMode === "describe") return "Describing image (may take up to 1 min)...";
+    if (activeMode === "describe")
+      return "Describing image (may take up to 1 min)...";
     return "Extracting text (may take up to 1 min)...";
   };
 
@@ -211,7 +215,6 @@ export function ImageAttachmentComponent({
             </div>
           </div>
         )}
-
       </div>
 
       {/* Action buttons below image (avoid overlay interactions while dragging cards) */}
@@ -347,7 +350,7 @@ function persistVisionToNode(
   editor: NodeViewProps["editor"],
   getPos: NodeViewProps["getPos"],
   text: string,
-  mode: VisionMode
+  mode: VisionMode,
 ): void {
   if (!editor || editor.isDestroyed) return;
   const pos = typeof getPos === "function" ? getPos() : undefined;

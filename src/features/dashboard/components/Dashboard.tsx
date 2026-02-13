@@ -1,10 +1,20 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { useStore } from "@/shared/store";
 import { cn } from "@/shared/lib";
-import { useEntriesForDates, useSummaryDoneWatcher, useTranscriptionDoneWatcher } from "@/shared/api/queries";
+import {
+  useEntriesForDates,
+  useSummaryDoneWatcher,
+  useTranscriptionDoneWatcher,
+} from "@/shared/api/queries";
 import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
@@ -19,21 +29,21 @@ import { StorageUsagePanel } from "@/features/settings/components/StorageUsagePa
 
 /*
  * LAYOUT RESPONSIVE (3 breakpoints):
- * 
+ *
  * < lg (< 1024px): Stack vertical (flex-col)
  *   - Tasks ocupa espacio principal (flex-1 min-h-0) con scroll interno
  *   - Lane VISIBLE como franja horizontal (h-[200px] - h-[240px])
  *   - Calendar abajo con altura fija (h-20) + safe-area
- * 
+ *
  * >= lg (1024px+): Grid 3 columnas
  *   - Tasks: minmax(280px, 1fr) - flexible, mínimo 280px
  *   - Lane: clamp(220px, 19vw, 340px) - espacio vertical para bolitas
  *   - Calendar: 180px fijo
- * 
+ *
  * >= xl (1280px+): Grid 3 columnas con más espacio
  *   - Lane: clamp(280px, 21vw, 400px)
  *   - Calendar: 200px fijo
- * 
+ *
  * FIX ANDROID: visualViewport API + CSS variable --app-height
  * - 100vh en Android incluye la barra del navegador, causando scroll fantasma
  * - visualViewport.height nos da el viewport REAL visible
@@ -41,11 +51,9 @@ import { StorageUsagePanel } from "@/features/settings/components/StorageUsagePa
  * - overflow-hidden en root + min-h-0 en flex children evita que el contenido empuje
  */
 
-
 export function Dashboard() {
   const {
     selectedDate,
-    selectedDay,
     clearSelection,
     selectedTopicIds,
     expandedDayKeys,
@@ -147,7 +155,13 @@ export function Dashboard() {
         setDashboardSection("daily");
       }
     },
-    [entriesByDate, setSelectedDate, dashboardSection, setDashboardSection, setScrollToEntryId]
+    [
+      entriesByDate,
+      setSelectedDate,
+      dashboardSection,
+      setDashboardSection,
+      setScrollToEntryId,
+    ],
   );
 
   // Handle click on the lane (bubbles board) - clearSelection when clicking empty space
@@ -155,16 +169,16 @@ export function Dashboard() {
     (e: React.MouseEvent<HTMLDivElement>) => {
       // Only trigger if clicking directly on the lane (not on topic nodes)
       const target = e.target as HTMLElement;
-      
+
       // Don't clear if clicking on a topic node
-      if (target.closest('.topic-node')) return;
-      
+      if (target.closest(".topic-node")) return;
+
       // Clear selection if there's any active selection or expanded days
       if (selectedTopicIds.length > 0 || expandedDayKeys.length > 0) {
         clearSelection();
       }
     },
-    [selectedTopicIds, expandedDayKeys, clearSelection]
+    [selectedTopicIds, expandedDayKeys, clearSelection],
   );
 
   // When stickies section: hide topics lane and use 2-col layout (content + calendar)
@@ -205,7 +219,7 @@ export function Dashboard() {
           ? "grid grid-cols-[1fr_clamp(180px,25vw,300px)_48px]"
           : showTopicsLane
             ? "flex flex-col lg:grid lg:grid-cols-[minmax(280px,1fr)_clamp(260px,22vw,400px)_180px] xl:grid-cols-[minmax(320px,1fr)_clamp(320px,24vw,480px)_200px]"
-            : "flex flex-col lg:grid lg:grid-cols-[1fr_180px] xl:grid-cols-[1fr_200px]"
+            : "flex flex-col lg:grid lg:grid-cols-[1fr_180px] xl:grid-cols-[1fr_200px]",
       )}
     >
       {/* Floating topics visualization - only when not on stickies section */}
@@ -219,18 +233,22 @@ export function Dashboard() {
       )}
 
       {/* Column 1: Tasks area */}
-      <div className={cn(
-        "relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden",
-        isLandscapeMobile
-          ? "p-2"
-          : "flex-1 lg:flex-none px-3 pt-3 pb-1 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none"
-      )}>
+      <div
+        className={cn(
+          "relative flex flex-col z-10 min-w-0 min-h-0 overflow-hidden",
+          isLandscapeMobile
+            ? "p-2"
+            : "flex-1 lg:flex-none px-3 pt-3 pb-1 md:p-6 lg:p-8 lg:pr-2 order-1 lg:order-none",
+        )}
+      >
         {/* Header with navigation and title */}
         <DashboardHeader
           section={dashboardSection}
           onChangeSection={setDashboardSection}
           selectedDate={selectedDate}
-          notificationSlot={<NotificationCenter onNavigateToEntry={handleNavigateToEntry} />}
+          notificationSlot={
+            <NotificationCenter onNavigateToEntry={handleNavigateToEntry} />
+          }
         />
 
         {/* Content area - shows different content based on section */}
@@ -245,10 +263,10 @@ export function Dashboard() {
           ref={laneRef}
           className={cn(
             "relative min-w-0 flex-shrink-0",
-            (isKeyboardOpen && !isLandscapeMobile) && "hidden",
+            isKeyboardOpen && !isLandscapeMobile && "hidden",
             isLandscapeMobile
               ? ""
-              : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto"
+              : "order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto",
           )}
           aria-hidden="true"
           onClick={handleLaneClick}
@@ -256,14 +274,19 @@ export function Dashboard() {
       )}
 
       {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}
-      <aside className={cn(
-        "relative z-20 min-w-0 flex-shrink-0 overflow-hidden",
-        (isKeyboardOpen && !isLandscapeMobile) && "hidden",
-        isLandscapeMobile
-          ? "h-full"
-          : "h-20 lg:h-full order-3 lg:order-none pb-[env(safe-area-inset-bottom)]"
-      )}>
-        <VerticalCalendar entriesByDate={entriesByDate} compact={isLandscapeMobile} />
+      <aside
+        className={cn(
+          "relative z-20 min-w-0 flex-shrink-0 overflow-hidden",
+          isKeyboardOpen && !isLandscapeMobile && "hidden",
+          isLandscapeMobile
+            ? "h-full"
+            : "h-20 lg:h-full order-3 lg:order-none pb-[env(safe-area-inset-bottom)]",
+        )}
+      >
+        <VerticalCalendar
+          entriesByDate={entriesByDate}
+          compact={isLandscapeMobile}
+        />
       </aside>
     </div>
   );

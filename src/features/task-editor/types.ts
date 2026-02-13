@@ -1,13 +1,12 @@
 /**
  * UI types for the Task Editor feature
- * 
+ *
  * These are local types specific to the task editor component.
  * Domain types come from @/shared/types.
  */
 
 import type {
   EntryId,
-  TopicId,
   DefaultTopicId,
   ISODate,
   EntryType,
@@ -23,7 +22,7 @@ import type {
 /**
  * Draft state for an entry being edited.
  * This is UI state, not the persisted Entry type.
- * 
+ *
  * Uses simplified types suitable for form state.
  */
 export interface EntryDraft {

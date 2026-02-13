@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { ProcessReminderJob } from "./ProcessReminderJob";
 import { InMemoryReminderRepository } from "../../test/InMemoryReminderRepository";
 import { InMemoryNotificationRepository } from "../../test/InMemoryNotificationRepository";
@@ -18,7 +18,7 @@ describe("ProcessReminderJob", () => {
   const createTestReminder = async (
     status: string = "pending",
     scheduledAt: string = originalScheduledAt,
-    channel: string = "whatsapp"
+    channel: string = "whatsapp",
   ) => {
     const reminderResult = Reminder.create({
       id: reminderId,
@@ -43,7 +43,7 @@ describe("ProcessReminderJob", () => {
       reminderRepository,
       notificationRepository,
       automationPort,
-      () => "notif-test-id"
+      () => "notif-test-id",
     );
   });
 

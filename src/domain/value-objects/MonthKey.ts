@@ -20,7 +20,7 @@ export class MonthKey {
     if (!MONTH_KEY_REGEX.test(trimmed)) {
       return err("Month key must be YYYY-MM");
     }
-    const [yearStr, monthStr] = trimmed.split("-");
+    const [, monthStr] = trimmed.split("-");
     const month = parseInt(monthStr, 10);
     if (month < 1 || month > 12) {
       return err("Invalid month");

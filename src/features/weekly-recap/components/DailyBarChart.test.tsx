@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
@@ -5,12 +6,17 @@ import { DailyBarChart, type DailyBarData } from "./DailyBarChart";
 
 // Mock recharts to render simple testable output
 vi.mock("recharts", () => {
-  const React = require("react");
   return {
     ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
       <div data-testid="responsive-container">{children}</div>
     ),
-    BarChart: ({ children, data }: { children: React.ReactNode; data: unknown[] }) => (
+    BarChart: ({
+      children,
+      data,
+    }: {
+      children: React.ReactNode;
+      data: unknown[];
+    }) => (
       <div data-testid="bar-chart" data-count={data.length}>
         {children}
       </div>

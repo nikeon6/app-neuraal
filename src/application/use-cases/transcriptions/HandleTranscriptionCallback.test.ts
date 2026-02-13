@@ -10,7 +10,9 @@ import { Entry } from "@/domain/entities/Entry";
 const WEBHOOK_SECRET = "test-secret-256";
 const YOUTUBE_URL = "https://www.youtube.com/watch?v=abc123";
 
-function createTestEntry(overrides: Partial<{ id: string; userId: string }> = {}): Entry {
+function createTestEntry(
+  overrides: Partial<{ id: string; userId: string }> = {},
+): Entry {
   const content = {
     type: "doc",
     content: [
@@ -39,7 +41,7 @@ function createTestEntry(overrides: Partial<{ id: string; userId: string }> = {}
 function signPayload(
   body: string,
   timestamp: string,
-  secret: string = WEBHOOK_SECRET
+  secret: string = WEBHOOK_SECRET,
 ): string {
   return crypto
     .createHmac("sha256", secret)
@@ -51,7 +53,14 @@ function buildInput(payload: Record<string, unknown>) {
   const rawBody = JSON.stringify(payload);
   const timestamp = Date.now().toString();
   const signature = signPayload(rawBody, timestamp);
-  return { rawBody, timestamp, signature, payload: payload as any };
+  return {
+    rawBody,
+    timestamp,
+    signature,
+    payload: payload as Parameters<
+      HandleTranscriptionCallback["execute"]
+    >[0]["payload"],
+  };
 }
 
 describe("HandleTranscriptionCallback", () => {
@@ -70,7 +79,7 @@ describe("HandleTranscriptionCallback", () => {
       transcriptionRepo,
       notificationRepo,
       WEBHOOK_SECRET,
-      () => "notif-1"
+      () => "notif-1",
     );
   });
 
@@ -82,7 +91,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL
+      YOUTUBE_URL,
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markSubmitted());
@@ -111,10 +120,12 @@ describe("HandleTranscriptionCallback", () => {
 
     // Verify transcription was injected into entry content
     const updatedEntry = await entryRepo.findById("entry-1");
-    const content = updatedEntry!.content.toJSON() as any;
-    const youtubeNode = content.content[0];
-    expect(youtubeNode.attrs.transcription).toBe(
-      "Hello, this is the transcription text."
+    const content = updatedEntry!.content.toJSON() as {
+      content?: Array<{ attrs?: { transcription?: string } }>;
+    };
+    const youtubeNode = content.content![0];
+    expect(youtubeNode.attrs!.transcription).toBe(
+      "Hello, this is the transcription text.",
     );
   });
 
@@ -126,7 +137,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL
+      YOUTUBE_URL,
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markDone());
@@ -159,8 +170,11 @@ describe("HandleTranscriptionCallback", () => {
     const result = await useCase.execute({
       rawBody,
       timestamp,
-      signature: "invalid-signature-0000000000000000000000000000000000000000000000000000000000000000",
-      payload: payload as any,
+      signature:
+        "invalid-signature-0000000000000000000000000000000000000000000000000000000000000000",
+      payload: payload as Parameters<
+        HandleTranscriptionCallback["execute"]
+      >[0]["payload"],
     });
 
     expect(result.isErr()).toBe(true);
@@ -183,7 +197,9 @@ describe("HandleTranscriptionCallback", () => {
       rawBody,
       timestamp,
       signature,
-      payload: payload as any,
+      payload: payload as Parameters<
+        HandleTranscriptionCallback["execute"]
+      >[0]["payload"],
     });
 
     expect(result.isErr()).toBe(true);
@@ -210,7 +226,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL
+      YOUTUBE_URL,
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markSubmitted());
@@ -234,7 +250,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL
+      YOUTUBE_URL,
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markSubmitted());
@@ -258,7 +274,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL
+      YOUTUBE_URL,
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markSubmitted());
@@ -311,7 +327,7 @@ describe("HandleTranscriptionCallback", () => {
       "req-1",
       "user-1",
       "entry-1",
-      YOUTUBE_URL // watch URL
+      YOUTUBE_URL, // watch URL
     );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markSubmitted());
@@ -330,9 +346,11 @@ describe("HandleTranscriptionCallback", () => {
 
     // Verify transcription was injected despite different URL formats
     const updatedEntry = await entryRepo.findById("entry-1");
-    const content = updatedEntry!.content.toJSON() as any;
-    expect(content.content[0].attrs.transcription).toBe(
-      "Cross-format match text"
+    const content = updatedEntry!.content.toJSON() as {
+      content?: Array<{ attrs?: { transcription?: string } }>;
+    };
+    expect(content.content![0].attrs!.transcription).toBe(
+      "Cross-format match text",
     );
   });
 });
