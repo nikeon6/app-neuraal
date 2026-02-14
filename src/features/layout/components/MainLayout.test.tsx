@@ -98,6 +98,28 @@ describe("MainLayout", () => {
     expect(screen.queryByText("private-content")).not.toBeInTheDocument();
   });
 
+  it("redirects to login when auth response has no user payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      }),
+    );
+
+    render(
+      <MainLayout>
+        <div>private-content</div>
+      </MainLayout>,
+    );
+
+    await waitFor(() => {
+      expect(logoutMock).toHaveBeenCalledTimes(1);
+      expect(pushMock).toHaveBeenCalledWith("/login");
+    });
+    expect(sentrySetUserMock).toHaveBeenCalledWith(null);
+  });
+
   it("handles logout success flow", async () => {
     vi.stubGlobal(
       "fetch",
