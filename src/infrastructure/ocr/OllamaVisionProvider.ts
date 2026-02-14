@@ -1,4 +1,5 @@
 import type { OcrPort } from "@/application/ports/OcrPort";
+import { withSentrySpan } from "@/infrastructure/logging/sentryTracing";
 
 /**
  * Configuration for the Ollama Vision provider.
@@ -55,39 +56,53 @@ export class OllamaVisionProvider implements OcrPort {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: this.model,
-          prompt: effectivePrompt,
-          images: [imageBase64],
-          stream: false,
-        }),
-        signal: controller.signal,
-      });
+      return await withSentrySpan(
+        {
+          name: "ollama.vision.extract_text",
+          op: "ai.vision",
+          attributes: {
+            "ai.model": this.model,
+            "ai.prompt_length": effectivePrompt.length,
+            "ai.image_base64_length": imageBase64.length,
+            "http.url": url,
+          },
+        },
+        async () => {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: this.model,
+              prompt: effectivePrompt,
+              images: [imageBase64],
+              stream: false,
+            }),
+            signal: controller.signal,
+          });
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw new Error(
-          `Ollama Vision request failed: ${response.status} ${response.statusText} - ${body}`,
-        );
-      }
+          if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            throw new Error(
+              `Ollama Vision request failed: ${response.status} ${response.statusText} - ${body}`,
+            );
+          }
 
-      const data = (await response.json()) as {
-        response?: string;
-        error?: string;
-      };
+          const data = (await response.json()) as {
+            response?: string;
+            error?: string;
+          };
 
-      if (data.error) {
-        throw new Error(`Ollama Vision error: ${data.error}`);
-      }
+          if (data.error) {
+            throw new Error(`Ollama Vision error: ${data.error}`);
+          }
 
-      if (!data.response) {
-        throw new Error("Ollama Vision returned empty response");
-      }
+          if (!data.response) {
+            throw new Error("Ollama Vision returned empty response");
+          }
 
-      return data.response;
+          return data.response;
+        },
+      );
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new Error(

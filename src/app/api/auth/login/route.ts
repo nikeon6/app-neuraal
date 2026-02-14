@@ -9,6 +9,7 @@ import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { setAuthCookies } from "@/infrastructure/auth/AuthCookies";
 import { loginRateLimiter } from "@/infrastructure/auth/LoginRateLimiter";
+import { withApiContext } from "@/infrastructure/http/withApiContext";
 import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
 
 function errorCodeToStatus(code: UseCaseErrorCode): number {
@@ -45,7 +46,7 @@ function getClientIp(request: NextRequest): string {
  * Authenticates a user and returns auth cookies.
  * Rate-limited: 5 failed attempts per IP → 5 minute lockout.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withApiContext(async (request: NextRequest) => {
   const clientIp = getClientIp(request);
 
   // --- Rate limit check ---
@@ -163,4 +164,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.json({ user }, { status: 200 });
   setAuthCookies(response, tokens.accessToken, tokens.refreshToken, config);
   return response;
-}
+});

@@ -6,6 +6,7 @@ import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { clearAuthCookies } from "@/infrastructure/auth/AuthCookies";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
+import { withApiContext } from "@/infrastructure/http/withApiContext";
 
 /**
  * POST /api/auth/logout
@@ -15,7 +16,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  * expired/invalid. This prevents stolen refresh tokens from remaining valid
  * after the user logs out.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withApiContext(async (request: NextRequest) => {
   const authResult = await getAuthUserId(request);
   const refreshTokenRaw = request.cookies.get("refresh_token")?.value;
 
@@ -41,4 +42,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const response = new NextResponse(null, { status: 204 });
   clearAuthCookies(response, config);
   return response;
-}
+});

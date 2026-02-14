@@ -1,4 +1,5 @@
 import type { EmbeddingProviderPort } from "@/application/ports/EmbeddingProviderPort";
+import { withSentrySpan } from "@/infrastructure/logging/sentryTracing";
 
 /**
  * Configuration for the Ollama embedding provider.
@@ -38,37 +39,50 @@ export class OllamaEmbeddingProvider implements EmbeddingProviderPort {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: this.model,
-          input: text,
-        }),
-        signal: controller.signal,
-      });
+      return await withSentrySpan(
+        {
+          name: "ollama.embed",
+          op: "ai.embedding",
+          attributes: {
+            "ai.model": this.model,
+            "ai.input_length": text.length,
+            "http.url": url,
+          },
+        },
+        async () => {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: this.model,
+              input: text,
+            }),
+            signal: controller.signal,
+          });
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw new Error(
-          `Ollama embed request failed: ${response.status} ${response.statusText} - ${body}`,
-        );
-      }
+          if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            throw new Error(
+              `Ollama embed request failed: ${response.status} ${response.statusText} - ${body}`,
+            );
+          }
 
-      const data = (await response.json()) as {
-        embeddings: number[][];
-        model: string;
-      };
+          const data = (await response.json()) as {
+            embeddings: number[][];
+            model: string;
+          };
 
-      if (
-        !data.embeddings ||
-        !Array.isArray(data.embeddings) ||
-        data.embeddings.length === 0
-      ) {
-        throw new Error("Ollama returned empty embeddings");
-      }
+          if (
+            !data.embeddings ||
+            !Array.isArray(data.embeddings) ||
+            data.embeddings.length === 0
+          ) {
+            throw new Error("Ollama returned empty embeddings");
+          }
 
-      return data.embeddings[0];
+          return data.embeddings[0];
+        },
+      );
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new Error(

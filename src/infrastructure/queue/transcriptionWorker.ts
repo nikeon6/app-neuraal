@@ -11,6 +11,7 @@ import {
   initSentryForWorker,
   captureWorkerException,
 } from "../logging/sentryCapture";
+import { withSentrySpan } from "../logging/sentryTracing";
 
 /**
  * Job data structure for transcript jobs.
@@ -69,12 +70,25 @@ async function startWorker() {
         "job.start",
       );
 
-      const result = await processJob.execute({
-        requestId: job.data.requestId,
-        userId: job.data.userId,
-        entryId: job.data.entryId,
-        youtubeUrl: job.data.youtubeUrl,
-      });
+      const result = await withSentrySpan(
+        {
+          name: "worker.transcription.execute",
+          op: "queue.process",
+          attributes: {
+            "queue.name": QUEUE_NAME,
+            "job.id": job.id ?? "unknown",
+            "transcription.request_id": job.data.requestId,
+            "entry.id": job.data.entryId,
+          },
+        },
+        () =>
+          processJob.execute({
+            requestId: job.data.requestId,
+            userId: job.data.userId,
+            entryId: job.data.entryId,
+            youtubeUrl: job.data.youtubeUrl,
+          }),
+      );
 
       const durationMs = Math.round(performance.now() - start);
 

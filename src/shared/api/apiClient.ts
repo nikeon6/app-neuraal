@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 /**
  * Centralized API client for the Neuraal frontend.
  *
@@ -184,12 +186,27 @@ async function attemptTokenRefresh(): Promise<boolean> {
 
   refreshPromise = (async () => {
     try {
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Refreshing auth token",
+        level: "info",
+      });
       const res = await fetch("/api/auth/refresh", {
         method: "POST",
         credentials: "include",
       });
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: res.ok ? "Token refresh succeeded" : "Token refresh failed",
+        level: res.ok ? "info" : "warning",
+      });
       return res.ok;
     } catch {
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Token refresh request error",
+        level: "error",
+      });
       return false;
     } finally {
       refreshPromise = null;

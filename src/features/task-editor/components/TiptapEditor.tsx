@@ -296,7 +296,10 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
 
-    const view = editor.view;
+    type ViewWithScrollToSelection = typeof editor.view & {
+      scrollToSelection: () => void;
+    };
+    const view = editor.view as ViewWithScrollToSelection;
 
     // --- Patch 1: scrollToSelection ---
     const originalScroll = view.scrollToSelection.bind(view);
@@ -338,7 +341,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     // --- Patch 2: dom.focus (prevent native browser focus-scroll) ---
     // HTMLElement.focus is defined on the prototype, so we need
     // Object.defineProperty to override it on the instance.
-    const editorDom = view.dom as HTMLElement;
+    const editorDom = view.dom;
     const originalFocus = editorDom.focus.bind(editorDom);
 
     Object.defineProperty(editorDom, "focus", {
@@ -355,7 +358,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
         view.scrollToSelection = originalScroll;
       }
       // Remove the instance override so the prototype method is used again
-      delete (editorDom as Record<string, unknown>).focus;
+      Reflect.deleteProperty(editorDom, "focus");
     };
   }, [editor]);
 
@@ -392,10 +395,10 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   );
 
   const insertCodeBlock = useCallback(
-    (language?: string) => {
+    (language: string | null = null) => {
       if (!editor) return;
       // Use null to trigger lowlight's highlightAuto (auto-detect language)
-      const lang = language || null;
+      const lang = language;
 
       if (editor.isActive("codeBlock")) {
         // If already inside a code block, insert a new one AFTER the current one

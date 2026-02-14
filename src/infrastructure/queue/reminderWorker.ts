@@ -10,6 +10,7 @@ import {
   initSentryForWorker,
   captureWorkerException,
 } from "../logging/sentryCapture";
+import { withSentrySpan } from "../logging/sentryTracing";
 
 /**
  * Job data structure for reminder jobs.
@@ -56,10 +57,22 @@ async function startWorker() {
 
       log.info({ reminderId: job.data.reminderId }, "job.start");
 
-      const result = await processReminderJob.execute({
-        reminderId: job.data.reminderId,
-        originalScheduledAt: job.data.originalScheduledAt,
-      });
+      const result = await withSentrySpan(
+        {
+          name: "worker.reminder.execute",
+          op: "queue.process",
+          attributes: {
+            "queue.name": QUEUE_NAME,
+            "job.id": job.id ?? "unknown",
+            "reminder.id": job.data.reminderId,
+          },
+        },
+        () =>
+          processReminderJob.execute({
+            reminderId: job.data.reminderId,
+            originalScheduledAt: job.data.originalScheduledAt,
+          }),
+      );
 
       const durationMs = Math.round(performance.now() - start);
 

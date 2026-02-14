@@ -7,12 +7,13 @@ import { CryptoRefreshTokenService } from "@/infrastructure/auth/CryptoRefreshTo
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { setAuthCookies } from "@/infrastructure/auth/AuthCookies";
+import { withApiContext } from "@/infrastructure/http/withApiContext";
 
 /**
  * POST /api/auth/refresh
  * Refreshes the session using the refresh token cookie and issues new tokens.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withApiContext(async (request: NextRequest) => {
   const refreshToken = request.cookies.get("refresh_token")?.value;
 
   if (!refreshToken) {
@@ -44,4 +45,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.json({ ok: true }, { status: 200 });
   setAuthCookies(response, tokens.accessToken, tokens.refreshToken, config);
   return response;
-}
+});

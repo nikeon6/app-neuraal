@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
 import { ArrowRight, Brain } from "lucide-react";
@@ -31,6 +32,12 @@ export default function LoginPage() {
       })
       .then((data) => {
         if (data?.user) {
+          Sentry.setUser({ id: data.user.id, email: data.user.email });
+          Sentry.addBreadcrumb({
+            category: "auth",
+            message: "Session restored from /api/auth/me",
+            level: "info",
+          });
           login(data.user);
           router.push("/");
         }
@@ -55,9 +62,20 @@ export default function LoginPage() {
         "/api/auth/login",
         { email, password },
       );
+      Sentry.setUser({ id: data.user.id, email: data.user.email });
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "User login succeeded",
+        level: "info",
+      });
       login(data.user);
       router.push("/");
     } catch (err) {
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "User login failed",
+        level: "warning",
+      });
       if (err instanceof ApiError) {
         if (err.status === 429) {
           setError(

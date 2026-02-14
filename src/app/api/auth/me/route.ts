@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GetMe } from "@/application/use-cases/auth/GetMe";
 import { PrismaUserRepository } from "@/infrastructure/persistence/PrismaUserRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
+import { withApiContext } from "@/infrastructure/http/withApiContext";
 import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
 
 function errorCodeToStatus(code: UseCaseErrorCode): number {
@@ -24,7 +25,7 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
  * GET /api/auth/me
  * Returns the authenticated user's profile.
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export const GET = withApiContext(async (request: NextRequest) => {
   const authResult = await getAuthUserId(request);
 
   if (!authResult.ok) {
@@ -41,4 +42,4 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   return NextResponse.json({ user: result.value }, { status: 200 });
-}
+});
