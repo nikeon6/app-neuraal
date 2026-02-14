@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { TiptapEditor } from "./TiptapEditor";
 
@@ -177,6 +177,147 @@ describe("TiptapEditor", () => {
 
       // The ref should be set after mount
       expect(editorRef.current).not.toBeNull();
+    });
+
+    it("should insert an image via editorRef API", async () => {
+      const editorRef = React.createRef<{
+        insertImage: (attrs: { src: string; alt?: string }) => void;
+      }>();
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      editorRef.current?.insertImage({
+        src: "https://example.com/image.png",
+        alt: "example-image",
+      });
+
+      await waitFor(() => {
+        const image = document.querySelector(
+          'img[src="https://example.com/image.png"]',
+        );
+        expect(image).not.toBeNull();
+      });
+    });
+
+    it("should insert a code block via editorRef API", async () => {
+      const editorRef = React.createRef<{
+        insertCodeBlock: (language?: string) => void;
+      }>();
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      editorRef.current?.insertCodeBlock("javascript");
+
+      await waitFor(() => {
+        const codeEl = document.querySelector("pre code");
+        expect(codeEl).not.toBeNull();
+      });
+    });
+
+    it("sync helpers should return null with empty maps", async () => {
+      const editorRef = React.createRef<{
+        syncYoutubeTranscriptions: (map: Map<string, string>) => unknown;
+        syncImageVisionResults: (
+          map: Map<string, { text: string; mode: string }>,
+        ) => unknown;
+      }>();
+
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      expect(
+        editorRef.current?.syncYoutubeTranscriptions(new Map()),
+      ).toBeNull();
+      expect(editorRef.current?.syncImageVisionResults(new Map())).toBeNull();
+    });
+
+    it("sync helpers should update matching youtube and image nodes", async () => {
+      const richContent = {
+        type: "doc",
+        content: [
+          {
+            type: "youtube",
+            attrs: { src: "https://www.youtube.com/watch?v=test123" },
+          },
+          {
+            type: "image",
+            attrs: {
+              src: "https://example.com/image.png",
+              attachmentId: "att-vision-1",
+            },
+          },
+        ],
+      };
+
+      const editorRef = React.createRef<{
+        syncYoutubeTranscriptions: (
+          map: Map<string, string>,
+        ) => Record<string, unknown> | null;
+        syncImageVisionResults: (
+          map: Map<string, { text: string; mode: string }>,
+        ) => Record<string, unknown> | null;
+      }>();
+
+      render(
+        <TiptapEditor
+          content={richContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+
+      const youtubeResult = editorRef.current?.syncYoutubeTranscriptions(
+        new Map([["https://www.youtube.com/watch?v=test123", "Transcript"]]),
+      );
+      expect(youtubeResult).not.toBeNull();
+      expect(JSON.stringify(youtubeResult)).toContain("Transcript");
+
+      const imageResult = editorRef.current?.syncImageVisionResults(
+        new Map([["att-vision-1", { text: "Vision text", mode: "ocr" }]]),
+      );
+      expect(imageResult).not.toBeNull();
+      expect(JSON.stringify(imageResult)).toContain("Vision text");
+    });
+  });
+
+  describe("callbacks", () => {
+    it("should call onFocus when editor receives focus", async () => {
+      const onFocusMock = vi.fn();
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          onFocus={onFocusMock}
+        />,
+      );
+
+      const proseMirror = document.querySelector(".ProseMirror");
+      expect(proseMirror).not.toBeNull();
+      fireEvent.focus(proseMirror as Element);
+
+      await waitFor(() => {
+        expect(onFocusMock).toHaveBeenCalled();
+      });
     });
   });
 });

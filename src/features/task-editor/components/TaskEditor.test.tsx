@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TaskEditor } from "./TaskEditor";
 import type { ApiEntry } from "@/shared/api/sdk";
+import { ApiError } from "@/shared/api/apiClient";
 
 // ============================================================================
 // Mock Data
@@ -40,6 +41,20 @@ const mockTopics = [
 const mockTopicsQuery = vi.fn();
 const mockUpdateEntryAndInvalidate = vi.fn();
 const mockDeleteEntryAndInvalidate = vi.fn();
+const mockSetSummarizeError = vi.fn();
+const mockUseSummaryActions = vi.fn();
+const mockHandleSummarize = vi.fn();
+const mockHandleClearSummary = vi.fn();
+const mockInitUpload = vi.fn();
+const mockCompleteUpload = vi.fn();
+const mockGetDownloadUrl = vi.fn();
+const mockListByEntry = vi.fn();
+const mockDeleteAttachment = vi.fn();
+const mockUseReminderActions = vi.fn();
+const mockSetIsReminderDialogOpen = vi.fn();
+const mockHandleCreateReminder = vi.fn();
+const mockHandleRescheduleReminder = vi.fn();
+const mockHandleCancelReminder = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
@@ -75,11 +90,11 @@ vi.mock("@/shared/api/sdk/entries", () => ({
 }));
 
 vi.mock("@/shared/api/sdk/attachments", () => ({
-  initUpload: vi.fn(),
-  completeUpload: vi.fn(),
-  getDownloadUrl: vi.fn(),
-  listByEntry: vi.fn(),
-  deleteAttachment: vi.fn(),
+  initUpload: (...args: unknown[]) => mockInitUpload(...args),
+  completeUpload: (...args: unknown[]) => mockCompleteUpload(...args),
+  getDownloadUrl: (...args: unknown[]) => mockGetDownloadUrl(...args),
+  listByEntry: (...args: unknown[]) => mockListByEntry(...args),
+  deleteAttachment: (...args: unknown[]) => mockDeleteAttachment(...args),
 }));
 
 vi.mock("@/shared/store", () => ({
@@ -94,6 +109,14 @@ vi.mock("@/shared/store", () => ({
     const d = state.selectedDate;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   },
+}));
+
+vi.mock("../hooks/useSummaryActions", () => ({
+  useSummaryActions: (...args: unknown[]) => mockUseSummaryActions(...args),
+}));
+
+vi.mock("../hooks/useReminderActions", () => ({
+  useReminderActions: (...args: unknown[]) => mockUseReminderActions(...args),
 }));
 
 // ============================================================================
@@ -124,6 +147,22 @@ describe("TaskEditor", () => {
       createMockEntry({ version: 2 }),
     );
     mockDeleteEntryAndInvalidate.mockResolvedValue(undefined);
+    mockUseSummaryActions.mockReturnValue({
+      isSummarizing: false,
+      summarizeError: null,
+      setSummarizeError: mockSetSummarizeError,
+      handleSummarize: mockHandleSummarize,
+      handleClearSummary: mockHandleClearSummary,
+    });
+    mockUseReminderActions.mockReturnValue({
+      isReminderDialogOpen: false,
+      setIsReminderDialogOpen: mockSetIsReminderDialogOpen,
+      activeReminderId: null,
+      isReminderSaving: false,
+      handleCreateReminder: mockHandleCreateReminder,
+      handleRescheduleReminder: mockHandleRescheduleReminder,
+      handleCancelReminder: mockHandleCancelReminder,
+    });
   });
 
   const expandEditor = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -252,6 +291,36 @@ describe("TaskEditor", () => {
         screen.getByRole("button", { name: /summarize/i }),
       ).toBeInTheDocument();
     });
+
+    it("should open reminder dialog when reminder button is clicked", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(
+        screen.getByRole("button", { name: /schedule reminder/i }),
+      );
+      expect(mockSetIsReminderDialogOpen).toHaveBeenCalledWith(true);
+    });
+
+    it("should disable summarize button when summary is in progress", async () => {
+      const user = userEvent.setup();
+      mockUseSummaryActions.mockReturnValue({
+        isSummarizing: true,
+        summarizeError: null,
+        setSummarizeError: mockSetSummarizeError,
+        handleSummarize: mockHandleSummarize,
+        handleClearSummary: mockHandleClearSummary,
+      });
+
+      renderEditor();
+      const summarizeBtn = screen.getByRole("button", {
+        name: /summary in progress/i,
+      });
+      expect(summarizeBtn).toBeDisabled();
+
+      await user.click(summarizeBtn);
+      expect(mockHandleSummarize).not.toHaveBeenCalled();
+    });
   });
 
   describe("Delete Button", () => {
@@ -373,6 +442,34 @@ describe("TaskEditor", () => {
       const options = screen.getAllByRole("menuitemradio");
       expect(options[0]).toHaveTextContent(/auto/i);
     });
+
+    it("should show empty state when there are no topics", async () => {
+      const user = userEvent.setup();
+      mockTopicsQuery.mockReturnValue({ data: [], isPending: false });
+      renderEditor();
+
+      await user.click(screen.getByRole("button", { name: /topic/i }));
+      expect(
+        screen.getByText(/no topics yet\. create one in topics section\./i),
+      ).toBeInTheDocument();
+    });
+
+    it("should close topic menu after selecting a topic option", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByRole("button", { name: /topic/i }));
+      expect(
+        screen.getByRole("menu", { name: /select topic/i }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("menuitemradio", { name: /salud/i }));
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("menu", { name: /select topic/i }),
+        ).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe("Auto-save", () => {
@@ -456,6 +553,167 @@ describe("TaskEditor", () => {
         screen.queryByRole("button", { name: /mark as/i }),
       ).not.toBeInTheDocument();
     });
+
+    it("should toggle task to note when clicking switch button", async () => {
+      const user = userEvent.setup();
+      renderEditor({ type: "task" });
+
+      await user.click(screen.getByRole("button", { name: /switch to note/i }));
+
+      expect(
+        screen.getByRole("button", { name: /switch to task/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /mark as/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should toggle note to task when clicking switch button", async () => {
+      const user = userEvent.setup();
+      renderEditor({ type: "note" });
+
+      await user.click(screen.getByRole("button", { name: /switch to task/i }));
+
+      expect(
+        screen.getByRole("button", { name: /switch to note/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /mark as/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("Task Completion", () => {
+    it("should toggle completion button label", async () => {
+      const user = userEvent.setup();
+      renderEditor({ type: "task", completed: false });
+
+      const completeBtn = screen.getByRole("button", {
+        name: /mark as complete/i,
+      });
+      await user.click(completeBtn);
+
+      expect(
+        screen.getByRole("button", { name: /mark as incomplete/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("Content Menu Actions", () => {
+    it("should open YouTube dialog from content menu action", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      await user.click(screen.getByRole("button", { name: /add content/i }));
+      await user.click(
+        screen.getByRole("menuitem", { name: /youtube|video/i }),
+      );
+
+      expect(
+        screen.getByRole("dialog", { name: /embed youtube video/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("should trigger hidden file input click from attach file action", async () => {
+      const user = userEvent.setup();
+      const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click");
+
+      renderEditor();
+      await expandEditor(user);
+      await user.click(screen.getByRole("button", { name: /add content/i }));
+      await user.click(screen.getByRole("menuitem", { name: /file|attach/i }));
+
+      expect(clickSpy).toHaveBeenCalled();
+      clickSpy.mockRestore();
+    });
+
+    it("should attach file via hidden input upload flow", async () => {
+      const user = userEvent.setup();
+      const putFetch = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal("fetch", putFetch);
+
+      mockInitUpload.mockResolvedValue({
+        attachment: { id: "att-123" },
+        presignedPutUrl: "https://s3.example.com/upload",
+      });
+      mockCompleteUpload.mockResolvedValue(undefined);
+
+      const { container } = renderEditor();
+      await expandEditor(user);
+
+      const hiddenInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement | null;
+      expect(hiddenInput).not.toBeNull();
+
+      const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+      await user.upload(hiddenInput as HTMLInputElement, file);
+
+      await waitFor(() => {
+        expect(mockInitUpload).toHaveBeenCalledTimes(1);
+        expect(putFetch).toHaveBeenCalledTimes(1);
+        expect(mockCompleteUpload).toHaveBeenCalledWith("att-123");
+      });
+
+      vi.unstubAllGlobals();
+    });
+
+    it("should not complete upload when presigned PUT fails", async () => {
+      const user = userEvent.setup();
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const putFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+      vi.stubGlobal("fetch", putFetch);
+
+      mockInitUpload.mockResolvedValue({
+        attachment: { id: "att-error" },
+        presignedPutUrl: "https://s3.example.com/upload-error",
+      });
+
+      const { container } = renderEditor();
+      await expandEditor(user);
+
+      const hiddenInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement | null;
+      expect(hiddenInput).not.toBeNull();
+
+      const file = new File(["boom"], "broken.txt", { type: "text/plain" });
+      await user.upload(hiddenInput as HTMLInputElement, file);
+
+      await waitFor(() => {
+        expect(mockInitUpload).toHaveBeenCalledTimes(1);
+        expect(putFetch).toHaveBeenCalledTimes(1);
+      });
+      expect(mockCompleteUpload).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      vi.unstubAllGlobals();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("should close youtube dialog when cancel is clicked", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      await user.click(screen.getByRole("button", { name: /add content/i }));
+      await user.click(
+        screen.getByRole("menuitem", { name: /youtube|video/i }),
+      );
+      expect(
+        screen.getByRole("dialog", { name: /embed youtube video/i }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("dialog", { name: /embed youtube video/i }),
+        ).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe("Accessibility", () => {
@@ -467,6 +725,146 @@ describe("TaskEditor", () => {
       expect(
         screen.getByRole("button", { name: /topic/i }),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("Format and Summary UI", () => {
+    it("should open format menu and close it", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      const formatBtn = screen.getByRole("button", { name: /text format/i });
+      await user.click(formatBtn);
+      expect(
+        screen.getByRole("toolbar", { name: /text formatting/i }),
+      ).toBeInTheDocument();
+
+      await user.click(formatBtn);
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("toolbar", { name: /text formatting/i }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("should dismiss summarize error when clicking dismiss button", async () => {
+      const user = userEvent.setup();
+      mockUseSummaryActions.mockReturnValue({
+        isSummarizing: false,
+        summarizeError: "Summary failed",
+        setSummarizeError: mockSetSummarizeError,
+        handleSummarize: mockHandleSummarize,
+        handleClearSummary: mockHandleClearSummary,
+      });
+
+      renderEditor();
+      await user.click(screen.getByRole("button", { name: /dismiss/i }));
+
+      expect(mockSetSummarizeError).toHaveBeenCalledWith(null);
+    });
+
+    it("should remove existing summary when remove button is clicked", async () => {
+      const user = userEvent.setup();
+      renderEditor({ summary: "AI generated summary" });
+
+      await user.click(screen.getByRole("button", { name: /remove summary/i }));
+      expect(mockHandleClearSummary).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Reminder Dialog", () => {
+    it("should schedule reminder from dialog", async () => {
+      const user = userEvent.setup();
+      mockUseReminderActions.mockReturnValue({
+        isReminderDialogOpen: true,
+        setIsReminderDialogOpen: mockSetIsReminderDialogOpen,
+        activeReminderId: null,
+        isReminderSaving: false,
+        handleCreateReminder: mockHandleCreateReminder,
+        handleRescheduleReminder: mockHandleRescheduleReminder,
+        handleCancelReminder: mockHandleCancelReminder,
+      });
+
+      renderEditor();
+      await user.click(screen.getByRole("button", { name: /^schedule$/i }));
+
+      expect(mockHandleCreateReminder).toHaveBeenCalledTimes(1);
+    });
+
+    it("should reschedule and cancel when active reminder exists", async () => {
+      const user = userEvent.setup();
+      mockUseReminderActions.mockReturnValue({
+        isReminderDialogOpen: true,
+        setIsReminderDialogOpen: mockSetIsReminderDialogOpen,
+        activeReminderId: "rem-1",
+        isReminderSaving: false,
+        handleCreateReminder: mockHandleCreateReminder,
+        handleRescheduleReminder: mockHandleRescheduleReminder,
+        handleCancelReminder: mockHandleCancelReminder,
+      });
+
+      renderEditor();
+      await user.click(screen.getByRole("button", { name: /reschedule/i }));
+      await user.click(screen.getByTitle(/cancel reminder/i));
+
+      expect(mockHandleRescheduleReminder).toHaveBeenCalledTimes(1);
+      expect(mockHandleCancelReminder).toHaveBeenCalledTimes(1);
+    });
+
+    it("should close reminder dialog via close button and backdrop", async () => {
+      const user = userEvent.setup();
+      mockUseReminderActions.mockReturnValue({
+        isReminderDialogOpen: true,
+        setIsReminderDialogOpen: mockSetIsReminderDialogOpen,
+        activeReminderId: null,
+        isReminderSaving: false,
+        handleCreateReminder: mockHandleCreateReminder,
+        handleRescheduleReminder: mockHandleRescheduleReminder,
+        handleCancelReminder: mockHandleCancelReminder,
+      });
+
+      renderEditor();
+
+      await user.click(screen.getByRole("button", { name: /^close$/i }));
+      await user.click(screen.getByLabelText(/close reminder dialog/i));
+
+      expect(mockSetIsReminderDialogOpen).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe("Delete Error Handling", () => {
+    it("should close editor on delete 404 response", async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const qc = createQueryClient();
+
+      mockDeleteEntryAndInvalidate.mockRejectedValue(
+        new ApiError("Not found", 404, "NOT_FOUND"),
+      );
+
+      render(
+        <QueryClientProvider client={qc}>
+          <TaskEditor entry={createMockEntry()} onClose={onClose} />
+        </QueryClientProvider>,
+      );
+
+      await expandEditor(user);
+      await user.click(screen.getByTitle("Delete entry"));
+
+      await waitFor(() => {
+        const allDeleteBtns = screen.getAllByRole("button", {
+          name: /delete/i,
+        });
+        expect(allDeleteBtns.length).toBeGreaterThanOrEqual(2);
+      });
+
+      const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+      await user.click(allDeleteBtns[allDeleteBtns.length - 1]);
+
+      await waitFor(() => {
+        expect(onClose).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });
