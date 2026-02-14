@@ -9,7 +9,7 @@ import type { ApiSticky } from "@/shared/api/sdk";
 
 function createMockSticky(
   id: string,
-  overrides: Partial<ApiSticky> = {}
+  overrides: Partial<ApiSticky> = {},
 ): ApiSticky {
   return {
     id,
@@ -49,13 +49,8 @@ vi.mock("@/shared/api/mutations", () => ({
 
 vi.mock("./StickyEditor", () => ({
   StickyEditor: ({ sticky }: { sticky: ApiSticky }) => (
-    <div data-testid="sticky-editor" data-sticky-id={sticky.id}>
-      <input
-        data-testid="sticky-title"
-        defaultValue={sticky.title}
-        readOnly
-        aria-label="Title"
-      />
+    <div aria-label="Sticky editor" data-sticky-id={sticky.id}>
+      <input aria-label="Sticky title" defaultValue={sticky.title} readOnly />
     </div>
   ),
 }));
@@ -67,7 +62,7 @@ function renderStickiesContainer() {
   return render(
     <QueryClientProvider client={queryClient}>
       <StickiesContainer />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -98,7 +93,9 @@ describe("StickiesContainer", () => {
     });
     renderStickiesContainer();
     expect(screen.getByText(/no stickies yet/i)).toBeInTheDocument();
-    expect(screen.getByTestId("add-sticky-button")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add sticky/i }),
+    ).toBeInTheDocument();
   });
 
   it("calls createStickyAndInvalidate when Add sticky is clicked", async () => {
@@ -107,7 +104,7 @@ describe("StickiesContainer", () => {
       isPending: false,
     });
     renderStickiesContainer();
-    const addBtn = screen.getByTestId("add-sticky-button");
+    const addBtn = screen.getByRole("button", { name: /add sticky/i });
     await userEvent.click(addBtn);
     await waitFor(() => {
       expect(mockCreateStickyAndInvalidate).toHaveBeenCalled();
@@ -117,7 +114,7 @@ describe("StickiesContainer", () => {
       expect.objectContaining({
         title: "",
         content: { type: "doc", content: [] },
-      })
+      }),
     );
   });
 
@@ -127,7 +124,7 @@ describe("StickiesContainer", () => {
       isPending: false,
     });
     renderStickiesContainer();
-    expect(screen.getByTestId("stickies-container")).toBeInTheDocument();
+    expect(screen.getByLabelText(/stickies container/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Left 1")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Left 2")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Right 1")).toBeInTheDocument();

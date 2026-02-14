@@ -39,7 +39,7 @@ function renderStickyEditor(sticky: ApiSticky) {
   return render(
     <QueryClientProvider client={queryClient}>
       <StickyEditor sticky={sticky} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -53,8 +53,10 @@ describe("StickyEditor", () => {
   it("renders sticky title and Sticky badge", () => {
     const sticky = createMockSticky({ title: "Test title" });
     renderStickyEditor(sticky);
-    expect(screen.getByTestId("sticky-editor")).toBeInTheDocument();
-    expect(screen.getByTestId("sticky-title")).toHaveValue("Test title");
+    expect(screen.getByLabelText(/sticky editor/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /sticky title/i })).toHaveValue(
+      "Test title",
+    );
     expect(screen.getByText("Sticky")).toBeInTheDocument();
   });
 
@@ -72,7 +74,7 @@ describe("StickyEditor", () => {
   it("calls updateStickyAndInvalidate when title changes (debounced)", async () => {
     const sticky = createMockSticky({ title: "Original" });
     renderStickyEditor(sticky);
-    const titleInput = screen.getByTestId("sticky-title");
+    const titleInput = screen.getByRole("textbox", { name: /sticky title/i });
     await userEvent.clear(titleInput);
     await userEvent.type(titleInput, "New title");
     expect(mockUpdateStickyAndInvalidate).not.toHaveBeenCalled();

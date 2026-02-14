@@ -15,14 +15,18 @@ class MockIntersectionObserver {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-  constructor() {}
 }
-window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+globalThis.IntersectionObserver =
+  MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
 // ============================================================================
 // Mock Data (ApiEntry shape)
 // ============================================================================
-function createMockEntry(id: string, title: string, overrides: Partial<ApiEntry> = {}): ApiEntry {
+function createMockEntry(
+  id: string,
+  title: string,
+  overrides: Partial<ApiEntry> = {},
+): ApiEntry {
   return {
     id,
     userId: "user-123",
@@ -43,18 +47,30 @@ function createMockEntry(id: string, title: string, overrides: Partial<ApiEntry>
 
 const mockEntriesByDate: Record<string, ApiEntry[]> = {
   "2024-01-15": [
-    createMockEntry("entry-1", "Complete project report", { topicId: "topic-work" }),
-    createMockEntry("entry-2", "Morning yoga session", { topicId: "topic-health" }),
+    createMockEntry("entry-1", "Complete project report", {
+      topicId: "topic-work",
+    }),
+    createMockEntry("entry-2", "Morning yoga session", {
+      topicId: "topic-health",
+    }),
   ],
   "2024-01-20": [
-    createMockEntry("entry-3", "Study TypeScript", { date: "2024-01-20", topicId: "topic-learning" }),
+    createMockEntry("entry-3", "Study TypeScript", {
+      date: "2024-01-20",
+      topicId: "topic-learning",
+    }),
   ],
 };
 
 const mockTopics = [
   { id: "topic-work", userId: "user-123", name: "Trabajo", color: "#3b82f6" },
   { id: "topic-health", userId: "user-123", name: "Salud", color: "#22c55e" },
-  { id: "topic-learning", userId: "user-123", name: "Learning", color: "#f59e0b" },
+  {
+    id: "topic-learning",
+    userId: "user-123",
+    name: "Learning",
+    color: "#f59e0b",
+  },
 ];
 
 // ============================================================================
@@ -75,7 +91,8 @@ vi.mock("@/shared/api/queries", () => ({
 }));
 
 vi.mock("@/shared/api/mutations", () => ({
-  deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
+  deleteEntryAndInvalidate: (...args: unknown[]) =>
+    mockDeleteEntryAndInvalidate(...args),
 }));
 
 vi.mock("@/shared/store", () => ({
@@ -107,12 +124,14 @@ function createQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function renderCalendar(entriesByDate: Record<string, ApiEntry[]> = mockEntriesByDate) {
+function renderCalendar(
+  entriesByDate: Record<string, ApiEntry[]> = mockEntriesByDate,
+) {
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
       <VerticalCalendar entriesByDate={entriesByDate} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -139,7 +158,9 @@ describe("VerticalCalendar", () => {
         pinDay: mockPinDay,
         unpinDay: mockUnpinDay,
       };
-      return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
+      return typeof selector === "function"
+        ? selector(state as Record<string, unknown>)
+        : state;
     });
   });
 
@@ -181,8 +202,9 @@ describe("VerticalCalendar", () => {
     it("highlights the selected day", () => {
       renderCalendar();
 
-      const dayElement = document.getElementById("day-2024-01-15");
-      expect(dayElement).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/day row 2024-01-15 selected/i),
+      ).toBeInTheDocument();
     });
   });
 
@@ -194,28 +216,24 @@ describe("VerticalCalendar", () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const day20Buttons = screen.getAllByText("20");
-      const mobileButton = day20Buttons.find(
-        (el) => el.closest("button") && !el.closest(".day-row")
-      );
+      const day20Buttons = screen
+        .getAllByLabelText(/day 2024-01-20/i)
+        .filter((el) => el.tagName === "BUTTON");
+      expect(day20Buttons.length).toBeGreaterThan(0);
 
-      if (mobileButton) {
-        await user.click(mobileButton.closest("button")!);
-        expect(mockSetSelectedDate).toHaveBeenCalled();
-        expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
-      }
+      await user.click(day20Buttons[0]);
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
     });
 
     it("calls setSelectedDate and setSelectedDay when clicking a day row", async () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const dayRow = document.getElementById("day-2024-01-20");
-      if (dayRow) {
-        await user.click(dayRow);
-        expect(mockSetSelectedDate).toHaveBeenCalled();
-        expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
-      }
+      const dayRow = screen.getByLabelText(/day row 2024-01-20/i);
+      await user.click(dayRow);
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
     });
   });
 
@@ -226,19 +244,26 @@ describe("VerticalCalendar", () => {
     it("does NOT display task pills by default (no selection)", () => {
       renderCalendar();
 
-      expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Morning yoga session")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Complete project report"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Morning yoga session"),
+      ).not.toBeInTheDocument();
     });
 
-    it("shows day anchors with data attributes for wire connections", () => {
+    it("shows day anchors with date metadata for wire connections", () => {
       renderCalendar();
 
-      const dayAnchors = document.querySelectorAll("[data-day-anchor=\"true\"]");
+      const dayAnchors = screen.getAllByLabelText(/day (row )?2024-01-/i);
       expect(dayAnchors.length).toBeGreaterThan(0);
 
-      const firstAnchor = dayAnchors[0] as HTMLElement;
-      expect(firstAnchor.dataset.dayNumber).toBeDefined();
-      expect(firstAnchor.dataset.dateKey).toBeDefined();
+      const firstAnchor = dayAnchors.find(
+        (el) =>
+          (el as HTMLElement).dataset.dayNumber &&
+          (el as HTMLElement).dataset.dateKey,
+      );
+      expect(firstAnchor).toBeDefined();
     });
   });
 
@@ -251,7 +276,9 @@ describe("VerticalCalendar", () => {
 
       // "Jan" appears in both desktop and mobile views
       expect(screen.getAllByText("Jan").length).toBeGreaterThanOrEqual(1);
-      expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Complete project report"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -262,7 +289,9 @@ describe("VerticalCalendar", () => {
     it("no remove buttons in collapsed mode", () => {
       renderCalendar();
 
-      const removeButtons = screen.queryAllByRole("button", { name: /eliminar tarea/i });
+      const removeButtons = screen.queryAllByRole("button", {
+        name: /eliminar tarea/i,
+      });
       expect(removeButtons.length).toBe(0);
     });
 
@@ -296,7 +325,9 @@ describe("VerticalCalendar", () => {
             expandDay: mockExpandDay,
             collapseDay: mockCollapseDay,
           };
-          return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
+          return typeof selector === "function"
+            ? selector(state as Record<string, unknown>)
+            : state;
         });
 
         renderCalendar({});

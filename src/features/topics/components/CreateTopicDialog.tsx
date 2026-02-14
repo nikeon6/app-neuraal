@@ -70,7 +70,7 @@ export function CreateTopicDialog({
   const isDuplicate = useMemo(() => {
     const normalizedInput = trimmedName.toLowerCase();
     return existingTopics.some(
-      (t) => t.name.trim().toLowerCase() === normalizedInput
+      (t) => t.name.trim().toLowerCase() === normalizedInput,
     );
   }, [trimmedName, existingTopics]);
 
@@ -84,7 +84,13 @@ export function CreateTopicDialog({
   }, [existingTopics]);
 
   const isColorUsed = color !== null && usedColors.has(color.toLowerCase());
-  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isColorUsed && !isSubmitting;
+  const isValid =
+    !isNameEmpty &&
+    !isDuplicate &&
+    !isTooLong &&
+    isColorSelected &&
+    !isColorUsed &&
+    !isSubmitting;
   const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
@@ -102,7 +108,10 @@ export function CreateTopicDialog({
 
       setIsSubmitting(true);
       try {
-        await createTopicAndInvalidate(queryClient, { name: trimmedName, color });
+        await createTopicAndInvalidate(queryClient, {
+          name: trimmedName,
+          color,
+        });
         // Reset form and close
         setName("");
         setColor(null);
@@ -113,7 +122,7 @@ export function CreateTopicDialog({
         setIsSubmitting(false);
       }
     },
-    [isValid, queryClient, trimmedName, color, closeAndReturnFocus]
+    [isValid, queryClient, trimmedName, color, closeAndReturnFocus],
   );
 
   const handleCancel = useCallback(() => {
@@ -128,7 +137,7 @@ export function CreateTopicDialog({
         handleCancel();
       }
     },
-    [handleCancel]
+    [handleCancel],
   );
 
   if (!isOpen) return null;
@@ -142,6 +151,7 @@ export function CreateTopicDialog({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        aria-label="Close create topic dialog"
         data-testid="dialog-backdrop"
         onClick={handleCancel}
       />
@@ -177,7 +187,7 @@ export function CreateTopicDialog({
                     ? "text-red-400"
                     : charsRemaining <= 5
                       ? "text-amber-400"
-                      : "text-white/40"
+                      : "text-white/40",
                 )}
               >
                 {name.length}/{MAX_TOPIC_NAME_LENGTH}
@@ -196,13 +206,11 @@ export function CreateTopicDialog({
                 "focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all",
                 isDuplicate || isTooLong
                   ? "border-red-500/50"
-                  : "border-white/10 focus:border-sky-500/50"
+                  : "border-white/10 focus:border-sky-500/50",
               )}
             />
             {isDuplicate && (
-              <p className="text-sm text-red-400">
-                Topic already exists
-              </p>
+              <p className="text-sm text-red-400">Topic already exists</p>
             )}
           </div>
 
@@ -227,8 +235,14 @@ export function CreateTopicDialog({
                     role="radio"
                     aria-checked={color === c}
                     aria-disabled={isUsed}
-                    aria-label={isUsed ? `Color ${c} (already in use)` : `Select color ${c}`}
-                    onClick={() => { if (!isUsed) setColor(c); }}
+                    aria-label={
+                      isUsed
+                        ? `Color ${c} (already in use)`
+                        : `Select color ${c}`
+                    }
+                    onClick={() => {
+                      if (!isUsed) setColor(c);
+                    }}
                     className={cn(
                       "relative w-8 h-8 rounded-full transition-all",
                       "ring-offset-2 ring-offset-slate-900",
@@ -236,7 +250,7 @@ export function CreateTopicDialog({
                         ? "opacity-25 cursor-not-allowed"
                         : color === c
                           ? "ring-2 ring-white scale-110"
-                          : "hover:scale-105 opacity-70 hover:opacity-100"
+                          : "hover:scale-105 opacity-70 hover:opacity-100",
                     )}
                     style={{ backgroundColor: c }}
                   >
@@ -267,7 +281,7 @@ export function CreateTopicDialog({
                 "flex-1 px-4 py-2.5 rounded-xl font-medium transition-all",
                 isValid
                   ? "bg-sky-500 text-white hover:bg-sky-400"
-                  : "bg-white/5 text-white/30 cursor-not-allowed"
+                  : "bg-white/5 text-white/30 cursor-not-allowed",
               )}
             >
               {isSubmitting ? "Creating..." : "Create"}

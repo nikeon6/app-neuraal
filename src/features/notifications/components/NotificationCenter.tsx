@@ -3,7 +3,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, CheckCheck, ExternalLink, Brain, AlertTriangle, X, FileText } from "lucide-react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  ExternalLink,
+  Brain,
+  AlertTriangle,
+  X,
+  FileText,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useNotificationsQuery,
@@ -46,23 +55,47 @@ function isVisible(n: ApiNotification): boolean {
 function notifMeta(type: ApiNotification["type"]) {
   switch (type) {
     case "SUMMARY_IN_PROGRESS":
-      return { label: "Summary in progress", Icon: Brain, color: "text-sky-400" };
+      return {
+        label: "Summary in progress",
+        Icon: Brain,
+        color: "text-sky-400",
+      };
     case "SUMMARY_DONE":
       return { label: "Summary ready", Icon: Brain, color: "text-emerald-400" };
     case "SUMMARY_FAILED":
-      return { label: "Summary failed", Icon: AlertTriangle, color: "text-red-400" };
+      return {
+        label: "Summary failed",
+        Icon: AlertTriangle,
+        color: "text-red-400",
+      };
     case "REMINDER_SENT":
       return { label: "Reminder sent", Icon: Bell, color: "text-amber-400" };
     case "REMINDER_FAILED":
-      return { label: "Reminder failed", Icon: AlertTriangle, color: "text-red-400" };
+      return {
+        label: "Reminder failed",
+        Icon: AlertTriangle,
+        color: "text-red-400",
+      };
     case "REMINDER_CANCELED":
       return { label: "Reminder canceled", Icon: X, color: "text-white/40" };
     case "TRANSCRIPTION_IN_PROGRESS":
-      return { label: "Transcription in progress", Icon: FileText, color: "text-sky-400" };
+      return {
+        label: "Transcription in progress",
+        Icon: FileText,
+        color: "text-sky-400",
+      };
     case "TRANSCRIPTION_DONE":
-      return { label: "Transcription ready", Icon: FileText, color: "text-emerald-400" };
+      return {
+        label: "Transcription ready",
+        Icon: FileText,
+        color: "text-emerald-400",
+      };
     case "TRANSCRIPTION_FAILED":
-      return { label: "Transcription failed", Icon: AlertTriangle, color: "text-red-400" };
+      return {
+        label: "Transcription failed",
+        Icon: AlertTriangle,
+        color: "text-red-400",
+      };
     default:
       return { label: type, Icon: Bell, color: "text-white/50" };
   }
@@ -85,13 +118,19 @@ function getEntryId(notification: ApiNotification): string | undefined {
  * Uses TanStack Query polling (5s) for live updates.
  * Responsive: full-width panel on mobile, right-aligned on desktop.
  */
-export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProps) {
+export function NotificationCenter({
+  onNavigateToEntry,
+}: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Position state for the portal-rendered panel
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number }>({
+  const [panelPos, setPanelPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  }>({
     top: 0,
     left: 0,
     width: 340,
@@ -165,7 +204,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
     (id: string) => {
       markReadMutation.mutate(id);
     },
-    [markReadMutation]
+    [markReadMutation],
   );
 
   const handleMarkAllRead = useCallback(() => {
@@ -181,7 +220,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
       onNavigateToEntry?.(entryId);
       setIsOpen(false);
     },
-    [onNavigateToEntry]
+    [onNavigateToEntry],
   );
 
   // Filter out read notifications older than 24h, then sort descending by createdAt
@@ -190,7 +229,8 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
     return notifications
       .filter(isVisible)
       .sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
   }, [notifications]);
 
@@ -209,7 +249,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
           "border backdrop-blur-sm",
           isOpen
             ? "bg-white/10 border-white/20 text-white"
-            : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80"
+            : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80",
         )}
       >
         <Bell className="w-4 h-4" />
@@ -245,12 +285,14 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
                 }}
                 className={cn(
                   "bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
-                  "overflow-hidden"
+                  "overflow-hidden",
                 )}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                  <h3 className="text-sm font-semibold text-white">Notifications</h3>
+                  <h3 className="text-sm font-semibold text-white">
+                    Notifications
+                  </h3>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
                       <>
@@ -273,7 +315,11 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
                 </div>
 
                 {/* List */}
-                <div className="max-h-[360px] overflow-y-auto custom-scrollbar">
+                <div
+                  className="max-h-[360px] overflow-y-auto custom-scrollbar"
+                  aria-label="Notifications list"
+                  aria-busy={isLoading}
+                >
                   {isLoading && (
                     <div className="flex items-center justify-center py-8">
                       <div className="w-5 h-5 border-2 border-white/20 border-t-sky-400 rounded-full animate-spin" />
@@ -298,7 +344,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
                           "flex gap-3 px-4 py-3 border-b border-white/5 transition-colors",
                           isUnread
                             ? "bg-sky-500/5 hover:bg-sky-500/10"
-                            : "hover:bg-white/5"
+                            : "hover:bg-white/5",
                         )}
                       >
                         {/* Type icon */}
@@ -310,10 +356,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <span
-                              className={cn(
-                                "text-xs font-medium",
-                                meta.color
-                              )}
+                              className={cn("text-xs font-medium", meta.color)}
                             >
                               {meta.label}
                             </span>
@@ -371,7 +414,7 @@ export function NotificationCenter({ onNavigateToEntry }: NotificationCenterProp
               </motion.div>
             )}
           </AnimatePresence>,
-          document.body
+          document.body,
         )}
     </div>
   );

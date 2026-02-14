@@ -35,9 +35,26 @@ test.describe("Authentication", () => {
 
     await page.getByLabel(/email/i).fill("nonexistent@test.com");
     await page.getByLabel(/password/i).fill("WrongPassword123!");
-    await page.getByRole("button", { name: /log\s*in|sign\s*in|enter|entrar/i }).click();
+    await page
+      .getByRole("button", { name: /log\s*in|sign\s*in|enter|entrar/i })
+      .click();
 
     // Should show an error message (not redirect)
     await expect(page).toHaveURL(/login/);
+  });
+
+  test("login with valid credentials redirects to app", async ({ page }) => {
+    const email = process.env.E2E_USER_EMAIL ?? "test@neuraal.dev";
+    const password = process.env.E2E_USER_PASSWORD ?? "TestPassword1!";
+
+    await page.goto("/login");
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/password/i).fill(password);
+    await page
+      .getByRole("button", { name: /log\s*in|sign\s*in|enter|entrar/i })
+      .click();
+
+    await expect(page).not.toHaveURL(/login/);
+    await expect(page).toHaveURL(/\/$/);
   });
 });

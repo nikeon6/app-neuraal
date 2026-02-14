@@ -12,7 +12,6 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { common, createLowlight } from "lowlight";
 import { cn } from "@/shared/lib";
-import Underline from "@tiptap/extension-underline";
 import { CodeBlockWithLineNumbers } from "../extensions/CodeBlockWithLineNumbers";
 import { ImageAttachment } from "../extensions/ImageAttachment";
 import { FileAttachment } from "../extensions/FileAttachment";
@@ -180,7 +179,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
         // Disable the built-in codeBlock in favour of CodeBlockLowlight
         codeBlock: false,
       }),
-      Underline,
+      // Note: Underline is included in StarterKit v3, no need to add separately
       Placeholder.configure({
         placeholder,
       }),

@@ -6,8 +6,8 @@ import { Page, expect } from "@playwright/test";
  */
 export async function loginViaApi(
   page: Page,
-  email = "test@neuraal.dev",
-  password = "TestPassword1!"
+  email = process.env.E2E_USER_EMAIL ?? "test@neuraal.dev",
+  password = process.env.E2E_USER_PASSWORD ?? "TestPassword1!",
 ) {
   const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
@@ -15,12 +15,11 @@ export async function loginViaApi(
     data: { email, password },
   });
 
-  // If login fails (user might not exist in test env), skip auth
+  // Fail loudly to avoid false positives in authenticated E2E tests.
   if (!response.ok()) {
-    console.warn(
-      `[E2E] Login failed (${response.status()}). Tests may fail if routes require auth.`
+    throw new Error(
+      `[E2E] Login failed (${response.status()}) for ${email}. Ensure E2E seed ran successfully.`,
     );
-    return false;
   }
 
   // Navigate to the app so cookies get set via the browser context

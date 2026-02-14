@@ -68,6 +68,7 @@ export function CompletionDonutChart({
           width={SIZE}
           height={SIZE}
           viewBox={`0 0 ${SIZE} ${SIZE}`}
+          aria-label="Task completion chart"
           className="transform -rotate-90"
         >
           {/* Background track */}
@@ -75,6 +76,7 @@ export function CompletionDonutChart({
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={RADIUS}
+            aria-label="Pending tasks ring"
             fill="none"
             stroke="rgba(255,255,255,0.08)"
             strokeWidth={STROKE_WIDTH}
@@ -84,6 +86,7 @@ export function CompletionDonutChart({
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={RADIUS}
+            aria-label="Completed tasks ring"
             fill="none"
             stroke="url(#completionGradient)"
             strokeWidth={STROKE_WIDTH}
@@ -112,9 +115,7 @@ export function CompletionDonutChart({
         {/* Center text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-white">{percentage}%</span>
-          <span className="text-[11px] text-white/40">
-            {total} tasks
-          </span>
+          <span className="text-[11px] text-white/40">{total} tasks</span>
         </div>
       </div>
 

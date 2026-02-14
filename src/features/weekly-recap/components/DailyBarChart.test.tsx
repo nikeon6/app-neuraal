@@ -8,7 +8,7 @@ import { DailyBarChart, type DailyBarData } from "./DailyBarChart";
 vi.mock("recharts", () => {
   return {
     ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div data-testid="responsive-container">{children}</div>
+      <div aria-label="responsive container">{children}</div>
     ),
     BarChart: ({
       children,
@@ -17,20 +17,20 @@ vi.mock("recharts", () => {
       children: React.ReactNode;
       data: unknown[];
     }) => (
-      <div data-testid="bar-chart" data-count={data.length}>
+      <div aria-label="bar chart" data-count={data.length}>
         {children}
       </div>
     ),
     Bar: ({ dataKey, name }: { dataKey: string; name: string }) => (
-      <div data-testid={`bar-${dataKey}`} data-name={name} />
+      <div aria-label={`${name} bar`} data-key={dataKey} />
     ),
     XAxis: ({ dataKey }: { dataKey: string }) => (
-      <div data-testid="x-axis" data-key={dataKey} />
+      <div aria-label="x axis" data-key={dataKey} />
     ),
-    YAxis: () => <div data-testid="y-axis" />,
-    CartesianGrid: () => <div data-testid="grid" />,
-    Tooltip: () => <div data-testid="tooltip" />,
-    Legend: () => <div data-testid="legend" />,
+    YAxis: () => <div aria-label="y axis" />,
+    CartesianGrid: () => <div aria-label="cartesian grid" />,
+    Tooltip: () => <div aria-label="chart tooltip" />,
+    Legend: () => <div aria-label="chart legend" />,
   };
 });
 
@@ -55,28 +55,28 @@ describe("DailyBarChart", () => {
     it("renders the bar chart with correct data count", () => {
       render(<DailyBarChart data={mockData} />);
 
-      const barChart = screen.getByTestId("bar-chart");
+      const barChart = screen.getByLabelText("bar chart");
       expect(barChart).toHaveAttribute("data-count", "7");
     });
 
     it("renders completed and pending bars", () => {
       render(<DailyBarChart data={mockData} />);
 
-      expect(screen.getByTestId("bar-completed")).toBeInTheDocument();
-      expect(screen.getByTestId("bar-pending")).toBeInTheDocument();
+      expect(screen.getByLabelText("Completed bar")).toBeInTheDocument();
+      expect(screen.getByLabelText("Pending bar")).toBeInTheDocument();
     });
 
     it("renders X axis with day key", () => {
       render(<DailyBarChart data={mockData} />);
 
-      const xAxis = screen.getByTestId("x-axis");
+      const xAxis = screen.getByLabelText("x axis");
       expect(xAxis).toHaveAttribute("data-key", "day");
     });
 
     it("renders within a responsive container", () => {
       render(<DailyBarChart data={mockData} />);
 
-      expect(screen.getByTestId("responsive-container")).toBeInTheDocument();
+      expect(screen.getByLabelText("responsive container")).toBeInTheDocument();
     });
   });
 

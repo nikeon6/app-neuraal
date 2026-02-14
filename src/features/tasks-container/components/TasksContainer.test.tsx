@@ -13,7 +13,7 @@ import type { ApiEntry } from "@/shared/api/sdk";
 function createMockEntry(
   id: string,
   title: string,
-  overrides: Partial<ApiEntry> = {}
+  overrides: Partial<ApiEntry> = {},
 ): ApiEntry {
   return {
     id,
@@ -34,15 +34,26 @@ function createMockEntry(
 }
 
 const mockEntries: ApiEntry[] = [
-  createMockEntry("entry-1", "Complete project report", { topicId: "topic-work" }),
-  createMockEntry("entry-2", "Morning yoga session", { topicId: "topic-health" }),
-  createMockEntry("entry-3", "Study TypeScript patterns", { topicId: "topic-learning" }),
+  createMockEntry("entry-1", "Complete project report", {
+    topicId: "topic-work",
+  }),
+  createMockEntry("entry-2", "Morning yoga session", {
+    topicId: "topic-health",
+  }),
+  createMockEntry("entry-3", "Study TypeScript patterns", {
+    topicId: "topic-learning",
+  }),
 ];
 
 const mockTopics = [
   { id: "topic-work", userId: "user-123", name: "Work", color: "#3b82f6" },
   { id: "topic-health", userId: "user-123", name: "Health", color: "#22c55e" },
-  { id: "topic-learning", userId: "user-123", name: "Learning", color: "#f59e0b" },
+  {
+    id: "topic-learning",
+    userId: "user-123",
+    name: "Learning",
+    color: "#f59e0b",
+  },
 ];
 
 // ============================================================================
@@ -54,7 +65,8 @@ const mockEntriesByDateQuery = vi.fn();
 const mockTopicsQuery = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
-  useEntriesByDateQuery: (...args: unknown[]) => mockEntriesByDateQuery(...args),
+  useEntriesByDateQuery: (...args: unknown[]) =>
+    mockEntriesByDateQuery(...args),
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
   entriesQueryKey: (dateKey: string) => ["entries", dateKey],
   topicsQueryKey: ["topics"],
@@ -64,7 +76,8 @@ vi.mock("@/shared/api/queries", () => ({
 const mockCreateEntryAndInvalidate = vi.fn();
 
 vi.mock("@/shared/api/mutations", () => ({
-  createEntryAndInvalidate: (...args: unknown[]) => mockCreateEntryAndInvalidate(...args),
+  createEntryAndInvalidate: (...args: unknown[]) =>
+    mockCreateEntryAndInvalidate(...args),
 }));
 
 // --- Store (only UI state — dateKey selector) --------------------------------
@@ -88,7 +101,7 @@ vi.mock("@/shared/store", () => ({
 // --- TaskEditor (render minimal stub to keep tests focused) ------------------
 vi.mock("@/features/task-editor", () => ({
   TaskEditor: ({ entry }: { entry: ApiEntry }) => (
-    <div data-testid="task-editor" data-task-id={entry.id}>
+    <div aria-label="Task editor" data-task-id={entry.id}>
       {entry.title}
     </div>
   ),
@@ -121,9 +134,7 @@ function createQueryClient() {
 
 function renderWithProviders(ui: React.ReactElement) {
   const qc = createQueryClient();
-  return render(
-    <QueryClientProvider client={qc}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
 // ============================================================================
@@ -146,7 +157,7 @@ describe("TasksContainer", () => {
     });
 
     mockCreateEntryAndInvalidate.mockResolvedValue(
-      createMockEntry("entry-new", "New task")
+      createMockEntry("entry-new", "New task"),
     );
   });
 
@@ -156,22 +167,28 @@ describe("TasksContainer", () => {
   describe("Rendering", () => {
     it("should render the container", () => {
       renderWithProviders(<TasksContainer />);
-      expect(screen.getByTestId("tasks-container")).toBeInTheDocument();
+      expect(screen.getByLabelText(/tasks container/i)).toBeInTheDocument();
     });
 
     it("should render one TaskEditorWrapper per entry", () => {
       renderWithProviders(<TasksContainer />);
 
-      const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
+      const wrappers = screen.getAllByRole("listitem");
       expect(wrappers).toHaveLength(3);
     });
 
     it("should render the correct entries by ID", () => {
       renderWithProviders(<TasksContainer />);
 
-      expect(screen.getByTestId("task-editor-wrapper-entry-1")).toBeInTheDocument();
-      expect(screen.getByTestId("task-editor-wrapper-entry-2")).toBeInTheDocument();
-      expect(screen.getByTestId("task-editor-wrapper-entry-3")).toBeInTheDocument();
+      expect(
+        screen.getByRole("listitem", { name: /task item entry-1/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("listitem", { name: /task item entry-2/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("listitem", { name: /task item entry-3/i }),
+      ).toBeInTheDocument();
     });
 
     it("should render empty state when no entries for the day", () => {
@@ -183,7 +200,7 @@ describe("TasksContainer", () => {
 
       renderWithProviders(<TasksContainer />);
 
-      expect(screen.getByTestId("tasks-empty-state")).toBeInTheDocument();
+      expect(screen.getByLabelText(/tasks empty state/i)).toBeInTheDocument();
       expect(screen.getByText(/no entries/i)).toBeInTheDocument();
     });
 
@@ -202,7 +219,9 @@ describe("TasksContainer", () => {
     it("should render add task button", () => {
       renderWithProviders(<TasksContainer />);
 
-      expect(screen.getByTestId("add-task-button")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /add new task/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -213,7 +232,7 @@ describe("TasksContainer", () => {
     it("should have scrollable container", () => {
       renderWithProviders(<TasksContainer />);
 
-      const scrollContainer = screen.getByTestId("tasks-scroll-container");
+      const scrollContainer = screen.getByLabelText(/tasks list/i);
       expect(scrollContainer).toBeInTheDocument();
       expect(scrollContainer).toHaveClass("overflow-y-auto");
     });
@@ -221,7 +240,7 @@ describe("TasksContainer", () => {
     it("should have vertical column layout", () => {
       renderWithProviders(<TasksContainer />);
 
-      const container = screen.getByTestId("tasks-container");
+      const container = screen.getByLabelText(/tasks container/i);
       expect(container).toHaveClass("flex-col");
     });
   });
@@ -230,19 +249,19 @@ describe("TasksContainer", () => {
   // Add Task Button
   // --------------------------------------------------------------------------
   describe("Add Task Button", () => {
-    it("should have a plus icon", () => {
+    it("should expose an accessible add-task control", () => {
       renderWithProviders(<TasksContainer />);
 
-      const addButton = screen.getByTestId("add-task-button");
-      const svg = addButton.querySelector("svg");
-      expect(svg).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /add new task/i }),
+      ).toBeInTheDocument();
     });
 
     it("should call createEntryAndInvalidate when clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(<TasksContainer />);
 
-      const addButton = screen.getByTestId("add-task-button");
+      const addButton = screen.getByRole("button", { name: /add new task/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -262,7 +281,7 @@ describe("TasksContainer", () => {
       const user = userEvent.setup();
       renderWithProviders(<TasksContainer />);
 
-      await user.click(screen.getByTestId("add-task-button"));
+      await user.click(screen.getByRole("button", { name: /add new task/i }));
 
       await waitFor(() => {
         const callArgs = mockCreateEntryAndInvalidate.mock.calls[0];
@@ -275,7 +294,7 @@ describe("TasksContainer", () => {
       const user = userEvent.setup();
       renderWithProviders(<TasksContainer />);
 
-      await user.click(screen.getByTestId("add-task-button"));
+      await user.click(screen.getByRole("button", { name: /add new task/i }));
 
       await waitFor(() => {
         const callArgs = mockCreateEntryAndInvalidate.mock.calls[0];
@@ -291,14 +310,18 @@ describe("TasksContainer", () => {
     it("should have drag handles on each task", () => {
       renderWithProviders(<TasksContainer />);
 
-      const dragHandles = screen.getAllByTestId("drag-handle");
+      const dragHandles = screen.getAllByRole("button", {
+        name: /drag to reorder/i,
+      });
       expect(dragHandles).toHaveLength(3);
     });
 
     it("should have drag handles with correct cursor and touch classes", () => {
       renderWithProviders(<TasksContainer />);
 
-      const dragHandles = screen.getAllByTestId("drag-handle");
+      const dragHandles = screen.getAllByRole("button", {
+        name: /drag to reorder/i,
+      });
       dragHandles.forEach((handle) => {
         expect(handle).toHaveClass("touch-none");
         expect(handle).toHaveClass("cursor-grab");
@@ -308,9 +331,11 @@ describe("TasksContainer", () => {
     it("should have a drag handle inside each wrapper", () => {
       renderWithProviders(<TasksContainer />);
 
-      const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
+      const wrappers = screen.getAllByRole("listitem");
       wrappers.forEach((wrapper) => {
-        const handle = within(wrapper).getByTestId("drag-handle");
+        const handle = within(wrapper).getByRole("button", {
+          name: /drag to reorder/i,
+        });
         expect(handle).toBeInTheDocument();
       });
     });
@@ -323,7 +348,7 @@ describe("TasksContainer", () => {
     it("should pass entry data to TaskEditor", () => {
       renderWithProviders(<TasksContainer />);
 
-      const editors = screen.getAllByTestId("task-editor");
+      const editors = screen.getAllByLabelText(/task editor/i);
       expect(editors).toHaveLength(3);
 
       // Verify entry IDs are passed
@@ -344,7 +369,9 @@ describe("TasksContainer", () => {
 
       renderWithProviders(<TasksContainer />);
 
-      const completedWrapper = screen.getByTestId("task-editor-wrapper-entry-done");
+      const completedWrapper = screen.getByRole("listitem", {
+        name: /task item entry-done/i,
+      });
       expect(completedWrapper).toHaveAttribute("data-completed", "true");
     });
   });
@@ -356,14 +383,14 @@ describe("TasksContainer", () => {
     it("should have list role on the container", () => {
       renderWithProviders(<TasksContainer />);
 
-      const container = screen.getByTestId("tasks-container");
+      const container = screen.getByLabelText(/tasks container/i);
       expect(container).toHaveAttribute("role", "list");
     });
 
     it("should have listitem role on each task wrapper", () => {
       renderWithProviders(<TasksContainer />);
 
-      const wrappers = screen.getAllByTestId(/^task-editor-wrapper-/);
+      const wrappers = screen.getAllByRole("listitem");
       wrappers.forEach((wrapper) => {
         expect(wrapper).toHaveAttribute("role", "listitem");
       });
@@ -372,7 +399,9 @@ describe("TasksContainer", () => {
     it("should have aria-label on drag handles", () => {
       renderWithProviders(<TasksContainer />);
 
-      const handles = screen.getAllByTestId("drag-handle");
+      const handles = screen.getAllByRole("button", {
+        name: /drag to reorder/i,
+      });
       handles.forEach((handle) => {
         expect(handle).toHaveAttribute("aria-label", "Drag to reorder");
       });
@@ -381,7 +410,7 @@ describe("TasksContainer", () => {
     it("should have aria-label on the add button", () => {
       renderWithProviders(<TasksContainer />);
 
-      const addBtn = screen.getByTestId("add-task-button");
+      const addBtn = screen.getByRole("button", { name: /add new task/i });
       expect(addBtn).toHaveAttribute("aria-label", "Add new task");
     });
   });
@@ -399,13 +428,15 @@ describe("TasksContainer", () => {
 
       renderWithProviders(<TasksContainer />);
 
-      expect(screen.getByTestId("task-editor-wrapper-single")).toBeInTheDocument();
-      expect(screen.getAllByTestId(/^task-editor-wrapper-/)).toHaveLength(1);
+      expect(
+        screen.getByRole("listitem", { name: /task item single/i }),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("listitem")).toHaveLength(1);
     });
 
     it("should handle many entries", () => {
       const many = Array.from({ length: 20 }, (_, i) =>
-        createMockEntry(`e-${i}`, `Task ${i + 1}`)
+        createMockEntry(`e-${i}`, `Task ${i + 1}`),
       );
 
       mockEntriesByDateQuery.mockReturnValue({
@@ -416,8 +447,8 @@ describe("TasksContainer", () => {
 
       renderWithProviders(<TasksContainer />);
 
-      expect(screen.getAllByTestId(/^task-editor-wrapper-/)).toHaveLength(20);
-      expect(screen.getByTestId("tasks-scroll-container")).toBeInTheDocument();
+      expect(screen.getAllByRole("listitem")).toHaveLength(20);
+      expect(screen.getByLabelText(/tasks list/i)).toBeInTheDocument();
     });
   });
 });

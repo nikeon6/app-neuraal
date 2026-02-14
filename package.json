@@ -22,6 +22,7 @@
     "openapi:emit": "tsx scripts/openapi/emit.ts",
     "openapi:types": "openapi-typescript openapi/openapi.json -o src/shared/api/openapi-types.ts",
     "openapi:generate": "pnpm openapi:emit && pnpm openapi:types",
+    "db:seed:e2e": "tsx prisma/seed-e2e.ts",
     "prepare": "husky"
   },
   "dependencies": {

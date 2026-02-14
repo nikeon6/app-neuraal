@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -222,19 +222,17 @@ describe("NotificationCenter", () => {
 
       renderNotificationCenter();
 
-      // The badge is a <span> with the bg-sky-500 class inside the button
       const btn = getBellButton();
-      const badge = btn.querySelector("span.bg-sky-500");
-      expect(badge).not.toBeInTheDocument();
+      expect(
+        within(btn).queryByText(/^0$|^1$|^2$|^99\+$/),
+      ).not.toBeInTheDocument();
     });
 
     it("shows badge text with count", () => {
       renderNotificationCenter();
 
       const btn = getBellButton();
-      const badge = btn.querySelector("span.bg-sky-500");
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent("2");
+      expect(within(btn).getByText("2")).toBeInTheDocument();
     });
   });
 
@@ -380,13 +378,19 @@ describe("NotificationCenter", () => {
 
       await openPanel(user);
 
-      // Type labels are rendered as <span class="text-xs font-medium ...">
-      const typeLabels = document.querySelectorAll("span.text-xs.font-medium");
-      const labelTexts = Array.from(typeLabels).map((el) => el.textContent);
+      const summaryReadyLabels = screen
+        .getAllByText("Summary ready")
+        .filter((el) => el.tagName === "SPAN");
+      const summaryFailedLabels = screen
+        .getAllByText("Summary failed")
+        .filter((el) => el.tagName === "SPAN");
+      const reminderSentLabels = screen
+        .getAllByText("Reminder sent")
+        .filter((el) => el.tagName === "SPAN");
 
-      expect(labelTexts).toContain("Summary ready");
-      expect(labelTexts).toContain("Summary failed");
-      expect(labelTexts).toContain("Reminder sent");
+      expect(summaryReadyLabels.length).toBeGreaterThan(0);
+      expect(summaryFailedLabels.length).toBeGreaterThan(0);
+      expect(reminderSentLabels.length).toBeGreaterThan(0);
     });
 
     it("shows relative timestamps", async () => {
@@ -423,9 +427,10 @@ describe("NotificationCenter", () => {
       renderNotificationCenter();
       await openPanel(user);
 
-      // Spinner is a div with animate-spin class
-      const spinner = document.querySelector(".animate-spin");
-      expect(spinner).toBeInTheDocument();
+      expect(screen.getByLabelText(/notifications list/i)).toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
     });
 
     it("sorts notifications descending by createdAt (newest first)", async () => {
@@ -740,9 +745,7 @@ describe("NotificationCenter", () => {
 
       await openPanel(user);
 
-      // The scrollable list container should have the custom-scrollbar class
-      const scrollContainer = document.querySelector(".custom-scrollbar");
-      expect(scrollContainer).toBeInTheDocument();
+      expect(screen.getByLabelText(/notifications list/i)).toBeInTheDocument();
     });
   });
 

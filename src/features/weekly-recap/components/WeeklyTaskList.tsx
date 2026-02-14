@@ -2,7 +2,13 @@
 
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Circle, CalendarDays, Tag, ListFilter } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  CalendarDays,
+  Tag,
+  ListFilter,
+} from "lucide-react";
 import { cn } from "@/shared/lib";
 
 // ---------------------------------------------------------------------------
@@ -36,7 +42,11 @@ export interface WeeklyTaskListProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const FILTERS: { id: FilterMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const FILTERS: {
+  id: FilterMode;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { id: "day", label: "By Day", icon: CalendarDays },
   { id: "topic", label: "By Topic", icon: Tag },
   { id: "status", label: "By Status", icon: ListFilter },
@@ -152,7 +162,7 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                   "border backdrop-blur-sm",
                   isActive
                     ? "bg-sky-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_8px_-2px_rgba(56,189,248,0.2)]"
-                    : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white/70"
+                    : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white/70",
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -186,16 +196,17 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                     {group.color && (
                       <span
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0 topic-dot"
-                        style={{ "--dot-color": group.color } as React.CSSProperties}
+                        style={
+                          { "--dot-color": group.color } as React.CSSProperties
+                        }
                       />
                     )}
-                    {filter === "status" && (
-                      group.key === "completed" ? (
+                    {filter === "status" &&
+                      (group.key === "completed" ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                       ) : (
                         <Circle className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                      )
-                    )}
+                      ))}
                     <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">
                       {group.label}
                     </span>
@@ -213,7 +224,7 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                           "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
                           "bg-white/[0.03] border border-white/[0.05]",
                           "hover:bg-white/[0.06] hover:border-white/[0.08]",
-                          task.completed && "opacity-70"
+                          task.completed && "opacity-70",
                         )}
                       >
                         {/* Status icon */}
@@ -229,7 +240,7 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                             "text-sm flex-1 truncate",
                             task.completed
                               ? "text-white/50 line-through decoration-white/20"
-                              : "text-white/90"
+                              : "text-white/90",
                           )}
                         >
                           {task.title}
@@ -240,8 +251,13 @@ export function WeeklyTaskList({ tasks }: WeeklyTaskListProps) {
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span
                               data-testid="topic-dot"
+                              aria-label="Task topic color"
                               className="w-2 h-2 rounded-full topic-dot"
-                              style={{ "--dot-color": task.topicColor ?? "#6b7280" } as React.CSSProperties}
+                              style={
+                                {
+                                  "--dot-color": task.topicColor ?? "#6b7280",
+                                } as React.CSSProperties
+                              }
                             />
                             <span className="text-[11px] text-white/40 font-medium">
                               {task.topicName}

@@ -116,6 +116,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
 
   return (
     <div
+      aria-label="Sticky editor"
       className={cn(
         "glass-panel rounded-xl pt-2 px-4 pb-3 flex flex-col min-h-0 border border-white/10",
         "group",
@@ -137,6 +138,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
       {/* Title */}
       <input
         type="text"
+        aria-label="Sticky title"
         value={title}
         onChange={handleTitleChange}
         placeholder="Title"

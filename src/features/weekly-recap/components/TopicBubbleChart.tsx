@@ -148,6 +148,7 @@ export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
           width={CHART_SIZE}
           height={CHART_SIZE}
           viewBox={`0 0 ${CHART_SIZE} ${CHART_SIZE}`}
+          aria-label="Topic bubbles chart"
           className="overflow-visible"
           style={{
             opacity,

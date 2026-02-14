@@ -124,7 +124,7 @@ export function DashboardHeader({
   const motionKey = getMotionKey();
 
   return (
-    <header className="relative mb-2 lg:mb-6">
+    <header className="relative mb-2 lg:mb-6 landscape-compact-header">
       {/* Navigation tabs - horizontal scroll on mobile */}
       <nav
         className="flex items-center gap-1.5 lg:gap-2 mb-2 lg:mb-4 overflow-x-auto scrollbar-hide pb-1 lg:pb-2 -mx-1 px-1"
@@ -147,13 +147,13 @@ export function DashboardHeader({
                 "p-2 sm:px-3 sm:py-1.5",
                 isActive
                   ? "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-white shadow-[0_0_12px_-3px_rgba(56,189,248,0.3)]"
-                  : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80"
+                  : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80",
               )}
             >
               <Icon
                 className={cn(
                   "w-4 h-4 sm:w-3.5 sm:h-3.5 transition-colors flex-shrink-0",
-                  isActive ? "text-sky-300" : "text-white/50"
+                  isActive ? "text-sky-300" : "text-white/50",
                 )}
               />
               {/* Label: hidden on mobile, visible on sm+ */}

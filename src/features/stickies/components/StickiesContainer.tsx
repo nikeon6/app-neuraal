@@ -41,7 +41,7 @@ function StickyCard({ sticky, dragControls, isDragDisabled }: StickyCardProps) {
       e.preventDefault();
       if (!isDragDisabled) dragControls.start(e);
     },
-    [dragControls, isDragDisabled]
+    [dragControls, isDragDisabled],
   );
 
   return (
@@ -97,10 +97,7 @@ function ReorderableStickyItem({ sticky }: ReorderableStickyItemProps) {
 export function StickiesContainer() {
   const queryClient = useQueryClient();
   const { data: stickies = [], isPending: isLoading } = useStickiesQuery();
-  const { left, right } = useMemo(
-    () => stickiesByColumn(stickies),
-    [stickies]
-  );
+  const { left, right } = useMemo(() => stickiesByColumn(stickies), [stickies]);
 
   const handleAddSticky = useCallback(async () => {
     const columnIndex = left.length <= right.length ? 0 : 1;
@@ -126,7 +123,7 @@ export function StickiesContainer() {
       }));
       await reorderStickiesAndInvalidate(queryClient, items);
     },
-    [queryClient]
+    [queryClient],
   );
 
   // Reorder within right column only
@@ -140,13 +137,14 @@ export function StickiesContainer() {
       }));
       await reorderStickiesAndInvalidate(queryClient, items);
     },
-    [queryClient]
+    [queryClient],
   );
 
   if (isLoading && stickies.length === 0) {
     return (
       <div
         data-testid="stickies-container"
+        aria-label="Stickies container"
         className="flex flex-col h-full w-full"
       >
         <div className="flex-1 flex items-center justify-center">
@@ -162,6 +160,7 @@ export function StickiesContainer() {
     return (
       <div
         data-testid="stickies-container"
+        aria-label="Stickies container"
         className="flex flex-col h-full w-full"
       >
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
@@ -187,6 +186,7 @@ export function StickiesContainer() {
   return (
     <div
       data-testid="stickies-container"
+      aria-label="Stickies container"
       className="flex flex-col h-full w-full overflow-hidden"
     >
       {/* Single scrollable container with 2-col grid; each column is its own Reorder.Group */}

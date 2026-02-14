@@ -16,7 +16,9 @@ class MockResizeObserver {
     this.callback = callback;
   }
   observe() {
-    setTimeout(() => { this.callback([], this); }, 0);
+    setTimeout(() => {
+      this.callback([], this);
+    }, 0);
   }
   unobserve() {}
   disconnect() {}
@@ -29,7 +31,9 @@ class MockMutationObserver {
   }
   observe() {}
   disconnect() {}
-  takeRecords() { return []; }
+  takeRecords() {
+    return [];
+  }
 }
 
 vi.stubGlobal("ResizeObserver", MockResizeObserver);
@@ -38,7 +42,11 @@ vi.stubGlobal("MutationObserver", MockMutationObserver);
 // ============================================================================
 // Mock Data (ApiEntry + ApiTopic shapes)
 // ============================================================================
-function createMockEntry(id: string, topicId: string | null, date: string = "2024-01-15"): ApiEntry {
+function createMockEntry(
+  id: string,
+  topicId: string | null,
+  date: string = "2024-01-15",
+): ApiEntry {
   return {
     id,
     userId: "user-123",
@@ -62,9 +70,7 @@ const mockEntriesByDate: Record<string, ApiEntry[]> = {
     createMockEntry("entry-2", "topic-work"),
     createMockEntry("entry-3", "topic-health"),
   ],
-  "2024-01-16": [
-    createMockEntry("entry-4", "topic-learning", "2024-01-16"),
-  ],
+  "2024-01-16": [createMockEntry("entry-4", "topic-learning", "2024-01-16")],
 };
 
 const emptyEntriesByDate: Record<string, ApiEntry[]> = {};
@@ -72,7 +78,12 @@ const emptyEntriesByDate: Record<string, ApiEntry[]> = {};
 const mockTopics = [
   { id: "topic-work", userId: "user-123", name: "Trabajo", color: "#3b82f6" },
   { id: "topic-health", userId: "user-123", name: "Salud", color: "#22c55e" },
-  { id: "topic-learning", userId: "user-123", name: "Learning", color: "#f59e0b" },
+  {
+    id: "topic-learning",
+    userId: "user-123",
+    name: "Learning",
+    color: "#f59e0b",
+  },
   { id: "topic-family", userId: "user-123", name: "Familia", color: "#ef4444" },
 ];
 
@@ -130,13 +141,27 @@ const createMockContainerRef = () => {
   container.appendChild(aside);
 
   container.getBoundingClientRect = () => ({
-    left: 0, top: 0, right: 1200, bottom: 800,
-    width: 1200, height: 800, x: 0, y: 0, toJSON: () => ({}),
+    left: 0,
+    top: 0,
+    right: 1200,
+    bottom: 800,
+    width: 1200,
+    height: 800,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
   });
 
   aside.getBoundingClientRect = () => ({
-    left: 800, top: 0, right: 1200, bottom: 800,
-    width: 400, height: 800, x: 800, y: 0, toJSON: () => ({}),
+    left: 800,
+    top: 0,
+    right: 1200,
+    bottom: 800,
+    width: 400,
+    height: 800,
+    x: 800,
+    y: 0,
+    toJSON: () => ({}),
   });
 
   return { current: container };
@@ -156,8 +181,11 @@ function renderFloatingTopics(
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
-      <FloatingTopics containerRef={containerRef} entriesByDate={entriesByDate} />
-    </QueryClientProvider>
+      <FloatingTopics
+        containerRef={containerRef}
+        entriesByDate={entriesByDate}
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -185,7 +213,9 @@ describe("FloatingTopics", () => {
         toggleTopicSelection: mockToggleTopicSelection,
         clearSelection: mockClearSelection,
       };
-      return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
+      return typeof selector === "function"
+        ? selector(state as Record<string, unknown>)
+        : state;
     });
   });
 
@@ -201,13 +231,16 @@ describe("FloatingTopics", () => {
   describe("Rendering", () => {
     it("should render without crashing", () => {
       renderFloatingTopics(containerRef);
-      expect(document.querySelector(".pointer-events-none")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/topics floating layer/i),
+      ).toBeInTheDocument();
     });
 
     it("should render SVG container for wires", () => {
       renderFloatingTopics(containerRef);
-      const svg = document.querySelector("svg");
-      expect(svg).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/topics connection map/i),
+      ).toBeInTheDocument();
     });
 
     it("should render topic nodes for active topics", async () => {
@@ -308,7 +341,10 @@ describe("FloatingTopics", () => {
         const workNode = screen.getByLabelText(/topic trabajo/i);
 
         fireEvent.pointerDown(workNode, {
-          pointerId: 1, clientX: 100, clientY: 100, bubbles: true,
+          pointerId: 1,
+          clientX: 100,
+          clientY: 100,
+          bubbles: true,
         });
 
         expect(workNode).toBeInTheDocument();
@@ -325,9 +361,21 @@ describe("FloatingTopics", () => {
         workNode.releasePointerCapture = vi.fn();
         workNode.hasPointerCapture = vi.fn(() => true);
 
-        fireEvent.pointerDown(workNode, { pointerId: 1, clientX: 100, clientY: 100 });
-        fireEvent.pointerMove(workNode, { pointerId: 1, clientX: 200, clientY: 200 });
-        fireEvent.pointerUp(workNode, { pointerId: 1, clientX: 200, clientY: 200 });
+        fireEvent.pointerDown(workNode, {
+          pointerId: 1,
+          clientX: 100,
+          clientY: 100,
+        });
+        fireEvent.pointerMove(workNode, {
+          pointerId: 1,
+          clientX: 200,
+          clientY: 200,
+        });
+        fireEvent.pointerUp(workNode, {
+          pointerId: 1,
+          clientX: 200,
+          clientY: 200,
+        });
 
         expect(mockSetTopicPosition).toHaveBeenCalled();
       });
@@ -343,7 +391,11 @@ describe("FloatingTopics", () => {
         workNode.releasePointerCapture = vi.fn();
         workNode.hasPointerCapture = vi.fn(() => true);
 
-        fireEvent.pointerDown(workNode, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerDown(workNode, {
+          pointerId: 1,
+          clientX: 100,
+          clientY: 100,
+        });
         fireEvent.pointerCancel(workNode, { pointerId: 1 });
 
         expect(workNode).toBeInTheDocument();
@@ -357,21 +409,21 @@ describe("FloatingTopics", () => {
   describe("SVG Wires", () => {
     it("should render SVG container", () => {
       renderFloatingTopics(containerRef);
-      const svg = document.querySelector("svg");
+      const svg = screen.getByLabelText(/topics connection map/i);
       expect(svg).toBeInTheDocument();
       expect(svg).toHaveClass("absolute", "inset-0");
     });
 
     it("should have SVG with correct attributes", () => {
       renderFloatingTopics(containerRef);
-      const svg = document.querySelector("svg");
+      const svg = screen.getByLabelText(/topics connection map/i);
       expect(svg).toHaveAttribute("width", "100%");
       expect(svg).toHaveAttribute("height", "100%");
     });
 
     it("should allow SVG overflow for wires extending outside bounds", () => {
       renderFloatingTopics(containerRef);
-      const svg = document.querySelector("svg");
+      const svg = screen.getByLabelText(/topics connection map/i);
       expect(svg).toHaveStyle({ overflow: "visible" });
     });
   });
@@ -383,7 +435,9 @@ describe("FloatingTopics", () => {
     it("should handle empty entriesByDate gracefully", () => {
       renderFloatingTopics(containerRef, emptyEntriesByDate);
 
-      expect(document.querySelector(".pointer-events-none")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/topics floating layer/i),
+      ).toBeInTheDocument();
       const nodes = screen.queryAllByRole("button");
       expect(nodes.length).toBe(0);
     });
@@ -391,7 +445,9 @@ describe("FloatingTopics", () => {
     it("should handle null containerRef gracefully", () => {
       const nullRef = { current: null };
       renderFloatingTopics(nullRef);
-      expect(document.querySelector(".pointer-events-none")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/topics floating layer/i),
+      ).toBeInTheDocument();
     });
 
     it("should handle rapid consecutive drag operations", async () => {
@@ -404,8 +460,16 @@ describe("FloatingTopics", () => {
       const workNode = screen.getByLabelText(/topic trabajo/i);
 
       for (let i = 0; i < 5; i++) {
-        fireEvent.pointerDown(workNode, { pointerId: 1, clientX: 100 + i * 10, clientY: 100 });
-        fireEvent.pointerUp(workNode, { pointerId: 1, clientX: 100 + i * 10, clientY: 100 });
+        fireEvent.pointerDown(workNode, {
+          pointerId: 1,
+          clientX: 100 + i * 10,
+          clientY: 100,
+        });
+        fireEvent.pointerUp(workNode, {
+          pointerId: 1,
+          clientX: 100 + i * 10,
+          clientY: 100,
+        });
       }
 
       expect(workNode).toBeInTheDocument();
@@ -418,7 +482,9 @@ describe("FloatingTopics", () => {
   describe("Performance Optimizations", () => {
     it("should use pointer-events-none on container for passthrough", () => {
       renderFloatingTopics(containerRef);
-      expect(document.querySelector(".pointer-events-none")).toBeInTheDocument();
+      expect(screen.getByLabelText(/topics floating layer/i)).toHaveClass(
+        "pointer-events-none",
+      );
     });
 
     it("should use pointer-events-auto only on interactive elements", async () => {
@@ -441,11 +507,19 @@ describe("FloatingTopics", () => {
 
       const workNode = screen.getByLabelText(/topic trabajo/i);
 
-      fireEvent.pointerDown(workNode, { pointerId: 1, clientX: 100, clientY: 100 });
+      fireEvent.pointerDown(workNode, {
+        pointerId: 1,
+        clientX: 100,
+        clientY: 100,
+      });
       mockSetTopicPosition.mockClear();
 
       for (let i = 0; i < 10; i++) {
-        fireEvent.pointerMove(workNode, { pointerId: 1, clientX: 100 + i * 10, clientY: 100 });
+        fireEvent.pointerMove(workNode, {
+          pointerId: 1,
+          clientX: 100 + i * 10,
+          clientY: 100,
+        });
       }
 
       expect(mockSetTopicPosition).not.toHaveBeenCalled();
