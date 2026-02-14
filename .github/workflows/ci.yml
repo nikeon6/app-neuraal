@@ -50,22 +50,25 @@ jobs:
         env:
           NODE_OPTIONS: --max_old_space_size=4096
 
-  # E2E job: set in Settings → Secrets and variables → Actions:
-  #   Variables: CI_POSTGRES_USER, CI_POSTGRES_DB (e.g. neuraal, neuraal_test)
-  #   Secret: CI_POSTGRES_PASSWORD (masked in logs)
+  # E2E job:
+  # - Uses CI_POSTGRES_* variables/secrets when available.
+  # - Falls back to safe ephemeral defaults for GitHub-hosted runners.
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
     needs: unit-tests
     env:
-      DATABASE_URL: postgresql://${{ vars.CI_POSTGRES_USER }}:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/${{ vars.CI_POSTGRES_DB }}
+      CI_POSTGRES_USER: ${{ vars.CI_POSTGRES_USER || 'postgres' }}
+      CI_POSTGRES_DB: ${{ vars.CI_POSTGRES_DB || 'neuraal_test' }}
+      CI_POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD || 'postgres' }}
+      DATABASE_URL: postgresql://${{ vars.CI_POSTGRES_USER || 'postgres' }}:${{ secrets.CI_POSTGRES_PASSWORD || 'postgres' }}@localhost:5432/${{ vars.CI_POSTGRES_DB || 'neuraal_test' }}
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: ${{ vars.CI_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ vars.CI_POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
