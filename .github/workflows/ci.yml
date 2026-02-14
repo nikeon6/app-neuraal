@@ -26,6 +26,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
       - run: pnpm lint
       - run: pnpm typecheck
 
@@ -46,6 +47,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
       - run: pnpm test:coverage
         env:
           NODE_OPTIONS: --max_old_space_size=4096
@@ -95,6 +97,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
       - run: pnpm exec playwright install --with-deps chromium
 
       - name: Run migrations
