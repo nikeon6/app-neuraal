@@ -23,6 +23,15 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Keep runtime-focused logging/telemetry deps external in server builds.
+  // This avoids Turbopack traversing non-runtime files inside these packages.
+  serverExternalPackages: [
+    "pino",
+    "pino-pretty",
+    "thread-stream",
+    "import-in-the-middle",
+    "require-in-the-middle",
+  ],
   async headers() {
     return [
       {

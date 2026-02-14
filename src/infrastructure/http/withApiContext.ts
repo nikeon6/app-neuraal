@@ -20,7 +20,6 @@ export interface ApiContext {
 type ApiHandler = (
   request: NextRequest,
   ctx: ApiContext,
-  params?: Record<string, string>,
 ) => Promise<NextResponse>;
 
 /**
@@ -39,10 +38,7 @@ type ApiHandler = (
  * ```
  */
 export function withApiContext(handler: ApiHandler) {
-  return async (
-    request: NextRequest,
-    routeParams?: { params: Promise<Record<string, string>> },
-  ): Promise<NextResponse> => {
+  return async (request: NextRequest): Promise<NextResponse> => {
     const requestId = getRequestId(request);
     const { method } = request;
     const route = request.nextUrl.pathname;
@@ -55,12 +51,7 @@ export function withApiContext(handler: ApiHandler) {
     log.info({ url: route, method }, "request.start");
 
     try {
-      const resolvedParams = routeParams ? await routeParams.params : undefined;
-      const response = await handler(
-        request,
-        { requestId, log },
-        resolvedParams,
-      );
+      const response = await handler(request, { requestId, log });
 
       const durationMs = Math.round(performance.now() - start);
       const status = response.status;

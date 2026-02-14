@@ -112,10 +112,11 @@ jobs:
           E2E_USER_PASSWORD: TestPassword1!
 
       - name: Build
-        run: pnpm exec next build --webpack
+        run: pnpm build
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: redis://localhost:6379
+          BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA: "1"
 
       - name: Run E2E tests
         run: pnpm test:e2e
