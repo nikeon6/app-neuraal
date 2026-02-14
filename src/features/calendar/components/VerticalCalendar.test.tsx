@@ -16,24 +16,24 @@ class MockIntersectionObserver {
   constructor(callback: IntersectionObserverCallback) {
     this.callback = callback;
   }
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
+  observe(target: Element) {
+    this.callback(
+      [
+        {
+          isIntersecting: true,
+          target,
+        } as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver,
+    );
+  }
+  unobserve() {
+    return undefined;
+  }
+  disconnect() {
+    return undefined;
+  }
 }
-MockIntersectionObserver.prototype.observe = vi.fn(function observe(
-  this: MockIntersectionObserver,
-  target: Element,
-) {
-  this.callback(
-    [
-      {
-        isIntersecting: true,
-        target,
-      } as IntersectionObserverEntry,
-    ],
-    this as unknown as IntersectionObserver,
-  );
-});
 globalThis.IntersectionObserver =
   MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
