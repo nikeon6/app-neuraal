@@ -64,7 +64,7 @@ jobs:
       DATABASE_URL: postgresql://${{ vars.CI_POSTGRES_USER || 'postgres' }}:${{ secrets.CI_POSTGRES_PASSWORD || 'postgres' }}@localhost:5432/${{ vars.CI_POSTGRES_DB || 'neuraal_test' }}
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
