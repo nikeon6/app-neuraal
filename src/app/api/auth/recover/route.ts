@@ -18,14 +18,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.email || typeof body.email !== "string") {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "email is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new PrismaPasswordResetTokenRepository(),
     new CryptoRefreshTokenService(),
     new SystemClock(),
-    config.resetTtlMinutes
+    config.resetTtlMinutes,
   );
 
   const result = await useCase.execute({ email: body.email });

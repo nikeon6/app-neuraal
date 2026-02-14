@@ -45,11 +45,11 @@ export class AutoAssignTopicToEntry {
     private readonly topicRepo: TopicRepository,
     private readonly entryRepo: EntryRepository,
     private readonly embeddingProvider: EmbeddingProviderPort,
-    private readonly config: AutoAssignConfig
+    private readonly config: AutoAssignConfig,
   ) {}
 
   async execute(
-    input: AutoAssignTopicInput
+    input: AutoAssignTopicInput,
   ): Promise<Result<AutoAssignTopicOutput, UseCaseError>> {
     // 1. Find entry and verify ownership
     const entry = await this.entryRepo.findById(input.entryId);
@@ -60,7 +60,7 @@ export class AutoAssignTopicToEntry {
 
     // 2. Build text for embedding: title + plain text from content
     const plainContent = extractPlainText(
-      entry.content.toJSON() as Record<string, unknown>
+      entry.content.toJSON() as Record<string, unknown>,
     );
     const textForEmbedding = plainContent
       ? `${entry.title.toString()}\n${plainContent}`
@@ -79,7 +79,7 @@ export class AutoAssignTopicToEntry {
     // 4. Find best matching topic by embedding similarity
     const bestMatch = await this.topicRepo.findBestMatchByEmbedding(
       input.userId,
-      entryVector
+      entryVector,
     );
 
     // No topics with embeddings

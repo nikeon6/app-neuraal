@@ -1,4 +1,8 @@
-import type { AiUsageRepository, AiUsageMonthlyRecord, AiUsageLedgerEntry } from "@/application/ports/AiUsageRepository";
+import type {
+  AiUsageRepository,
+  AiUsageMonthlyRecord,
+  AiUsageLedgerEntry,
+} from "@/application/ports/AiUsageRepository";
 import { pool } from "./prisma";
 
 /**
@@ -9,7 +13,7 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
   async getMonthly(
     userId: string,
     action: string,
-    monthKey: string
+    monthKey: string,
   ): Promise<AiUsageMonthlyRecord | null> {
     const result = await pool.query<{
       user_id: string;
@@ -21,7 +25,7 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
       `SELECT user_id, action, month_key, requests_used, tokens_used
        FROM ai_usage_monthly
        WHERE user_id = $1 AND action = $2::"AiActionType" AND month_key = $3`,
-      [userId, action, monthKey]
+      [userId, action, monthKey],
     );
 
     const row = result.rows[0];
@@ -40,14 +44,14 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void> {
     await pool.query(
       `INSERT INTO ai_usage_monthly (id, user_id, action, month_key, requests_used, tokens_used, created_at, updated_at)
        VALUES (gen_random_uuid(), $1, $2::"AiActionType", $3, $4, 0, NOW(), NOW())
        ON CONFLICT (user_id, action, month_key)
        DO UPDATE SET requests_used = ai_usage_monthly.requests_used + $4, updated_at = NOW()`,
-      [userId, action, monthKey, delta]
+      [userId, action, monthKey, delta],
     );
   }
 
@@ -55,14 +59,14 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void> {
     await pool.query(
       `INSERT INTO ai_usage_monthly (id, user_id, action, month_key, requests_used, tokens_used, created_at, updated_at)
        VALUES (gen_random_uuid(), $1, $2::"AiActionType", $3, 0, $4, NOW(), NOW())
        ON CONFLICT (user_id, action, month_key)
        DO UPDATE SET tokens_used = ai_usage_monthly.tokens_used + $4, updated_at = NOW()`,
-      [userId, action, monthKey, delta]
+      [userId, action, monthKey, delta],
     );
   }
 
@@ -80,7 +84,7 @@ export class PrismaAiUsageRepository implements AiUsageRepository {
         entry.totalTokens ?? null,
         entry.costCents ?? null,
         entry.metaJson ? JSON.stringify(entry.metaJson) : null,
-      ]
+      ],
     );
   }
 }

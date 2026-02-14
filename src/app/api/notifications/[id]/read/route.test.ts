@@ -19,6 +19,9 @@ vi.mock("@/application/use-cases/notifications/MarkNotificationRead", () => ({
 
 import { POST } from "./route";
 
+const URL_NOTIFICATIONS_N1_READ =
+  "http://localhost:3000/api/notifications/n1/read";
+
 function ok<T>(value: T) {
   return { isErr: () => false, value };
 }
@@ -33,12 +36,9 @@ describe("POST /api/notifications/[id]/read", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: false, error: "Unauthorized" });
-    const req = new NextRequest(
-      "http://localhost:3000/api/notifications/n1/read",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_NOTIFICATIONS_N1_READ, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "n1" }) });
     expect(res.status).toBe(401);
   });
@@ -46,12 +46,9 @@ describe("POST /api/notifications/[id]/read", () => {
   it("returns 404 when notification is missing", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(err("NOT_FOUND", "missing"));
-    const req = new NextRequest(
-      "http://localhost:3000/api/notifications/n1/read",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_NOTIFICATIONS_N1_READ, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "n1" }) });
     expect(res.status).toBe(404);
   });
@@ -59,12 +56,9 @@ describe("POST /api/notifications/[id]/read", () => {
   it("returns 200 on success", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(ok({ success: true }));
-    const req = new NextRequest(
-      "http://localhost:3000/api/notifications/n1/read",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_NOTIFICATIONS_N1_READ, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "n1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();

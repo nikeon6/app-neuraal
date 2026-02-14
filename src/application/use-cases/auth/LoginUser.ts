@@ -29,7 +29,9 @@ export class LoginUser {
     private readonly refreshTtlDays: number,
   ) {}
 
-  async execute(input: LoginUserInput): Promise<Result<AuthResultDTO, UseCaseError>> {
+  async execute(
+    input: LoginUserInput,
+  ): Promise<Result<AuthResultDTO, UseCaseError>> {
     // Validate email format
     const emailResult = Email.create(input.email);
     if (emailResult.isErr()) {
@@ -47,7 +49,7 @@ export class LoginUser {
     // Verify password
     const isValid = await this.passwordHasher.verify(
       input.password,
-      user.passwordHash.toString()
+      user.passwordHash.toString(),
     );
     if (!isValid) {
       return err(unauthorizedError(INVALID_CREDENTIALS_MSG));
@@ -57,14 +59,15 @@ export class LoginUser {
     const now = this.clock.now();
     const accessToken = await this.jwtService.sign(
       { sub: user.id, email },
-      this.accessTtlSeconds
+      this.accessTtlSeconds,
     );
 
     const rawRefreshToken = this.refreshTokenService.generate();
-    const refreshTokenHash = this.refreshTokenService.hashToken(rawRefreshToken);
+    const refreshTokenHash =
+      this.refreshTokenService.hashToken(rawRefreshToken);
 
     const refreshExpiresAt = new Date(
-      now.getTime() + this.refreshTtlDays * 24 * 60 * 60 * 1000
+      now.getTime() + this.refreshTtlDays * 24 * 60 * 60 * 1000,
     );
     await this.refreshTokenRepository.create({
       userId: user.id,

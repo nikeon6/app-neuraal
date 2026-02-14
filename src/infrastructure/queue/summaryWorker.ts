@@ -7,7 +7,10 @@ import { PrismaSummaryRequestRepository } from "../persistence/PrismaSummaryRequ
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
 import { logger, withJobContext } from "../logging/logger";
-import { initSentryForWorker, captureWorkerException } from "../logging/sentryCapture";
+import {
+  initSentryForWorker,
+  captureWorkerException,
+} from "../logging/sentryCapture";
 
 /**
  * Job data structure for summary jobs.
@@ -48,7 +51,7 @@ async function startWorker() {
     summaryRequestRepository,
     notificationRepository,
     automationPort,
-    callbackUrl
+    callbackUrl,
   );
 
   // Create worker
@@ -66,7 +69,7 @@ async function startWorker() {
 
       log.info(
         { entryId: job.data.entryId, requestId: job.data.requestId },
-        "job.start"
+        "job.start",
       );
 
       const result = await processEntrySummaryJob.execute({
@@ -96,7 +99,7 @@ async function startWorker() {
     {
       connection,
       concurrency: 3,
-    }
+    },
   );
 
   // Event handlers
@@ -107,7 +110,7 @@ async function startWorker() {
   worker.on("failed", (job, error) => {
     logger.error(
       { jobId: job?.id, queue: QUEUE_NAME, err: error },
-      "job.failed"
+      "job.failed",
     );
     captureWorkerException(error, {
       queue: QUEUE_NAME,

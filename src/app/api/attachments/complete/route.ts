@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -31,8 +31,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!attachmentId) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "attachmentId is required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "attachmentId is required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -45,7 +50,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (result.isErr()) {
     const { code, message } = result.error;
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ attachment: result.value }, { status: 200 });

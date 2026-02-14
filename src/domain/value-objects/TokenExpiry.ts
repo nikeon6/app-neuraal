@@ -21,10 +21,7 @@ export class TokenExpiry {
    * Creates a TokenExpiry from a Date.
    * Validates that the expiry is in the future.
    */
-  static create(
-    expiresAt: Date,
-    now: Date = new Date()
-  ): Result<TokenExpiry> {
+  static create(expiresAt: Date, now: Date = new Date()): Result<TokenExpiry> {
     if (!(expiresAt instanceof Date) || isNaN(expiresAt.getTime())) {
       return err("Token expiry must be a valid Date object");
     }

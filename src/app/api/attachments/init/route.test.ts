@@ -26,17 +26,25 @@ vi.mock("@/infrastructure/storage/S3ObjectStorage", () => ({
 // Mock config
 vi.mock("@/infrastructure/config/AttachmentConfig", () => ({
   getAttachmentConfig: vi.fn().mockReturnValue({
-    maxEntryAttachmentSizeBytes: { toNumber: () => 20 * 1024 * 1024, greaterThan: () => false },
-    maxUserStorageQuotaBytes: { toNumber: () => 1024 * 1024 * 1024, greaterThan: () => false },
+    maxEntryAttachmentSizeBytes: {
+      toNumber: () => 20 * 1024 * 1024,
+      greaterThan: () => false,
+    },
+    maxUserStorageQuotaBytes: {
+      toNumber: () => 1024 * 1024 * 1024,
+      greaterThan: () => false,
+    },
   }),
 }));
 
 import { prisma } from "@/infrastructure/persistence/prisma";
 import { POST } from "./route";
 
+const ATTACHMENT_KIND_FILE = "file";
+
 function createRequest(
   body: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   return new NextRequest("http://localhost:3000/api/attachments/init", {
     method: "POST",
@@ -59,7 +67,7 @@ describe("POST /api/attachments/init", () => {
       filename: "test.pdf",
       mimeType: "application/pdf",
       sizeBytes: 1024,
-      kind: "file",
+      kind: ATTACHMENT_KIND_FILE,
     });
     const response = await POST(request);
 
@@ -75,9 +83,9 @@ describe("POST /api/attachments/init", () => {
         filename: "test.pdf",
         mimeType: "application/pdf",
         sizeBytes: 1024,
-        kind: "file",
+        kind: ATTACHMENT_KIND_FILE,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -113,7 +121,7 @@ describe("POST /api/attachments/init", () => {
       filename: "test.pdf",
       mimeType: "application/pdf",
       sizeBytes: 1024,
-      kind: "file",
+      kind: ATTACHMENT_KIND_FILE,
       status: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -125,9 +133,9 @@ describe("POST /api/attachments/init", () => {
         filename: "test.pdf",
         mimeType: "application/pdf",
         sizeBytes: 1024,
-        kind: "file",
+        kind: ATTACHMENT_KIND_FILE,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -158,9 +166,9 @@ describe("POST /api/attachments/init", () => {
         filename: "test.pdf",
         mimeType: "invalid",
         sizeBytes: 1024,
-        kind: "file",
+        kind: ATTACHMENT_KIND_FILE,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -174,9 +182,9 @@ describe("POST /api/attachments/init", () => {
         filename: "test.pdf",
         mimeType: "application/pdf",
         sizeBytes: 0,
-        kind: "file",
+        kind: ATTACHMENT_KIND_FILE,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 

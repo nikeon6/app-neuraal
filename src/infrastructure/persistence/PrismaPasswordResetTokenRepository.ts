@@ -22,11 +22,9 @@ function toData(record: {
   };
 }
 
-export class PrismaPasswordResetTokenRepository
-  implements PasswordResetTokenRepository
-{
+export class PrismaPasswordResetTokenRepository implements PasswordResetTokenRepository {
   async create(
-    data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">
+    data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">,
   ): Promise<PasswordResetTokenData> {
     const record = await prisma.passwordResetToken.create({
       data: {
@@ -39,7 +37,7 @@ export class PrismaPasswordResetTokenRepository
   }
 
   async findByTokenHash(
-    tokenHash: string
+    tokenHash: string,
   ): Promise<PasswordResetTokenData | null> {
     const record = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },

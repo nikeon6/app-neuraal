@@ -19,13 +19,13 @@ describe("User", () => {
         expect(result.value.id).toBe("user-123");
         expect(result.value.email.toString()).toBe("user@example.com");
         expect(result.value.passwordHash.toString()).toBe(
-          "$2b$10$abcdefghijklmnopqrstuv"
+          "$2b$10$abcdefghijklmnopqrstuv",
         );
         expect(result.value.createdAt).toEqual(
-          new Date("2026-01-29T10:00:00Z")
+          new Date("2026-01-29T10:00:00Z"),
         );
         expect(result.value.updatedAt).toEqual(
-          new Date("2026-01-29T10:00:00Z")
+          new Date("2026-01-29T10:00:00Z"),
         );
       }
     });

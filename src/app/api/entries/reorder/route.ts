@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
           message: "date and orderedIds are required",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

@@ -22,7 +22,7 @@ export class FakeQueuePort implements QueuePort {
   }
 
   async enqueueEntryTranscription(
-    data: EnqueueEntryTranscriptionData
+    data: EnqueueEntryTranscriptionData,
   ): Promise<void> {
     this.enqueuedTranscriptionJobs.push(data);
   }
@@ -50,9 +50,7 @@ export class FakeQueuePort implements QueuePort {
     return [...this.enqueuedTranscriptionJobs];
   }
 
-  getLastEnqueuedTranscriptionJob():
-    | EnqueueEntryTranscriptionData
-    | undefined {
+  getLastEnqueuedTranscriptionJob(): EnqueueEntryTranscriptionData | undefined {
     return this.enqueuedTranscriptionJobs[
       this.enqueuedTranscriptionJobs.length - 1
     ];

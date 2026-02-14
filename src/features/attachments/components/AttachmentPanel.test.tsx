@@ -52,7 +52,8 @@ const mockUsage = {
 const mockAttachmentsQuery = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
-  useEntryAttachmentsQuery: (...args: unknown[]) => mockAttachmentsQuery(...args),
+  useEntryAttachmentsQuery: (...args: unknown[]) =>
+    mockAttachmentsQuery(...args),
   attachmentsQueryKey: (entryId: string) => ["attachments", entryId],
 }));
 
@@ -76,7 +77,7 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: React.forwardRef(function MockDiv(
       { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
-      ref: React.Ref<HTMLDivElement>
+      ref: React.Ref<HTMLDivElement>,
     ) {
       return (
         <div ref={ref} {...props}>
@@ -85,7 +86,9 @@ vi.mock("framer-motion", () => ({
       );
     }),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 // ============================================================================
@@ -106,7 +109,7 @@ function renderPanel(entryId = "entry-abc", dateKey = "2026-01-29") {
   return render(
     <QueryClientProvider client={queryClient}>
       <AttachmentPanel entryId={entryId} dateKey={dateKey} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -275,7 +278,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       renderPanel();
       await expandPanel(user);
       expect(
-        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
       ).toBeInTheDocument();
     });
 
@@ -291,7 +294,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       renderPanel();
       await expandPanel(user);
       expect(
-        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
       ).toBeInTheDocument();
     });
   });
@@ -312,7 +315,9 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       });
       renderPanel();
       await expandPanel(user);
-      expect(screen.getByText(/Entry: 1\.5 MB \/ 20\.0 MB/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Entry: 1\.5 MB \/ 20\.0 MB/),
+      ).toBeInTheDocument();
     });
 
     it("should display account usage when expanded", async () => {
@@ -326,7 +331,9 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       });
       renderPanel();
       await expandPanel(user);
-      expect(screen.getByText(/Account: 5\.0 MB \/ 1\.0 GB/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Account: 5\.0 MB \/ 1\.0 GB/),
+      ).toBeInTheDocument();
     });
   });
 
@@ -337,10 +344,13 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
   describe("download", () => {
     it("should request presigned URL and open in new tab", async () => {
       const user = userEvent.setup();
-      const mockUrl = "https://s3.example.com/download/report.pdf?signature=abc";
+      const mockUrl =
+        "https://s3.example.com/download/report.pdf?signature=abc";
       mockGetDownloadUrl.mockResolvedValueOnce({ presignedGetUrl: mockUrl });
 
-      const openSpy = vi.spyOn(globalThis, "open").mockImplementation(() => null);
+      const openSpy = vi
+        .spyOn(globalThis, "open")
+        .mockImplementation(() => null);
 
       mockAttachmentsQuery.mockReturnValue({
         data: {
@@ -353,7 +363,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       await user.click(
-        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
       );
 
       await waitFor(() => {
@@ -380,7 +390,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       const downloadBtn = screen.getByLabelText(
-        `Download ${mockAttachmentPending.filename}`
+        `Download ${mockAttachmentPending.filename}`,
       );
       expect(downloadBtn).toBeDisabled();
     });
@@ -406,14 +416,14 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       await user.click(
-        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
       );
 
       await waitFor(() => {
         expect(mockDeleteAttachmentAndInvalidate).toHaveBeenCalledWith(
           expect.anything(), // queryClient
           mockAttachmentReady.id,
-          "entry-abc"
+          "entry-abc",
         );
       });
     });

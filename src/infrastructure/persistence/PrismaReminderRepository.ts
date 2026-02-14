@@ -71,7 +71,10 @@ export class PrismaReminderRepository implements ReminderRepository {
     return reminders;
   }
 
-  async listPendingByEntry(userId: string, entryId: string): Promise<Reminder[]> {
+  async listPendingByEntry(
+    userId: string,
+    entryId: string,
+  ): Promise<Reminder[]> {
     const records = await prisma.reminder.findMany({
       where: { userId, entryId, status: "pending" },
       orderBy: { scheduledAt: "asc" },

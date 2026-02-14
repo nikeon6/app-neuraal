@@ -7,7 +7,10 @@ import { PrismaTranscriptRequestRepository } from "../persistence/PrismaTranscri
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
 import { logger, withJobContext } from "../logging/logger";
-import { initSentryForWorker, captureWorkerException } from "../logging/sentryCapture";
+import {
+  initSentryForWorker,
+  captureWorkerException,
+} from "../logging/sentryCapture";
 
 /**
  * Job data structure for transcript jobs.
@@ -45,7 +48,7 @@ async function startWorker() {
     transcriptRequestRepository,
     notificationRepository,
     automationPort,
-    callbackUrl
+    callbackUrl,
   );
 
   // Create worker
@@ -63,7 +66,7 @@ async function startWorker() {
 
       log.info(
         { entryId: job.data.entryId, youtubeUrl: job.data.youtubeUrl },
-        "job.start"
+        "job.start",
       );
 
       const result = await processJob.execute({
@@ -90,7 +93,7 @@ async function startWorker() {
       log.info({ status: outcome.status, durationMs }, "job.success");
       return outcome;
     },
-    { connection, concurrency: 3 }
+    { connection, concurrency: 3 },
   );
 
   // Event handlers
@@ -101,7 +104,7 @@ async function startWorker() {
   worker.on("failed", (job, error) => {
     logger.error(
       { jobId: job?.id, queue: QUEUE_NAME, err: error },
-      "job.failed"
+      "job.failed",
     );
     captureWorkerException(error, {
       queue: QUEUE_NAME,

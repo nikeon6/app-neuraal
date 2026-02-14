@@ -11,5 +11,9 @@ export interface OcrPort {
    * @returns Text result from the vision model
    * @throws Error if processing fails or times out
    */
-  extractText(imageBase64: string, mimeType: string, prompt?: string): Promise<string>;
+  extractText(
+    imageBase64: string,
+    mimeType: string,
+    prompt?: string,
+  ): Promise<string>;
 }

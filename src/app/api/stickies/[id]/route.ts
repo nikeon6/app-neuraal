@@ -14,7 +14,7 @@ interface RouteContext {
  */
 export async function PATCH(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
@@ -26,7 +26,7 @@ export async function PATCH(
   if (!stickyId || stickyId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "stickyId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -41,7 +41,7 @@ export async function PATCH(
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -67,7 +67,10 @@ export async function PATCH(
       default:
         statusCode = 400;
     }
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ sticky: result.value }, { status: 200 });
@@ -79,7 +82,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
@@ -91,7 +94,7 @@ export async function DELETE(
   if (!stickyId || stickyId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "stickyId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -102,7 +105,10 @@ export async function DELETE(
   if (result.isErr()) {
     const { code, message } = result.error;
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return new NextResponse(null, { status: 204 });

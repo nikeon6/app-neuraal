@@ -19,8 +19,7 @@ export class Password {
     this.value = value;
   }
 
-  private static readonly SPECIAL_CHARS =
-    '!@#$%^&*()_+-=[]{}|;\':",./<>?';
+  private static readonly SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;':\",./<>?";
 
   /**
    * Creates a Password from a raw string.
@@ -48,7 +47,7 @@ export class Password {
     }
 
     const hasSpecial = [...Password.SPECIAL_CHARS].some((char) =>
-      input.includes(char)
+      input.includes(char),
     );
     if (!hasSpecial) {
       return err("Password must contain at least one special character");

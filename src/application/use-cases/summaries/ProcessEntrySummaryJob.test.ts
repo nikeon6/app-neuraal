@@ -17,7 +17,8 @@ describe("ProcessEntrySummaryJob", () => {
   const userId = "user-123";
   const entryId = "entry-456";
   const requestId = "request-789";
-  const callbackUrl = "http://localhost:3000/api/automations/entry-summary/callback";
+  const callbackUrl =
+    "http://localhost:3000/api/automations/entry-summary/callback";
 
   const createTestEntry = async (ownerId: string = userId) => {
     const entryResult = Entry.create({
@@ -61,7 +62,7 @@ describe("ProcessEntrySummaryJob", () => {
       notificationRepository,
       automationPort,
       callbackUrl,
-      () => "test-notif-id"
+      () => "test-notif-id",
     );
   });
 

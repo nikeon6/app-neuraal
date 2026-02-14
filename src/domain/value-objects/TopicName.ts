@@ -3,7 +3,7 @@ import { Result, ok, err } from "../core/Result";
 /**
  * TopicName value object.
  * Represents a valid topic name with length constraints.
- * 
+ *
  * Invariants:
  * - Cannot be empty or whitespace-only
  * - Must be between 2 and 50 characters (after trim)
@@ -32,13 +32,13 @@ export class TopicName {
 
     if (trimmed.length < TopicName.MIN_LENGTH) {
       return err(
-        `Topic name must be at least ${TopicName.MIN_LENGTH} characters`
+        `Topic name must be at least ${TopicName.MIN_LENGTH} characters`,
       );
     }
 
     if (trimmed.length > TopicName.MAX_LENGTH) {
       return err(
-        `Topic name must be at most ${TopicName.MAX_LENGTH} characters`
+        `Topic name must be at most ${TopicName.MAX_LENGTH} characters`,
       );
     }
 

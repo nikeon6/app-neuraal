@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const recordAiUsage = new RecordAiUsageFromCallback(
     new PrismaAiUsageRepository(),
-    new SystemClock()
+    new SystemClock(),
   );
 
   const handleCallback = new HandleEntryTranscriptCallback(
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new PrismaEntryRepository(),
     new PrismaNotificationRepository(),
     undefined,
-    recordAiUsage
+    recordAiUsage,
   );
 
   const result = await handleCallback.execute(payload);
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (result.isErr()) {
     return NextResponse.json(
       { error: result.error },
-      { status: result.error.code === "NOT_FOUND" ? 404 : 400 }
+      { status: result.error.code === "NOT_FOUND" ? 404 : 400 },
     );
   }
 

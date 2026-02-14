@@ -1,12 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import {
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  format,
-} from "date-fns";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format } from "date-fns";
 import { useStore } from "@/shared/store";
 import { useEntriesForDates, useTopicsQuery } from "@/shared/api/queries";
 import type { ApiEntry, ApiTopic } from "@/shared/api/sdk";
@@ -19,7 +14,15 @@ import { WeeklyTaskList, type WeeklyTask } from "./WeeklyTaskList";
 // Constants
 // ---------------------------------------------------------------------------
 
-const DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAY_LABELS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // ---------------------------------------------------------------------------
@@ -43,7 +46,7 @@ function filterTasks(entries: ApiEntry[]): ApiEntry[] {
 /** Calculate topic distribution data for the bubble chart. */
 function computeTopicDistribution(
   tasks: ApiEntry[],
-  topicMap: Map<string, ApiTopic>
+  topicMap: Map<string, ApiTopic>,
 ): TopicBubbleData[] {
   const counts = new Map<string, number>();
 
@@ -69,7 +72,7 @@ function computeTopicDistribution(
 /** Build per-day bar chart data. */
 function computeDailyBars(
   weekDates: Date[],
-  entriesByDate: Record<string, ApiEntry[]>
+  entriesByDate: Record<string, ApiEntry[]>,
 ): DailyBarData[] {
   return weekDates.map((date, i) => {
     const dateKey = format(date, "yyyy-MM-dd");
@@ -88,7 +91,7 @@ function computeDailyBars(
 function computeWeeklyTasks(
   weekDates: Date[],
   entriesByDate: Record<string, ApiEntry[]>,
-  topicMap: Map<string, ApiTopic>
+  topicMap: Map<string, ApiTopic>,
 ): WeeklyTask[] {
   const result: WeeklyTask[] = [];
 
@@ -136,7 +139,7 @@ export function WeeklyRecap() {
 
   const weekDateKeys = useMemo(
     () => weekDates.map((d) => format(d, "yyyy-MM-dd")),
-    [weekDates]
+    [weekDates],
   );
 
   // Fetch entries for the whole week
@@ -155,23 +158,23 @@ export function WeeklyRecap() {
 
   const completedCount = useMemo(
     () => allTasks.filter((t) => t.completed).length,
-    [allTasks]
+    [allTasks],
   );
   const pendingCount = allTasks.length - completedCount;
 
   const topicData = useMemo(
     () => computeTopicDistribution(allTasks, topicMap),
-    [allTasks, topicMap]
+    [allTasks, topicMap],
   );
 
   const dailyBars = useMemo(
     () => computeDailyBars(weekDates, entriesByDate),
-    [weekDates, entriesByDate]
+    [weekDates, entriesByDate],
   );
 
   const weeklyTasks = useMemo(
     () => computeWeeklyTasks(weekDates, entriesByDate, topicMap),
-    [weekDates, entriesByDate, topicMap]
+    [weekDates, entriesByDate, topicMap],
   );
 
   // Loading state
@@ -191,7 +194,10 @@ export function WeeklyRecap() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <TopicBubbleChart data={topicData} />
-        <CompletionDonutChart completed={completedCount} pending={pendingCount} />
+        <CompletionDonutChart
+          completed={completedCount}
+          pending={pendingCount}
+        />
         <DailyBarChart data={dailyBars} />
       </div>
 

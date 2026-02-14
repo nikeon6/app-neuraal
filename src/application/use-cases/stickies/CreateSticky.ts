@@ -20,7 +20,9 @@ function generateId(): string {
 export class CreateSticky {
   constructor(private readonly repo: StickyRepository) {}
 
-  async execute(input: CreateStickyDTO): Promise<Result<StickyDTO, UseCaseError>> {
+  async execute(
+    input: CreateStickyDTO,
+  ): Promise<Result<StickyDTO, UseCaseError>> {
     if (!input.userId || input.userId.trim().length === 0) {
       return err(validationError("userId cannot be empty"));
     }

@@ -10,7 +10,7 @@ export class RedisConcurrencyLimiter implements ConcurrencyLimiterPort {
   async acquire(
     key: string,
     max: number,
-    ttlSeconds: number
+    ttlSeconds: number,
   ): Promise<{ acquired: boolean; current: number }> {
     try {
       const current = await this.redis.incr(key);
@@ -26,7 +26,10 @@ export class RedisConcurrencyLimiter implements ConcurrencyLimiterPort {
       return { acquired: true, current };
     } catch (err) {
       // Fail open
-      console.warn("[RedisConcurrencyLimiter] Redis unavailable, allowing:", err instanceof Error ? err.message : err);
+      console.warn(
+        "[RedisConcurrencyLimiter] Redis unavailable, allowing:",
+        err instanceof Error ? err.message : err,
+      );
       return { acquired: true, current: 0 };
     }
   }

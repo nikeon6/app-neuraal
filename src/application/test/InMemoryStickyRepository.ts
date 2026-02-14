@@ -37,7 +37,7 @@ export class InMemoryStickyRepository implements StickyRepository {
 
   async reorder(
     _userId: string,
-    items: { id: string; sortOrder: number; columnIndex: number }[]
+    items: { id: string; sortOrder: number; columnIndex: number }[],
   ): Promise<void> {
     for (const item of items) {
       const sticky = this.items.find((s) => s.id === item.id);

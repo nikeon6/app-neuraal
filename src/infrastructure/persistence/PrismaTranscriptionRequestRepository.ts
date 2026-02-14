@@ -6,9 +6,7 @@ import { prisma } from "./prisma";
  * Prisma implementation of TranscriptionRequestRepository.
  * Handles persistence of TranscriptionRequest entities to PostgreSQL.
  */
-export class PrismaTranscriptionRequestRepository
-  implements TranscriptionRequestRepository
-{
+export class PrismaTranscriptionRequestRepository implements TranscriptionRequestRepository {
   async save(request: TranscriptionRequest): Promise<void> {
     await prisma.transcriptionRequest.create({
       data: {
@@ -45,7 +43,7 @@ export class PrismaTranscriptionRequestRepository
 
   async findActiveByEntryAndUrl(
     entryId: string,
-    youtubeUrl: string
+    youtubeUrl: string,
   ): Promise<TranscriptionRequest | null> {
     const record = await prisma.transcriptionRequest.findFirst({
       where: {

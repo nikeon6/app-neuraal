@@ -1,5 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
-import type { AccessTokenPayload, JwtServicePort } from "@/application/ports/JwtServicePort";
+import type {
+  AccessTokenPayload,
+  JwtServicePort,
+} from "@/application/ports/JwtServicePort";
 
 export class JoseJwtService implements JwtServicePort {
   private readonly secret: Uint8Array;
@@ -22,7 +25,10 @@ export class JoseJwtService implements JwtServicePort {
         algorithms: ["HS256"],
       });
 
-      if (typeof payload.sub !== "string" || typeof payload.email !== "string") {
+      if (
+        typeof payload.sub !== "string" ||
+        typeof payload.email !== "string"
+      ) {
         return null;
       }
 

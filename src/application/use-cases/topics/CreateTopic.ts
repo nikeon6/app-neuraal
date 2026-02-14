@@ -28,7 +28,9 @@ export interface CreateTopicInput {
 export class CreateTopic {
   constructor(private readonly topicRepository: TopicRepository) {}
 
-  async execute(input: CreateTopicInput): Promise<Result<TopicDTO, UseCaseError>> {
+  async execute(
+    input: CreateTopicInput,
+  ): Promise<Result<TopicDTO, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
       return err(validationError("userId cannot be empty"));
@@ -42,32 +44,34 @@ export class CreateTopic {
     if (userTopics.length >= MAX_TOPICS_PER_USER) {
       return err(
         quotaExceededError(
-          `Maximum number of topics (${MAX_TOPICS_PER_USER}) reached`
-        )
+          `Maximum number of topics (${MAX_TOPICS_PER_USER}) reached`,
+        ),
       );
     }
 
     // Check for duplicate name (case-insensitive)
     const existing = await this.topicRepository.findByUserIdAndName(
       userId,
-      trimmedName
+      trimmedName,
     );
 
     if (existing) {
       return err(
-        duplicateError(`Topic "${trimmedName}" already exists for this user`)
+        duplicateError(`Topic "${trimmedName}" already exists for this user`),
       );
     }
 
     // Check for duplicate color (case-insensitive)
     const existingColor = await this.topicRepository.findByUserIdAndColor(
       userId,
-      input.color
+      input.color,
     );
 
     if (existingColor) {
       return err(
-        duplicateError(`Color "${input.color}" is already used by another topic`)
+        duplicateError(
+          `Color "${input.color}" is already used by another topic`,
+        ),
       );
     }
 

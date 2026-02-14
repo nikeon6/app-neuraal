@@ -24,7 +24,8 @@ describe("ReorderEntries", () => {
       content: { text: title },
       completed: false,
     });
-    if (result.isErr()) throw new Error(`Failed to create task: ${result.error.message}`);
+    if (result.isErr())
+      throw new Error(`Failed to create task: ${result.error.message}`);
     return result.value.id;
   }
 
@@ -56,7 +57,9 @@ describe("ReorderEntries", () => {
       const id2 = await addTask("Task B");
 
       const entriesBefore = repository.getAll();
-      const versionsBefore = new Map(entriesBefore.map((e) => [e.id, e.version]));
+      const versionsBefore = new Map(
+        entriesBefore.map((e) => [e.id, e.version]),
+      );
 
       await reorderEntries.execute({
         userId: "user-123",

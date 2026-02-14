@@ -31,14 +31,14 @@ export class JwtAccessToken {
     const parts = trimmed.split(".");
     if (parts.length !== 3) {
       return err(
-        "JWT must have header.payload.signature format (exactly 2 dots)"
+        "JWT must have header.payload.signature format (exactly 2 dots)",
       );
     }
 
     const [header, payload, signature] = parts;
     if (!header || !payload || !signature) {
       return err(
-        "JWT must have non-empty header, payload, and signature parts"
+        "JWT must have non-empty header, payload, and signature parts",
       );
     }
 

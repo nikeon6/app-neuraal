@@ -28,6 +28,9 @@ vi.mock("@/infrastructure/embedding/OllamaEmbeddingProvider", () => ({
 
 import { POST } from "./route";
 
+const URL_TOPICS_T1_EMBEDDING_REBUILD =
+  "http://localhost:3000/api/topics/t1/embedding/rebuild";
+
 function ok<T>(value: T) {
   return { isErr: () => false, value };
 }
@@ -42,12 +45,9 @@ describe("POST /api/topics/[id]/embedding/rebuild", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: false, error: "Unauthorized" });
-    const req = new NextRequest(
-      "http://localhost:3000/api/topics/t1/embedding/rebuild",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_TOPICS_T1_EMBEDDING_REBUILD, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "t1" }) });
     expect(res.status).toBe(401);
   });
@@ -55,12 +55,9 @@ describe("POST /api/topics/[id]/embedding/rebuild", () => {
   it("maps NOT_FOUND to 404", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(err("NOT_FOUND", "missing"));
-    const req = new NextRequest(
-      "http://localhost:3000/api/topics/t1/embedding/rebuild",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_TOPICS_T1_EMBEDDING_REBUILD, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "t1" }) });
     expect(res.status).toBe(404);
   });
@@ -68,12 +65,9 @@ describe("POST /api/topics/[id]/embedding/rebuild", () => {
   it("returns 200 on success", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(ok({ rebuilt: true }));
-    const req = new NextRequest(
-      "http://localhost:3000/api/topics/t1/embedding/rebuild",
-      {
-        method: "POST",
-      },
-    );
+    const req = new NextRequest(URL_TOPICS_T1_EMBEDDING_REBUILD, {
+      method: "POST",
+    });
     const res = await POST(req, { params: Promise.resolve({ id: "t1" }) });
     expect(res.status).toBe(200);
   });

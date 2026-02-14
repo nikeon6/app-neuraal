@@ -32,7 +32,8 @@ export class NotificationType {
   static readonly SUMMARY_FAILED = "SUMMARY_FAILED" as const;
 
   // Transcription types
-  static readonly TRANSCRIPTION_IN_PROGRESS = "TRANSCRIPTION_IN_PROGRESS" as const;
+  static readonly TRANSCRIPTION_IN_PROGRESS =
+    "TRANSCRIPTION_IN_PROGRESS" as const;
   static readonly TRANSCRIPTION_DONE = "TRANSCRIPTION_DONE" as const;
   static readonly TRANSCRIPTION_FAILED = "TRANSCRIPTION_FAILED" as const;
 
@@ -59,8 +60,14 @@ export class NotificationType {
 
     const normalized = value.trim().toUpperCase();
 
-    if (!NotificationType.VALID_TYPES.includes(normalized as NotificationTypeValue)) {
-      return err(`Invalid type. Allowed: ${NotificationType.VALID_TYPES.join(", ")}`);
+    if (
+      !NotificationType.VALID_TYPES.includes(
+        normalized as NotificationTypeValue,
+      )
+    ) {
+      return err(
+        `Invalid type. Allowed: ${NotificationType.VALID_TYPES.join(", ")}`,
+      );
     }
 
     return ok(new NotificationType(normalized as NotificationTypeValue));

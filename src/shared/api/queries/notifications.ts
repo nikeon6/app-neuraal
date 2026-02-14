@@ -30,7 +30,9 @@ export function useNotificationsQuery() {
 /**
  * Derived helpers — call with the `data` from useNotificationsQuery.
  */
-export function getUnreadCount(notifications: ApiNotification[] | undefined): number {
+export function getUnreadCount(
+  notifications: ApiNotification[] | undefined,
+): number {
   if (!notifications) return 0;
   return notifications.filter((n) => n.status === "unread").length;
 }
@@ -52,7 +54,7 @@ export function useSummaryDoneWatcher(dateKey: string) {
     if (!notifications) return;
 
     const summaryDone = notifications.filter(
-      (n) => n.type === "SUMMARY_DONE" && !knownIdsRef.current.has(n.id)
+      (n) => n.type === "SUMMARY_DONE" && !knownIdsRef.current.has(n.id),
     );
 
     if (summaryDone.length > 0) {
@@ -63,7 +65,9 @@ export function useSummaryDoneWatcher(dateKey: string) {
         }
       }
       // Invalidate entries so TaskEditor picks up the summary
-      void queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+      void queryClient.invalidateQueries({
+        queryKey: entriesQueryKey(dateKey),
+      });
     }
   }, [notifications, dateKey, queryClient]);
 }
@@ -82,7 +86,7 @@ export function useTranscriptionDoneWatcher(dateKey: string) {
     if (!notifications) return;
 
     const transcriptionDone = notifications.filter(
-      (n) => n.type === "TRANSCRIPTION_DONE" && !knownIdsRef.current.has(n.id)
+      (n) => n.type === "TRANSCRIPTION_DONE" && !knownIdsRef.current.has(n.id),
     );
 
     if (transcriptionDone.length > 0) {
@@ -91,7 +95,9 @@ export function useTranscriptionDoneWatcher(dateKey: string) {
           knownIdsRef.current.add(n.id);
         }
       }
-      void queryClient.invalidateQueries({ queryKey: entriesQueryKey(dateKey) });
+      void queryClient.invalidateQueries({
+        queryKey: entriesQueryKey(dateKey),
+      });
     }
   }, [notifications, dateKey, queryClient]);
 }

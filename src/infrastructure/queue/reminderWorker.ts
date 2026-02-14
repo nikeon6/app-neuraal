@@ -6,7 +6,10 @@ import { PrismaReminderRepository } from "../persistence/PrismaReminderRepositor
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
 import { logger, withJobContext } from "../logging/logger";
-import { initSentryForWorker, captureWorkerException } from "../logging/sentryCapture";
+import {
+  initSentryForWorker,
+  captureWorkerException,
+} from "../logging/sentryCapture";
 
 /**
  * Job data structure for reminder jobs.
@@ -37,7 +40,7 @@ async function startWorker() {
   const processReminderJob = new ProcessReminderJob(
     reminderRepository,
     notificationRepository,
-    automationPort
+    automationPort,
   );
 
   // Create worker
@@ -78,7 +81,7 @@ async function startWorker() {
     {
       connection,
       concurrency: 5,
-    }
+    },
   );
 
   // Event handlers
@@ -89,7 +92,7 @@ async function startWorker() {
   worker.on("failed", (job, error) => {
     logger.error(
       { jobId: job?.id, queue: QUEUE_NAME, err: error },
-      "job.failed"
+      "job.failed",
     );
     captureWorkerException(error, {
       queue: QUEUE_NAME,

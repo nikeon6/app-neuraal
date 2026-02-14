@@ -53,7 +53,7 @@ export class PrismaTopicRepository implements TopicRepository {
 
   async findByUserIdAndName(
     userId: string,
-    name: string
+    name: string,
   ): Promise<Topic | null> {
     const normalizedName = name.trim().toLowerCase();
 
@@ -64,9 +64,7 @@ export class PrismaTopicRepository implements TopicRepository {
       where: { userId },
     });
 
-    const record = records.find(
-      (r) => r.name.toLowerCase() === normalizedName
-    );
+    const record = records.find((r) => r.name.toLowerCase() === normalizedName);
 
     if (!record) {
       return null;
@@ -85,7 +83,7 @@ export class PrismaTopicRepository implements TopicRepository {
 
   async findByUserIdAndColor(
     userId: string,
-    color: string
+    color: string,
   ): Promise<Topic | null> {
     const normalizedColor = color.trim().toLowerCase();
 
@@ -128,7 +126,7 @@ export class PrismaTopicRepository implements TopicRepository {
       ) {
         const fields = (error.meta?.target as string[]) ?? [];
         throw new Error(
-          `Duplicate topic: unique constraint violated on [${fields.join(", ")}]`
+          `Duplicate topic: unique constraint violated on [${fields.join(", ")}]`,
         );
       }
       throw error;
@@ -163,7 +161,7 @@ export class PrismaTopicRepository implements TopicRepository {
     topicId: string,
     vector: number[],
     model: string,
-    updatedAt: Date
+    updatedAt: Date,
   ): Promise<void> {
     const pgVector = `[${vector.join(",")}]`;
     await pool.query(
@@ -172,7 +170,7 @@ export class PrismaTopicRepository implements TopicRepository {
              embedding_model = $2,
              embedding_updated_at = $3
        WHERE id = $4`,
-      [pgVector, model, updatedAt, topicId]
+      [pgVector, model, updatedAt, topicId],
     );
   }
 
@@ -183,7 +181,7 @@ export class PrismaTopicRepository implements TopicRepository {
    */
   async findBestMatchByEmbedding(
     userId: string,
-    vector: number[]
+    vector: number[],
   ): Promise<TopicSimilarityMatch | null> {
     const pgVector = `[${vector.join(",")}]`;
 
@@ -194,7 +192,7 @@ export class PrismaTopicRepository implements TopicRepository {
           AND embedding IS NOT NULL
         ORDER BY embedding <=> $1::vector
         LIMIT 1`,
-      [pgVector, userId]
+      [pgVector, userId],
     );
 
     if (result.rows.length === 0) {

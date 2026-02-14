@@ -38,7 +38,7 @@ export interface EntryRepository {
   updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void>;
 
   /**
@@ -50,7 +50,10 @@ export interface EntryRepository {
    * Updates the raw JSON content of an entry.
    * Used by transcription callback to inject transcription into Tiptap doc.
    */
-  updateContent(entryId: string, content: Record<string, unknown>): Promise<void>;
+  updateContent(
+    entryId: string,
+    content: Record<string, unknown>,
+  ): Promise<void>;
 
   /**
    * Updates the transcript text of an entry.
@@ -71,6 +74,6 @@ export interface EntryRepository {
   reorderEntries(
     userId: string,
     date: string,
-    orderedIds: string[]
+    orderedIds: string[],
   ): Promise<void>;
 }

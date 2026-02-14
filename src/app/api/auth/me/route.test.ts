@@ -19,6 +19,8 @@ vi.mock("@/application/use-cases/auth/GetMe", () => ({
 
 import { GET } from "./route";
 
+const URL_AUTH_ME = "http://localhost:3000/api/auth/me";
+
 function ok<T>(value: T) {
   return { isErr: () => false, value };
 }
@@ -33,7 +35,7 @@ describe("GET /api/auth/me", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: false, error: "Unauthorized" });
-    const req = new NextRequest("http://localhost:3000/api/auth/me");
+    const req = new NextRequest(URL_AUTH_ME);
     const res = await GET(req);
     expect(res.status).toBe(401);
   });
@@ -41,7 +43,7 @@ describe("GET /api/auth/me", () => {
   it("returns mapped error status from use case", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(err("NOT_FOUND", "missing"));
-    const req = new NextRequest("http://localhost:3000/api/auth/me");
+    const req = new NextRequest(URL_AUTH_ME);
     const res = await GET(req);
     expect(res.status).toBe(404);
   });
@@ -49,7 +51,7 @@ describe("GET /api/auth/me", () => {
   it("returns 200 with user on success", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(ok({ id: "u1", email: "a@a.com" }));
-    const req = new NextRequest("http://localhost:3000/api/auth/me");
+    const req = new NextRequest(URL_AUTH_ME);
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();

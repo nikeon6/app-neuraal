@@ -27,6 +27,8 @@ import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery } from "@/shared/api/queries";
 import { deleteEntryAndInvalidate } from "@/shared/api/mutations";
 
+const DATE_KEY_FORMAT = "yyyy-MM-dd";
+
 // Type for entry pending deletion
 interface EntryToDelete {
   dateKey: string;
@@ -111,7 +113,7 @@ export function VerticalCalendar({
     if (!container) return;
 
     const selectedEl = document.getElementById(
-      `day-${format(selectedDate, "yyyy-MM-dd")}`,
+      `day-${format(selectedDate, DATE_KEY_FORMAT)}`,
     );
     if (!selectedEl) return;
 
@@ -131,7 +133,7 @@ export function VerticalCalendar({
     const container = mobileScrollRef.current;
     if (!container) return;
 
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    const dateKey = format(selectedDate, DATE_KEY_FORMAT);
     const dayEl = container.querySelector(
       `[data-date-key="${dateKey}"]`,
     ) as HTMLElement | null;
@@ -154,7 +156,7 @@ export function VerticalCalendar({
     const container = compactScrollRef.current;
     if (!container) return;
 
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    const dateKey = format(selectedDate, DATE_KEY_FORMAT);
     const dayEl = container.querySelector(
       `[data-date-key="${dateKey}"]`,
     ) as HTMLElement | null;
@@ -258,7 +260,7 @@ export function VerticalCalendar({
   // - Click on expanded pinned day → just navigate to it
   const handleDayClick = useCallback(
     (day: Date) => {
-      const dateKey: ISODate = format(day, "yyyy-MM-dd");
+      const dateKey: ISODate = format(day, DATE_KEY_FORMAT);
       const isExpanded = expandedDayKeys.includes(dateKey);
       const isPinned = pinnedDayKeys.includes(dateKey);
 
@@ -297,7 +299,9 @@ export function VerticalCalendar({
       if (isPinned) {
         // If day is not selected, collapsing on unpin since it was only
         // kept open by the pin — otherwise just unpin and let it stay.
-        const dayDate = days.find((d) => format(d, "yyyy-MM-dd") === dateKey);
+        const dayDate = days.find(
+          (d) => format(d, DATE_KEY_FORMAT) === dateKey,
+        );
         const isDaySelected = dayDate
           ? isSameDay(dayDate, selectedDate)
           : false;
@@ -454,7 +458,7 @@ export function VerticalCalendar({
             className="flex-1 flex flex-col items-center overflow-y-auto scrollbar-hide py-1 gap-0.5"
           >
             {days.map((day) => {
-              const dateKey: ISODate = format(day, "yyyy-MM-dd");
+              const dateKey: ISODate = format(day, DATE_KEY_FORMAT);
               const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
               const isSelected: boolean = isSameDay(day, selectedDate);
               const isCurrentDay: boolean = isToday(day);
@@ -531,7 +535,7 @@ export function VerticalCalendar({
               </button>
             </div>
             {days.map((day) => {
-              const dateKey: ISODate = format(day, "yyyy-MM-dd");
+              const dateKey: ISODate = format(day, DATE_KEY_FORMAT);
               const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
               const isSelected: boolean = isSameDay(day, selectedDate);
               const isCurrentDay: boolean = isToday(day);
@@ -575,7 +579,7 @@ export function VerticalCalendar({
             className="hidden lg:block flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-4 space-y-2"
           >
             {days.map((day, i) => {
-              const dateKey: ISODate = format(day, "yyyy-MM-dd");
+              const dateKey: ISODate = format(day, DATE_KEY_FORMAT);
               const dayEntries: ApiEntry[] = entriesByDate[dateKey] || [];
               const isSelected: boolean = isSameDay(day, selectedDate);
               const isCurrentDay: boolean = isToday(day);

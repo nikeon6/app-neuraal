@@ -26,6 +26,6 @@ export interface StickyRepository {
    */
   reorder(
     userId: string,
-    items: { id: string; sortOrder: number; columnIndex: number }[]
+    items: { id: string; sortOrder: number; columnIndex: number }[],
   ): Promise<void>;
 }

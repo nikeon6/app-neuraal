@@ -14,6 +14,16 @@ import { cn } from "@/shared/lib/utils";
 /** Maximum topics per user (mirrors backend MAX_TOPICS_PER_USER). */
 const MAX_TOPICS = 12;
 
+function getTopicsSubtitle(
+  isLoading: boolean,
+  hasTopics: boolean,
+  count: number,
+): string {
+  if (isLoading) return "Loading topics...";
+  if (hasTopics) return `${count}/${MAX_TOPICS} topic${count !== 1 ? "s" : ""}`;
+  return "Organize your tasks by topic";
+}
+
 // ============================================================================
 // TopicsSection Component (Main Container)
 // ============================================================================
@@ -68,11 +78,7 @@ export function TopicsSection() {
         <div>
           <h2 className="text-lg font-semibold text-white">Your Topics</h2>
           <p className="text-sm text-white/50">
-            {isLoading
-              ? "Loading topics..."
-              : hasTopics
-                ? `${topics.length}/${MAX_TOPICS} topic${topics.length !== 1 ? "s" : ""}`
-                : "Organize your tasks by topic"}
+            {getTopicsSubtitle(isLoading, hasTopics, topics.length)}
           </p>
         </div>
         <button

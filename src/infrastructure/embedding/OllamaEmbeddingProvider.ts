@@ -51,7 +51,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProviderPort {
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         throw new Error(
-          `Ollama embed request failed: ${response.status} ${response.statusText} - ${body}`
+          `Ollama embed request failed: ${response.status} ${response.statusText} - ${body}`,
         );
       }
 
@@ -72,7 +72,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProviderPort {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new Error(
-          `Ollama embed request timed out after ${this.timeoutMs}ms`
+          `Ollama embed request timed out after ${this.timeoutMs}ms`,
         );
       }
       throw error;

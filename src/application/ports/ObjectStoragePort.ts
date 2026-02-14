@@ -12,7 +12,7 @@ export interface ObjectStoragePort {
   getPresignedPutUrl(
     storageKey: string,
     mimeType: string,
-    sizeBytes: number
+    sizeBytes: number,
   ): Promise<string>;
 
   /**

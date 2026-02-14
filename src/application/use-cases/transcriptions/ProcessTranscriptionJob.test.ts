@@ -7,10 +7,13 @@ import { FakeAutomationPort } from "../../test/FakeAutomationPort";
 import { TranscriptionRequest } from "@/domain/entities/TranscriptionRequest";
 import { Entry } from "@/domain/entities/Entry";
 
-const CALLBACK_URL = "http://localhost:3000/api/automations/entry-transcription/callback";
+const CALLBACK_URL =
+  "http://localhost:3000/api/automations/entry-transcription/callback";
 const YOUTUBE_URL = "https://www.youtube.com/watch?v=abc123";
 
-function createTestEntry(overrides: Partial<{ id: string; userId: string }> = {}): Entry {
+function createTestEntry(
+  overrides: Partial<{ id: string; userId: string }> = {},
+): Entry {
   const result = Entry.create({
     id: overrides.id ?? "entry-1",
     userId: overrides.userId ?? "user-1",
@@ -46,7 +49,7 @@ describe("ProcessTranscriptionJob", () => {
       notificationRepo,
       automationPort,
       CALLBACK_URL,
-      () => "notif-1"
+      () => "notif-1",
     );
   });
 
@@ -54,7 +57,12 @@ describe("ProcessTranscriptionJob", () => {
     const entry = createTestEntry();
     await entryRepo.save(entry);
 
-    const request = TranscriptionRequest.createNew("req-1", "user-1", "entry-1", YOUTUBE_URL);
+    const request = TranscriptionRequest.createNew(
+      "req-1",
+      "user-1",
+      "entry-1",
+      YOUTUBE_URL,
+    );
     await transcriptionRepo.save(request);
 
     const result = await useCase.execute({
@@ -92,7 +100,12 @@ describe("ProcessTranscriptionJob", () => {
   });
 
   it("should skip if request is already in terminal state", async () => {
-    const request = TranscriptionRequest.createNew("req-1", "user-1", "entry-1", YOUTUBE_URL);
+    const request = TranscriptionRequest.createNew(
+      "req-1",
+      "user-1",
+      "entry-1",
+      YOUTUBE_URL,
+    );
     await transcriptionRepo.save(request);
     await transcriptionRepo.update(request.markDone());
 
@@ -109,7 +122,12 @@ describe("ProcessTranscriptionJob", () => {
   });
 
   it("should skip and mark failed if entry is not found", async () => {
-    const request = TranscriptionRequest.createNew("req-1", "user-1", "entry-1", YOUTUBE_URL);
+    const request = TranscriptionRequest.createNew(
+      "req-1",
+      "user-1",
+      "entry-1",
+      YOUTUBE_URL,
+    );
     await transcriptionRepo.save(request);
 
     const result = await useCase.execute({
@@ -128,7 +146,12 @@ describe("ProcessTranscriptionJob", () => {
 
   it("should skip and mark failed if entry ownership does not match", async () => {
     await entryRepo.save(createTestEntry({ userId: "other-user" }));
-    const request = TranscriptionRequest.createNew("req-1", "user-1", "entry-1", YOUTUBE_URL);
+    const request = TranscriptionRequest.createNew(
+      "req-1",
+      "user-1",
+      "entry-1",
+      YOUTUBE_URL,
+    );
     await transcriptionRepo.save(request);
 
     const result = await useCase.execute({
@@ -145,7 +168,12 @@ describe("ProcessTranscriptionJob", () => {
 
   it("should mark failed and create notification when automation fails", async () => {
     await entryRepo.save(createTestEntry());
-    const request = TranscriptionRequest.createNew("req-1", "user-1", "entry-1", YOUTUBE_URL);
+    const request = TranscriptionRequest.createNew(
+      "req-1",
+      "user-1",
+      "entry-1",
+      YOUTUBE_URL,
+    );
     await transcriptionRepo.save(request);
 
     automationPort.setShouldSucceed(false);

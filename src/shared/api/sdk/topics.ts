@@ -6,11 +6,7 @@
  */
 
 import { get, post, patch, del } from "../apiClient";
-import type {
-  ApiTopic,
-  CreateTopicBody,
-  UpdateTopicBody,
-} from "./types";
+import type { ApiTopic, CreateTopicBody, UpdateTopicBody } from "./types";
 
 // ---------------------------------------------------------------------------
 // List
@@ -27,9 +23,7 @@ export async function listTopics(): Promise<ApiTopic[]> {
 // ---------------------------------------------------------------------------
 
 /** POST /api/topics — creates a new topic. */
-export async function createTopic(
-  input: CreateTopicBody
-): Promise<ApiTopic> {
+export async function createTopic(input: CreateTopicBody): Promise<ApiTopic> {
   const data = await post<{ topic: ApiTopic }>("/api/topics", input);
   return data.topic;
 }
@@ -41,7 +35,7 @@ export async function createTopic(
 /** PATCH /api/topics/{id} — updates an existing topic. */
 export async function updateTopic(
   id: string,
-  input: UpdateTopicBody
+  input: UpdateTopicBody,
 ): Promise<ApiTopic> {
   const data = await patch<{ topic: ApiTopic }>(`/api/topics/${id}`, input);
   return data.topic;
@@ -62,9 +56,9 @@ export async function deleteTopic(id: string): Promise<void> {
 
 /** POST /api/topics/{id}/embedding/rebuild — recalculates topic embedding. */
 export async function rebuildTopicEmbedding(
-  id: string
+  id: string,
 ): Promise<{ topicId: string; embeddingUpdatedAt: string }> {
   return await post<{ topicId: string; embeddingUpdatedAt: string }>(
-    `/api/topics/${id}/embedding/rebuild`
+    `/api/topics/${id}/embedding/rebuild`,
   );
 }

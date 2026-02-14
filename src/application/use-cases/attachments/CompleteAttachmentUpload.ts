@@ -15,7 +15,7 @@ export interface CompleteAttachmentInput {
 /**
  * CompleteAttachmentUpload use case.
  * Marks an attachment as ready after successful upload.
- * 
+ *
  * TODO: Add worker to clean up pending attachments that were never completed
  * (e.g., after 24 hours).
  */
@@ -23,7 +23,7 @@ export class CompleteAttachmentUpload {
   constructor(private readonly attachmentRepository: AttachmentRepository) {}
 
   async execute(
-    input: CompleteAttachmentInput
+    input: CompleteAttachmentInput,
   ): Promise<Result<AttachmentDTO, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {

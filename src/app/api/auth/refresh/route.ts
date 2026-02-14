@@ -18,7 +18,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!refreshToken) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing refresh token" } },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new CryptoRefreshTokenService(),
     new SystemClock(),
     config.accessTtlSeconds,
-    config.refreshTtlDays
+    config.refreshTtlDays,
   );
 
   const result = await useCase.execute({ refreshToken });

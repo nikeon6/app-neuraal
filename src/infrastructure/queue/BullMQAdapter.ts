@@ -22,12 +22,18 @@ export class BullMQAdapter implements QueuePort {
       redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379",
       {
         maxRetriesPerRequest: null,
-      }
+      },
     );
 
-    this.remindersQueue = new Queue("reminders", { connection: this.connection });
-    this.summariesQueue = new Queue("summaries", { connection: this.connection });
-    this.transcriptionsQueue = new Queue("transcriptions", { connection: this.connection });
+    this.remindersQueue = new Queue("reminders", {
+      connection: this.connection,
+    });
+    this.summariesQueue = new Queue("summaries", {
+      connection: this.connection,
+    });
+    this.transcriptionsQueue = new Queue("transcriptions", {
+      connection: this.connection,
+    });
   }
 
   async enqueueReminder(data: EnqueueReminderData): Promise<void> {
@@ -50,7 +56,7 @@ export class BullMQAdapter implements QueuePort {
         },
         removeOnComplete: { count: 200 },
         removeOnFail: { count: 500 },
-      }
+      },
     );
   }
 
@@ -72,12 +78,12 @@ export class BullMQAdapter implements QueuePort {
         },
         removeOnComplete: { count: 200 },
         removeOnFail: { count: 500 },
-      }
+      },
     );
   }
 
   async enqueueEntryTranscription(
-    data: EnqueueEntryTranscriptionData
+    data: EnqueueEntryTranscriptionData,
   ): Promise<void> {
     await this.transcriptionsQueue.add(
       "transcribe-video",
@@ -96,7 +102,7 @@ export class BullMQAdapter implements QueuePort {
         },
         removeOnComplete: { count: 200 },
         removeOnFail: { count: 500 },
-      }
+      },
     );
   }
 

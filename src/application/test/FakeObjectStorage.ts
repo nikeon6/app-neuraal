@@ -11,7 +11,7 @@ export class FakeObjectStorage implements ObjectStoragePort {
   async getPresignedPutUrl(
     storageKey: string,
     mimeType: string,
-    _sizeBytes: number
+    _sizeBytes: number,
   ): Promise<string> {
     return `https://fake-s3.example.com/put/${storageKey}?contentType=${encodeURIComponent(mimeType)}`;
   }

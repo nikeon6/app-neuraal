@@ -46,11 +46,11 @@ export class ProcessEntrySummaryJob {
     private readonly notificationRepository: NotificationRepository,
     private readonly automationPort: AutomationPort,
     private readonly callbackUrl: string,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: ProcessEntrySummaryJobInput
+    input: ProcessEntrySummaryJobInput,
   ): Promise<Result<ProcessEntrySummaryJobResult, UseCaseError>> {
     const { requestId, userId, entryId, plainTextForSummary } = input;
 

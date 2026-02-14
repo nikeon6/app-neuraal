@@ -9,7 +9,7 @@ export interface RateLimitConfig {
 
 export function createRateLimitConfig(
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
 ): RateLimitConfig {
   return {
     limit: Math.max(0, Math.floor(limit)),

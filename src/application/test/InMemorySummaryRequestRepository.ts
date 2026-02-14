@@ -4,9 +4,7 @@ import type { SummaryRequestRepository } from "../ports/SummaryRequestRepository
 /**
  * In-memory implementation of SummaryRequestRepository for testing.
  */
-export class InMemorySummaryRequestRepository
-  implements SummaryRequestRepository
-{
+export class InMemorySummaryRequestRepository implements SummaryRequestRepository {
   private requests: EntrySummaryRequest[] = [];
 
   async save(request: EntrySummaryRequest): Promise<void> {
@@ -19,7 +17,7 @@ export class InMemorySummaryRequestRepository
 
   async findByIdForUser(
     id: string,
-    userId: string
+    userId: string,
   ): Promise<EntrySummaryRequest | null> {
     return (
       this.requests.find((r) => r.id === id && r.userId === userId) ?? null
@@ -34,21 +32,20 @@ export class InMemorySummaryRequestRepository
   }
 
   async findActiveByEntryId(
-    entryId: string
+    entryId: string,
   ): Promise<EntrySummaryRequest | null> {
     const activeRequests = this.requests.filter(
-      (r) => r.entryId === entryId && !r.isTerminal()
+      (r) => r.entryId === entryId && !r.isTerminal(),
     );
     if (activeRequests.length === 0) return null;
     return activeRequests.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     )[0];
   }
 
   async countActiveByUserId(userId: string): Promise<number> {
-    return this.requests.filter(
-      (r) => r.userId === userId && !r.isTerminal()
-    ).length;
+    return this.requests.filter((r) => r.userId === userId && !r.isTerminal())
+      .length;
   }
 
   /**

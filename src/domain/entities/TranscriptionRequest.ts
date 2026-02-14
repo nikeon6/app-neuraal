@@ -35,7 +35,7 @@ export class TranscriptionRequest {
     youtubeUrl: string,
     status: RequestStatus,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -50,7 +50,7 @@ export class TranscriptionRequest {
    * Creates a TranscriptionRequest entity from raw props.
    */
   static create(
-    props: TranscriptionRequestProps
+    props: TranscriptionRequestProps,
   ): Result<TranscriptionRequest, string> {
     if (!props.id || props.id.trim().length === 0) {
       return err("Request id cannot be empty");
@@ -81,8 +81,8 @@ export class TranscriptionRequest {
         props.youtubeUrl.trim(),
         statusResult.value,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
@@ -93,7 +93,7 @@ export class TranscriptionRequest {
     id: string,
     userId: string,
     entryId: string,
-    youtubeUrl: string
+    youtubeUrl: string,
   ): TranscriptionRequest {
     const now = new Date();
     return new TranscriptionRequest(
@@ -103,7 +103,7 @@ export class TranscriptionRequest {
       youtubeUrl,
       RequestStatus.pending(),
       now,
-      now
+      now,
     );
   }
 
@@ -116,7 +116,7 @@ export class TranscriptionRequest {
       this.youtubeUrl,
       RequestStatus.submitted(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -129,7 +129,7 @@ export class TranscriptionRequest {
       this.youtubeUrl,
       RequestStatus.done(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -142,7 +142,7 @@ export class TranscriptionRequest {
       this.youtubeUrl,
       RequestStatus.failed(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 

@@ -1,10 +1,15 @@
-import type { PasswordResetTokenData, PasswordResetTokenRepository } from "../ports/PasswordResetTokenRepository";
+import type {
+  PasswordResetTokenData,
+  PasswordResetTokenRepository,
+} from "../ports/PasswordResetTokenRepository";
 
 export class InMemoryPasswordResetTokenRepository implements PasswordResetTokenRepository {
   private tokens: PasswordResetTokenData[] = [];
   private idCounter = 0;
 
-  async create(data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">): Promise<PasswordResetTokenData> {
+  async create(
+    data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">,
+  ): Promise<PasswordResetTokenData> {
     const token: PasswordResetTokenData = {
       id: `prt-${++this.idCounter}`,
       ...data,
@@ -15,7 +20,9 @@ export class InMemoryPasswordResetTokenRepository implements PasswordResetTokenR
     return token;
   }
 
-  async findByTokenHash(tokenHash: string): Promise<PasswordResetTokenData | null> {
+  async findByTokenHash(
+    tokenHash: string,
+  ): Promise<PasswordResetTokenData | null> {
     return this.tokens.find((t) => t.tokenHash === tokenHash) ?? null;
   }
 

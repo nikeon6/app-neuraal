@@ -52,7 +52,7 @@ describe("HandleEntrySummaryCallback", () => {
   const generateSignature = (
     timestamp: string,
     body: string,
-    secret: string = webhookSecret
+    secret: string = webhookSecret,
   ): string => {
     const payload = `${timestamp}.${body}`;
     return crypto.createHmac("sha256", secret).update(payload).digest("hex");
@@ -68,7 +68,7 @@ describe("HandleEntrySummaryCallback", () => {
       notificationRepository,
       webhookSecret,
       undefined, // recordAiUsage not needed for these tests
-      () => "test-notif-id"
+      () => "test-notif-id",
     );
   });
 

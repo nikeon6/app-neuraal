@@ -17,7 +17,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (auth !== `Bearer ${metricsToken}`) {
       return NextResponse.json(
         { error: { code: "UNAUTHORIZED", message: "Invalid metrics token" } },
-        { status: 401 }
+        { status: 401 },
       );
     }
   }
@@ -33,8 +33,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch {
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Failed to collect metrics" } },
-      { status: 500 }
+      {
+        error: { code: "INTERNAL_ERROR", message: "Failed to collect metrics" },
+      },
+      { status: 500 },
     );
   }
 }

@@ -31,9 +31,7 @@ describe("extractPlainText", () => {
       ],
     };
 
-    expect(extractPlainText(content)).toBe(
-      "First paragraph Second paragraph"
-    );
+    expect(extractPlainText(content)).toBe("First paragraph Second paragraph");
   });
 
   it("should handle inline marks (bold, italic, etc)", () => {
@@ -247,7 +245,10 @@ describe("extractPlainText", () => {
       content: [
         {
           type: "image",
-          attrs: { src: "https://example.com/photo.jpg", alt: "A beautiful sunset" },
+          attrs: {
+            src: "https://example.com/photo.jpg",
+            alt: "A beautiful sunset",
+          },
         },
       ],
     };
@@ -338,7 +339,12 @@ describe("extractPlainText", () => {
         },
         {
           type: "fileAttachment",
-          attrs: { attachmentId: "x", filename: "spec.docx", mimeType: "application/docx", sizeBytes: 500 },
+          attrs: {
+            attachmentId: "x",
+            filename: "spec.docx",
+            mimeType: "application/docx",
+            sizeBytes: 500,
+          },
         },
         {
           type: "youtube",
@@ -348,7 +354,7 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toBe(
-      "Project Notes Some context here print('hello') Diagram spec.docx"
+      "Project Notes Some context here print('hello') Diagram spec.docx",
     );
   });
 });

@@ -25,6 +25,9 @@ vi.mock("@/infrastructure/config/AttachmentConfig", () => ({
 
 import { GET } from "./route";
 
+const URL_ENTRIES_E1_ATTACHMENTS =
+  "http://localhost:3000/api/entries/e1/attachments";
+
 function ok<T>(value: T) {
   return { isErr: () => false, value };
 }
@@ -43,9 +46,7 @@ describe("GET /api/entries/[id]/attachments", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: false, error: "Unauthorized" });
-    const req = new NextRequest(
-      "http://localhost:3000/api/entries/e1/attachments",
-    );
+    const req = new NextRequest(URL_ENTRIES_E1_ATTACHMENTS);
     const res = await GET(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(401);
   });
@@ -53,9 +54,7 @@ describe("GET /api/entries/[id]/attachments", () => {
   it("maps NOT_FOUND to 404", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(err("NOT_FOUND", "missing"));
-    const req = new NextRequest(
-      "http://localhost:3000/api/entries/e1/attachments",
-    );
+    const req = new NextRequest(URL_ENTRIES_E1_ATTACHMENTS);
     const res = await GET(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(404);
   });
@@ -65,9 +64,7 @@ describe("GET /api/entries/[id]/attachments", () => {
     mocks.execute.mockResolvedValue(
       ok({ attachments: [], usage: { usedBytes: 0 } }),
     );
-    const req = new NextRequest(
-      "http://localhost:3000/api/entries/e1/attachments",
-    );
+    const req = new NextRequest(URL_ENTRIES_E1_ATTACHMENTS);
     const res = await GET(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();

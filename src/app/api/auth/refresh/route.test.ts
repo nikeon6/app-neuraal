@@ -23,6 +23,8 @@ vi.mock("@/infrastructure/auth/AuthConfig", () => ({
 
 import { POST } from "./route";
 
+const URL_AUTH_REFRESH = "http://localhost:3000/api/auth/refresh";
+
 function ok<T>(value: T) {
   return { isErr: () => false, value };
 }
@@ -41,7 +43,7 @@ describe("POST /api/auth/refresh", () => {
   });
 
   it("returns 401 when refresh token cookie is missing", async () => {
-    const req = new NextRequest("http://localhost:3000/api/auth/refresh", {
+    const req = new NextRequest(URL_AUTH_REFRESH, {
       method: "POST",
     });
     const res = await POST(req);
@@ -50,7 +52,7 @@ describe("POST /api/auth/refresh", () => {
 
   it("returns 401 when use case fails", async () => {
     mocks.execute.mockResolvedValue(err("UNAUTHORIZED", "invalid token"));
-    const req = new NextRequest("http://localhost:3000/api/auth/refresh", {
+    const req = new NextRequest(URL_AUTH_REFRESH, {
       method: "POST",
       headers: { Cookie: "refresh_token=r1" },
     });
@@ -62,7 +64,7 @@ describe("POST /api/auth/refresh", () => {
     mocks.execute.mockResolvedValue(
       ok({ tokens: { accessToken: "a", refreshToken: "r2" } }),
     );
-    const req = new NextRequest("http://localhost:3000/api/auth/refresh", {
+    const req = new NextRequest(URL_AUTH_REFRESH, {
       method: "POST",
       headers: { Cookie: "refresh_token=r1" },
     });

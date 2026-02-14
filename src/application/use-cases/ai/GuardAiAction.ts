@@ -64,11 +64,11 @@ export class GuardAiAction {
     private readonly aiUsageRepository: AiUsageRepository,
     private readonly rateLimiter: RateLimiterPort,
     private readonly clock: ClockPort,
-    private readonly config: GuardAiActionConfig
+    private readonly config: GuardAiActionConfig,
   ) {}
 
   async execute(
-    input: GuardAiActionInput
+    input: GuardAiActionInput,
   ): Promise<Result<GuardAiActionOutput, UseCaseError>> {
     const { userId, action, entryId, inputChars, inputBytes } = input;
 
@@ -79,7 +79,11 @@ export class GuardAiAction {
     const actionStr = actionResult.value.toString();
 
     // 1) Concurrency checks
-    const concurrencyError = await this.checkConcurrency(userId, entryId, actionStr);
+    const concurrencyError = await this.checkConcurrency(
+      userId,
+      entryId,
+      actionStr,
+    );
     if (concurrencyError) return err(concurrencyError);
 
     // 2) Input size check
@@ -106,19 +110,27 @@ export class GuardAiAction {
   private async checkConcurrency(
     userId: string,
     entryId: string | undefined,
-    actionStr: string
+    actionStr: string,
   ): Promise<UseCaseError | null> {
-    const activeUser = await this.concurrencyChecker.countActiveByUserId(userId);
+    const activeUser =
+      await this.concurrencyChecker.countActiveByUserId(userId);
     if (activeUser >= this.config.maxActivePerUser) {
       return concurrencyLimitError(
-        `Maximum concurrent ${actionStr} requests reached. Wait for the current one to finish.`
+        `Maximum concurrent ${actionStr} requests reached. Wait for the current one to finish.`,
       );
     }
 
-    if (entryId && this.config.maxActivePerEntry > 0 && this.concurrencyChecker.findActiveByEntryId) {
-      const activeEntry = await this.concurrencyChecker.findActiveByEntryId(entryId);
+    if (
+      entryId &&
+      this.config.maxActivePerEntry > 0 &&
+      this.concurrencyChecker.findActiveByEntryId
+    ) {
+      const activeEntry =
+        await this.concurrencyChecker.findActiveByEntryId(entryId);
       if (activeEntry) {
-        return concurrencyLimitError(`A ${actionStr} request is already in progress for this entry.`);
+        return concurrencyLimitError(
+          `A ${actionStr} request is already in progress for this entry.`,
+        );
       }
     }
 
@@ -127,21 +139,34 @@ export class GuardAiAction {
 
   private checkInputTruncation(inputChars: number | undefined): boolean {
     const maxChars = this.config.maxInputChars;
-    return maxChars > 0 && inputChars !== undefined && CharCount.fromNumber(inputChars).exceedsMax(maxChars);
+    return (
+      maxChars > 0 &&
+      inputChars !== undefined &&
+      CharCount.fromNumber(inputChars).exceedsMax(maxChars)
+    );
   }
 
   private checkInputBytes(inputBytes: number | undefined): UseCaseError | null {
     const maxBytes = this.config.maxInputBytes;
     if (maxBytes > 0 && inputBytes !== undefined && inputBytes > maxBytes) {
-      return inputTooLargeError(`Input size ${inputBytes} bytes exceeds maximum of ${maxBytes} bytes.`);
+      return inputTooLargeError(
+        `Input size ${inputBytes} bytes exceeds maximum of ${maxBytes} bytes.`,
+      );
     }
     return null;
   }
 
-  private async checkRateLimit(userId: string, actionStr: string): Promise<UseCaseError | null> {
+  private async checkRateLimit(
+    userId: string,
+    actionStr: string,
+  ): Promise<UseCaseError | null> {
     const prefix = this.config.rateLimitPrefix;
 
-    const minuteResult = await this.rateLimiter.hit(`${prefix}:${actionStr}:${userId}:min`, this.config.rateLimitPerMinute, 60);
+    const minuteResult = await this.rateLimiter.hit(
+      `${prefix}:${actionStr}:${userId}:min`,
+      this.config.rateLimitPerMinute,
+      60,
+    );
     if (!minuteResult.allowed) {
       return rateLimitedError("Too many requests. Try again later.", {
         remaining: minuteResult.remaining,
@@ -150,7 +175,11 @@ export class GuardAiAction {
     }
 
     if (this.config.rateLimitPerHour > 0) {
-      const hourResult = await this.rateLimiter.hit(`${prefix}:${actionStr}:${userId}:hour`, this.config.rateLimitPerHour, 3600);
+      const hourResult = await this.rateLimiter.hit(
+        `${prefix}:${actionStr}:${userId}:hour`,
+        this.config.rateLimitPerHour,
+        3600,
+      );
       if (!hourResult.allowed) {
         return rateLimitedError("Hourly limit reached. Try again later.", {
           remaining: hourResult.remaining,
@@ -162,14 +191,23 @@ export class GuardAiAction {
     return null;
   }
 
-  private async checkMonthlyQuota(userId: string, actionStr: string): Promise<UseCaseError | null> {
+  private async checkMonthlyQuota(
+    userId: string,
+    actionStr: string,
+  ): Promise<UseCaseError | null> {
     const now = this.clock.now();
     const monthKey = MonthKey.fromDate(now).toString();
-    const monthly = await this.aiUsageRepository.getMonthly(userId, actionStr, monthKey);
+    const monthly = await this.aiUsageRepository.getMonthly(
+      userId,
+      actionStr,
+      monthKey,
+    );
     const requestsUsed = monthly?.requestsUsed ?? 0;
     const quotaLimit = QuotaLimit.fromNumber(this.config.monthlyQuotaRequests);
     if (quotaLimit.isExceeded(requestsUsed + 1)) {
-      return quotaExceededError(`Monthly ${actionStr} limit reached. Resets next month.`);
+      return quotaExceededError(
+        `Monthly ${actionStr} limit reached. Resets next month.`,
+      );
     }
     return null;
   }

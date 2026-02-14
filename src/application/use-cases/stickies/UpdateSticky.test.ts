@@ -15,7 +15,9 @@ describe("UpdateSticky", () => {
   });
 
   it("updates title", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "Old", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "Old", content: {} })
+    ).unwrap();
 
     const result = await updateSticky.execute(created.id, "u-1", {
       version: 1,
@@ -30,7 +32,9 @@ describe("UpdateSticky", () => {
   });
 
   it("updates content", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "S", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "S", content: {} })
+    ).unwrap();
 
     const result = await updateSticky.execute(created.id, "u-1", {
       version: 1,
@@ -44,23 +48,36 @@ describe("UpdateSticky", () => {
   });
 
   it("returns not found for non-existent sticky", async () => {
-    const result = await updateSticky.execute("nope", "u-1", { version: 1, title: "X" });
+    const result = await updateSticky.execute("nope", "u-1", {
+      version: 1,
+      title: "X",
+    });
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe("NOT_FOUND");
   });
 
   it("returns not found when userId does not match", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "S", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "S", content: {} })
+    ).unwrap();
 
-    const result = await updateSticky.execute(created.id, "u-other", { version: 1, title: "X" });
+    const result = await updateSticky.execute(created.id, "u-other", {
+      version: 1,
+      title: "X",
+    });
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe("NOT_FOUND");
   });
 
   it("returns conflict on version mismatch", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "S", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "S", content: {} })
+    ).unwrap();
 
-    const result = await updateSticky.execute(created.id, "u-1", { version: 99, title: "X" });
+    const result = await updateSticky.execute(created.id, "u-1", {
+      version: 99,
+      title: "X",
+    });
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe("CONFLICT");
   });

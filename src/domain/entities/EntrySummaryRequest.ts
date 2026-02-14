@@ -34,7 +34,7 @@ export class EntrySummaryRequest {
     status: RequestStatus,
     meta: Record<string, unknown> | null,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -48,7 +48,9 @@ export class EntrySummaryRequest {
   /**
    * Creates an EntrySummaryRequest entity from raw props.
    */
-  static create(props: EntrySummaryRequestProps): Result<EntrySummaryRequest, string> {
+  static create(
+    props: EntrySummaryRequestProps,
+  ): Result<EntrySummaryRequest, string> {
     // Validate id
     if (!props.id || props.id.trim().length === 0) {
       return err("Request id cannot be empty");
@@ -78,8 +80,8 @@ export class EntrySummaryRequest {
         statusResult.value,
         props.meta ?? null,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
@@ -91,7 +93,7 @@ export class EntrySummaryRequest {
     id: string,
     userId: string,
     entryId: string,
-    meta?: Record<string, unknown> | null
+    meta?: Record<string, unknown> | null,
   ): EntrySummaryRequest {
     const now = new Date();
     return new EntrySummaryRequest(
@@ -101,7 +103,7 @@ export class EntrySummaryRequest {
       RequestStatus.pending(),
       meta ?? null,
       now,
-      now
+      now,
     );
   }
 
@@ -116,7 +118,7 @@ export class EntrySummaryRequest {
       RequestStatus.submitted(),
       this.meta,
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -131,7 +133,7 @@ export class EntrySummaryRequest {
       RequestStatus.done(),
       this.meta,
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -146,7 +148,7 @@ export class EntrySummaryRequest {
       RequestStatus.failed(),
       this.meta,
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 

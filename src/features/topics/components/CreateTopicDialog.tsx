@@ -32,6 +32,18 @@ const COLOR_OPTIONS = [
   "#302b27", // burnt orange 16
 ] as const;
 
+function getCharCountClassName(remaining: number): string {
+  if (remaining < 0) return "text-red-400";
+  if (remaining <= 5) return "text-amber-400";
+  return "text-white/40";
+}
+
+function getColorButtonClassName(isUsed: boolean, isSelected: boolean): string {
+  if (isUsed) return "opacity-25 cursor-not-allowed";
+  if (isSelected) return "ring-2 ring-white scale-110";
+  return "hover:scale-105 opacity-70 hover:opacity-100";
+}
+
 // ============================================================================
 // CreateTopicDialog Component
 // ============================================================================
@@ -181,14 +193,7 @@ export function CreateTopicDialog({
                 Topic name
               </label>
               <span
-                className={cn(
-                  "text-xs",
-                  charsRemaining < 0
-                    ? "text-red-400"
-                    : charsRemaining <= 5
-                      ? "text-amber-400"
-                      : "text-white/40",
-                )}
+                className={cn("text-xs", getCharCountClassName(charsRemaining))}
               >
                 {name.length}/{MAX_TOPIC_NAME_LENGTH}
               </span>
@@ -246,11 +251,7 @@ export function CreateTopicDialog({
                     className={cn(
                       "relative w-8 h-8 rounded-full transition-all",
                       "ring-offset-2 ring-offset-slate-900",
-                      isUsed
-                        ? "opacity-25 cursor-not-allowed"
-                        : color === c
-                          ? "ring-2 ring-white scale-110"
-                          : "hover:scale-105 opacity-70 hover:opacity-100",
+                      getColorButtonClassName(isUsed, color === c),
                     )}
                     style={{ backgroundColor: c }}
                   >

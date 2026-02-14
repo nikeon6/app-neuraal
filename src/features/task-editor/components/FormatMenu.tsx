@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { motion } from "framer-motion";
 import {
   Bold,
@@ -64,7 +70,9 @@ export function FormatMenu({ editor, onClose, triggerRef }: FormatMenuProps) {
   useEffect(() => {
     const onTransaction = () => setTick((n) => n + 1);
     editor.on("transaction", onTransaction);
-    return () => { editor.off("transaction", onTransaction); };
+    return () => {
+      editor.off("transaction", onTransaction);
+    };
   }, [editor]);
 
   // ---- Heading commands ----
@@ -123,47 +131,27 @@ export function FormatMenu({ editor, onClose, triggerRef }: FormatMenuProps) {
     >
       {/* Heading row */}
       <div className="flex items-center gap-0.5 px-1 pb-1.5 mb-1.5 border-b border-white/10">
-        <FormatButton
-          active={isNormal}
-          onClick={setNormal}
-          label="Normal text"
-        >
+        <FormatButton active={isNormal} onClick={setNormal} label="Normal text">
           <Type className="w-4 h-4" />
           <span className="text-xs ml-1">Normal</span>
         </FormatButton>
 
-        <FormatButton
-          active={isH1}
-          onClick={setH1}
-          label="Heading 1"
-        >
+        <FormatButton active={isH1} onClick={setH1} label="Heading 1">
           <Heading1 className="w-4 h-4" />
         </FormatButton>
 
-        <FormatButton
-          active={isH2}
-          onClick={setH2}
-          label="Heading 2"
-        >
+        <FormatButton active={isH2} onClick={setH2} label="Heading 2">
           <Heading2 className="w-4 h-4" />
         </FormatButton>
       </div>
 
       {/* Marks row */}
       <div className="flex items-center gap-0.5 px-1">
-        <FormatButton
-          active={isBold}
-          onClick={toggleBold}
-          label="Bold"
-        >
+        <FormatButton active={isBold} onClick={toggleBold} label="Bold">
           <Bold className="w-4 h-4" />
         </FormatButton>
 
-        <FormatButton
-          active={isItalic}
-          onClick={toggleItalic}
-          label="Italic"
-        >
+        <FormatButton active={isItalic} onClick={toggleItalic} label="Italic">
           <Italic className="w-4 h-4" />
         </FormatButton>
 
@@ -214,7 +202,7 @@ function FormatButton({ active, onClick, label, children }: FormatButtonProps) {
         "flex items-center gap-0.5 px-2.5 py-1.5 rounded-lg text-sm transition-all",
         active
           ? "bg-white/15 text-white"
-          : "text-white/50 hover:text-white hover:bg-white/10"
+          : "text-white/50 hover:text-white hover:bg-white/10",
       )}
     >
       {children}

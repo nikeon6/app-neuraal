@@ -30,10 +30,13 @@ describe("DeleteAttachment", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      config
+      config,
     );
     completeUpload = new CompleteAttachmentUpload(attachmentRepository);
-    deleteAttachment = new DeleteAttachment(attachmentRepository, objectStorage);
+    deleteAttachment = new DeleteAttachment(
+      attachmentRepository,
+      objectStorage,
+    );
     createEntry = new CreateEntry(entryRepository);
   });
 
@@ -65,7 +68,8 @@ describe("DeleteAttachment", () => {
       userId,
       attachmentId: initResult.value.attachment.id,
     });
-    if (completeResult.isErr()) throw new Error("Failed to complete attachment");
+    if (completeResult.isErr())
+      throw new Error("Failed to complete attachment");
 
     return completeResult.value;
   }
@@ -127,7 +131,9 @@ describe("DeleteAttachment", () => {
       });
 
       expect(result.isOk()).toBe(true);
-      expect(objectStorage.wasDeleted(initResult.value.attachment.storageKey)).toBe(true);
+      expect(
+        objectStorage.wasDeleted(initResult.value.attachment.storageKey),
+      ).toBe(true);
     });
   });
 

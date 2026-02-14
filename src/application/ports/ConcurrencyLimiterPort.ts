@@ -10,7 +10,11 @@ export interface ConcurrencyLimiterPort {
    * @param ttlSeconds - Auto-release TTL (safety net)
    * @returns Whether the slot was acquired and current count
    */
-  acquire(key: string, max: number, ttlSeconds: number): Promise<{ acquired: boolean; current: number }>;
+  acquire(
+    key: string,
+    max: number,
+    ttlSeconds: number,
+  ): Promise<{ acquired: boolean; current: number }>;
 
   /**
    * Release a concurrency slot (best-effort).

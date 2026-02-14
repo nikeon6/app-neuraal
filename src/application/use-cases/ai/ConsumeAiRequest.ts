@@ -16,11 +16,11 @@ export interface ConsumeAiRequestInput {
 export class ConsumeAiRequest {
   constructor(
     private readonly aiUsageRepository: AiUsageRepository,
-    private readonly clock: ClockPort
+    private readonly clock: ClockPort,
   ) {}
 
   async execute(
-    input: ConsumeAiRequestInput
+    input: ConsumeAiRequestInput,
   ): Promise<Result<void, UseCaseError>> {
     const { userId, action } = input;
 
@@ -34,7 +34,7 @@ export class ConsumeAiRequest {
       userId,
       actionResult.value.toString(),
       monthKey,
-      1
+      1,
     );
     return ok(undefined);
   }

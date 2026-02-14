@@ -10,7 +10,10 @@ import { notFoundError } from "../../core/UseCaseError";
 export class DeleteSticky {
   constructor(private readonly repo: StickyRepository) {}
 
-  async execute(stickyId: string, userId: string): Promise<Result<void, UseCaseError>> {
+  async execute(
+    stickyId: string,
+    userId: string,
+  ): Promise<Result<void, UseCaseError>> {
     const sticky = await this.repo.findById(stickyId);
     if (!sticky) {
       return err(notFoundError("Sticky not found"));

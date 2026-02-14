@@ -20,7 +20,7 @@ export interface ApiContext {
 type ApiHandler = (
   request: NextRequest,
   ctx: ApiContext,
-  params?: Record<string, string>
+  params?: Record<string, string>,
 ) => Promise<NextResponse>;
 
 /**
@@ -41,7 +41,7 @@ type ApiHandler = (
 export function withApiContext(handler: ApiHandler) {
   return async (
     request: NextRequest,
-    routeParams?: { params: Promise<Record<string, string>> }
+    routeParams?: { params: Promise<Record<string, string>> },
   ): Promise<NextResponse> => {
     const requestId = getRequestId(request);
     const { method } = request;
@@ -56,7 +56,11 @@ export function withApiContext(handler: ApiHandler) {
 
     try {
       const resolvedParams = routeParams ? await routeParams.params : undefined;
-      const response = await handler(request, { requestId, log }, resolvedParams);
+      const response = await handler(
+        request,
+        { requestId, log },
+        resolvedParams,
+      );
 
       const durationMs = Math.round(performance.now() - start);
       const status = response.status;
@@ -70,10 +74,7 @@ export function withApiContext(handler: ApiHandler) {
     } catch (error) {
       const durationMs = Math.round(performance.now() - start);
 
-      log.error(
-        { err: error, durationMs },
-        "request.unhandled_error"
-      );
+      log.error({ err: error, durationMs }, "request.unhandled_error");
 
       // Report to Sentry with context
       Sentry.captureException(error, {
@@ -89,7 +90,7 @@ export function withApiContext(handler: ApiHandler) {
             requestId,
           },
         },
-        { status: 500 }
+        { status: 500 },
       );
       errorResponse.headers.set("x-request-id", requestId);
       return errorResponse;

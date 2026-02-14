@@ -52,11 +52,11 @@ export class RequestTranscription {
     private readonly generateRequestId: () => string = () =>
       crypto.randomUUID(),
     private readonly generateNotificationId: () => string = () =>
-      crypto.randomUUID()
+      crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: RequestTranscriptionInput
+    input: RequestTranscriptionInput,
   ): Promise<Result<RequestTranscriptionOutput, UseCaseError>> {
     const { userId, entryId, youtubeUrl } = input;
 
@@ -75,13 +75,13 @@ export class RequestTranscription {
     const activeRequest =
       await this.transcriptionRequestRepository.findActiveByEntryAndUrl(
         entryId,
-        youtubeUrl.trim()
+        youtubeUrl.trim(),
       );
     if (activeRequest) {
       return err(
         conflictError(
-          "A transcription request is already in progress for this video"
-        )
+          "A transcription request is already in progress for this video",
+        ),
       );
     }
 
@@ -94,7 +94,7 @@ export class RequestTranscription {
       requestId,
       userId,
       entryId,
-      youtubeUrl.trim()
+      youtubeUrl.trim(),
     );
     await this.transcriptionRequestRepository.save(transcriptionRequest);
 
@@ -115,8 +115,8 @@ export class RequestTranscription {
         error instanceof Error ? error.message : "Unknown queue error";
       return err(
         validationError(
-          `Failed to enqueue transcription job (${reason}) — please try again later`
-        )
+          `Failed to enqueue transcription job (${reason}) — please try again later`,
+        ),
       );
     }
 

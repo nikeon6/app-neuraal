@@ -20,7 +20,7 @@ describe("TranscriptionRequest", () => {
       expect(result.value.userId).toBe("user-456");
       expect(result.value.entryId).toBe("entry-789");
       expect(result.value.youtubeUrl).toBe(
-        "https://www.youtube.com/watch?v=abc123"
+        "https://www.youtube.com/watch?v=abc123",
       );
       expect(result.value.status.isPending()).toBe(true);
     });
@@ -46,9 +46,7 @@ describe("TranscriptionRequest", () => {
       expect(result.value.id).toBe("req-123");
       expect(result.value.userId).toBe("user-456");
       expect(result.value.entryId).toBe("entry-789");
-      expect(result.value.youtubeUrl).toBe(
-        "https://youtube.com/watch?v=abc"
-      );
+      expect(result.value.youtubeUrl).toBe("https://youtube.com/watch?v=abc");
     });
 
     it("should reject empty id", () => {
@@ -101,7 +99,7 @@ describe("TranscriptionRequest", () => {
         "req-123",
         "user-456",
         "entry-789",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       expect(request.id).toBe("req-123");
       expect(request.userId).toBe("user-456");
@@ -109,7 +107,7 @@ describe("TranscriptionRequest", () => {
       expect(request.youtubeUrl).toBe("https://youtube.com/watch?v=abc");
       expect(request.status.isPending()).toBe(true);
       expect(request.createdAt.getTime()).toBeGreaterThanOrEqual(
-        now.getTime() - 1000
+        now.getTime() - 1000,
       );
     });
   });
@@ -120,7 +118,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       const submitted = request.markSubmitted();
 
@@ -128,7 +126,7 @@ describe("TranscriptionRequest", () => {
       expect(submitted.id).toBe(request.id);
       expect(submitted.youtubeUrl).toBe(request.youtubeUrl);
       expect(submitted.updatedAt.getTime()).toBeGreaterThanOrEqual(
-        request.updatedAt.getTime()
+        request.updatedAt.getTime(),
       );
     });
 
@@ -137,7 +135,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       const done = request.markDone();
       expect(done.status.isDone()).toBe(true);
@@ -148,7 +146,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       const failed = request.markFailed();
       expect(failed.status.isFailed()).toBe(true);
@@ -163,7 +161,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        url
+        url,
       );
       expect(request.isTerminal()).toBe(false);
     });
@@ -173,7 +171,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        url
+        url,
       );
       expect(request.markDone().isTerminal()).toBe(true);
     });
@@ -183,7 +181,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        url
+        url,
       );
       expect(request.markFailed().isTerminal()).toBe(true);
     });
@@ -195,7 +193,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       expect(request.belongsTo("user-1")).toBe(true);
       expect(request.belongsTo("user-2")).toBe(false);
@@ -208,7 +206,7 @@ describe("TranscriptionRequest", () => {
         "req-1",
         "user-1",
         "entry-1",
-        "https://youtube.com/watch?v=abc"
+        "https://youtube.com/watch?v=abc",
       );
       const json = request.toJSON();
 

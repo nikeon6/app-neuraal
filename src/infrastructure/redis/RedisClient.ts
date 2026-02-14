@@ -9,7 +9,9 @@ let sharedConnection: IORedis | null = null;
 export function getRedisConnection(): IORedis {
   if (!sharedConnection) {
     const url =
-      process.env.REDIS_URL ?? process.env.CACHE_REDIS_URI ?? "redis://localhost:6379";
+      process.env.REDIS_URL ??
+      process.env.CACHE_REDIS_URI ??
+      "redis://localhost:6379";
     sharedConnection = new IORedis(url, { maxRetriesPerRequest: null });
   }
   return sharedConnection;

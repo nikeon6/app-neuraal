@@ -3,7 +3,7 @@ import { Result, ok, err } from "../core/Result";
 /**
  * HexColor value object.
  * Represents a valid hex color in #RRGGBB format.
- * 
+ *
  * Invariants:
  * - Must start with #
  * - Must have exactly 6 hex characters after #
@@ -27,9 +27,7 @@ export class HexColor {
     const hexPattern = /^#[0-9a-fA-F]{6}$/;
 
     if (!hexPattern.test(trimmed)) {
-      return err(
-        "Invalid hex color format. Must be #RRGGBB (e.g., #3b82f6)"
-      );
+      return err("Invalid hex color format. Must be #RRGGBB (e.g., #3b82f6)");
     }
 
     // Normalize to lowercase

@@ -46,7 +46,7 @@ export class OllamaVisionProvider implements OcrPort {
   async extractText(
     imageBase64: string,
     _mimeType: string,
-    prompt?: string
+    prompt?: string,
   ): Promise<string> {
     const url = `${this.baseUrl}/api/generate`;
     const effectivePrompt = prompt ?? PROMPT_SCAN_TEXT;
@@ -70,7 +70,7 @@ export class OllamaVisionProvider implements OcrPort {
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         throw new Error(
-          `Ollama Vision request failed: ${response.status} ${response.statusText} - ${body}`
+          `Ollama Vision request failed: ${response.status} ${response.statusText} - ${body}`,
         );
       }
 
@@ -91,7 +91,7 @@ export class OllamaVisionProvider implements OcrPort {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new Error(
-          `Ollama Vision request timed out after ${this.timeoutMs}ms`
+          `Ollama Vision request timed out after ${this.timeoutMs}ms`,
         );
       }
       throw error;

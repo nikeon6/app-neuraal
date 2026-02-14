@@ -31,7 +31,7 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
     data: Omit<
       RefreshTokenData,
       "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById"
-    >
+    >,
   ): Promise<RefreshTokenData> {
     const record = await prisma.refreshToken.create({
       data: {
@@ -70,7 +70,7 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
       RefreshTokenData,
       "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById"
     >,
-    now: Date
+    now: Date,
   ): Promise<RefreshTokenData> {
     // Atomic rotation: revoke old token (only if not already revoked) and create
     // new token in a single transaction. The conditional updateMany ensures that

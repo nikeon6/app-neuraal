@@ -8,7 +8,7 @@ export interface AiUsage {
 
 export function createAiUsage(
   requestsUsed: number,
-  tokensUsed: number
+  tokensUsed: number,
 ): AiUsage {
   return {
     requestsUsed: Math.max(0, Math.floor(requestsUsed)),

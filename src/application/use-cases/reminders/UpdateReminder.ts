@@ -4,7 +4,12 @@ import { ISODateTime } from "../../../domain/value-objects/ISODateTime";
 import { ReminderRepository } from "../../ports/ReminderRepository";
 import { QueuePort } from "../../ports/QueuePort";
 import { UpdateReminderDTO, ReminderDTO } from "../../dto/ReminderDTO";
-import { UseCaseError, validationError, notFoundError, conflictError } from "../../core/UseCaseError";
+import {
+  UseCaseError,
+  validationError,
+  notFoundError,
+  conflictError,
+} from "../../core/UseCaseError";
 
 /**
  * Input for UpdateReminder use case.
@@ -24,14 +29,16 @@ export interface UpdateReminderInput extends UpdateReminderDTO {
 export class UpdateReminder {
   constructor(
     private readonly reminderRepository: ReminderRepository,
-    private readonly queuePort: QueuePort
+    private readonly queuePort: QueuePort,
   ) {}
 
-  async execute(input: UpdateReminderInput): Promise<Result<ReminderDTO, UseCaseError>> {
+  async execute(
+    input: UpdateReminderInput,
+  ): Promise<Result<ReminderDTO, UseCaseError>> {
     // Find reminder with ownership check
     const reminder = await this.reminderRepository.findByIdForUser(
       input.reminderId,
-      input.userId
+      input.userId,
     );
 
     if (!reminder) {
@@ -40,7 +47,11 @@ export class UpdateReminder {
 
     // Check if can modify (must be pending)
     if (!reminder.canModify()) {
-      return err(conflictError(`Cannot modify reminder with status: ${reminder.status.toString()}`));
+      return err(
+        conflictError(
+          `Cannot modify reminder with status: ${reminder.status.toString()}`,
+        ),
+      );
     }
 
     // Validate scheduledAt if provided

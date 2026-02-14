@@ -19,7 +19,7 @@ import { PATCH, DELETE } from "./route";
 function createRequest(
   method: string,
   body?: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   const url = "http://localhost:3000/api/entries/entry-123";
   const init: RequestInit = {
@@ -60,7 +60,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, title: "Updated" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -85,7 +85,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, title: "Hacked" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -110,7 +110,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, title: "Updated" }, // Stale version
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -150,7 +150,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, title: "Updated" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -191,7 +191,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, content: { updated: true } },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -231,7 +231,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, completed: true },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -272,7 +272,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, completed: true },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -300,7 +300,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { title: "Updated" }, // No version
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -311,7 +311,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1 }, // Only version, no fields
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 
@@ -349,7 +349,7 @@ describe("PATCH /api/entries/:id", () => {
     const request = createRequest(
       "PATCH",
       { version: 1, topicId: null },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await PATCH(request, createContext("entry-123"));
 

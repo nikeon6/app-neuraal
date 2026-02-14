@@ -1,6 +1,6 @@
 /**
  * Infrastructure layer
- * 
+ *
  * This folder contains external service integrations and infrastructure code.
  * Examples: Sentry, API clients, analytics, feature flags, etc.
  */

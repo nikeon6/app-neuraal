@@ -30,12 +30,12 @@ describe("GetAttachmentDownloadUrl", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      config
+      config,
     );
     completeUpload = new CompleteAttachmentUpload(attachmentRepository);
     getDownloadUrl = new GetAttachmentDownloadUrl(
       attachmentRepository,
-      objectStorage
+      objectStorage,
     );
     createEntry = new CreateEntry(entryRepository);
   });
@@ -68,7 +68,8 @@ describe("GetAttachmentDownloadUrl", () => {
       userId,
       attachmentId: initResult.value.attachment.id,
     });
-    if (completeResult.isErr()) throw new Error("Failed to complete attachment");
+    if (completeResult.isErr())
+      throw new Error("Failed to complete attachment");
 
     return completeResult.value;
   }

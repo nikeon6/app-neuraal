@@ -14,7 +14,7 @@ interface RouteContext {
  */
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -28,8 +28,13 @@ export async function GET(
   // Validate attachmentId
   if (!attachmentId || attachmentId.trim().length === 0) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "attachmentId is required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "attachmentId is required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -38,7 +43,7 @@ export async function GET(
   const objectStorage = new S3ObjectStorage();
   const getDownloadUrl = new GetAttachmentDownloadUrl(
     attachmentRepository,
-    objectStorage
+    objectStorage,
   );
 
   const result = await getDownloadUrl.execute({ userId, attachmentId });
@@ -46,7 +51,10 @@ export async function GET(
   if (result.isErr()) {
     const { code, message } = result.error;
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json(result.value, { status: 200 });

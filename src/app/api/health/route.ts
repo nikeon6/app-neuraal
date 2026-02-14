@@ -17,14 +17,17 @@ interface CheckResult {
 async function runCheck(
   name: string,
   fn: () => Promise<void>,
-  timeoutMs = 3000
+  timeoutMs = 3000,
 ): Promise<CheckResult> {
   const start = performance.now();
   try {
     await Promise.race([
       fn(),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`${name} timeout (${timeoutMs}ms)`)), timeoutMs)
+        setTimeout(
+          () => reject(new Error(`${name} timeout (${timeoutMs}ms)`)),
+          timeoutMs,
+        ),
       ),
     ]);
     return { ok: true, latencyMs: Math.round(performance.now() - start) };
@@ -69,7 +72,8 @@ export async function GET(): Promise<NextResponse> {
   });
 
   // --- Ollama (optional) ---------------------------------------------------
-  const ollamaUrl = process.env.OLLAMA_BASE_URL ?? process.env.NEXT_PUBLIC_OLLAMA_URL;
+  const ollamaUrl =
+    process.env.OLLAMA_BASE_URL ?? process.env.NEXT_PUBLIC_OLLAMA_URL;
   if (ollamaUrl) {
     checks.ollama = await runCheck("ollama", async () => {
       const res = await fetch(`${ollamaUrl}/api/version`, {
@@ -126,6 +130,6 @@ export async function GET(): Promise<NextResponse> {
       checks,
       timestamp: new Date().toISOString(),
     },
-    { status: status === "ok" || status === "degraded" ? 200 : 503 }
+    { status: status === "ok" || status === "degraded" ? 200 : 503 },
   );
 }

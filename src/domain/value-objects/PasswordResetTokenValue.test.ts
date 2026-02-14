@@ -14,8 +14,7 @@ describe("PasswordResetTokenValue", () => {
     });
 
     it("should create from a longer token", () => {
-      const token =
-        "dGhpcyBpcyBhIGJhc2U2NHVybCBlbmNvZGVkIHJlc2V0IHRva2Vu";
+      const token = "dGhpcyBpcyBhIGJhc2U2NHVybCBlbmNvZGVkIHJlc2V0IHRva2Vu";
       const result = PasswordResetTokenValue.create(token);
 
       expect(result.isOk()).toBe(true);

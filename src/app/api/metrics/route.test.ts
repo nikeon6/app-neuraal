@@ -14,6 +14,9 @@ vi.mock("@/infrastructure/metrics/metrics", () => ({
 
 import { GET } from "./route";
 
+const URL_METRICS = "http://localhost:3000/api/metrics";
+const METRICS_TOKEN_VALUE = "secret";
+
 describe("GET /api/metrics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -21,17 +24,17 @@ describe("GET /api/metrics", () => {
   });
 
   it("returns 401 when token is configured but missing", async () => {
-    process.env.METRICS_TOKEN = "secret";
-    const req = new NextRequest("http://localhost:3000/api/metrics");
+    process.env.METRICS_TOKEN = METRICS_TOKEN_VALUE;
+    const req = new NextRequest(URL_METRICS);
     const res = await GET(req);
     expect(res.status).toBe(401);
   });
 
   it("returns 200 with metrics text", async () => {
-    process.env.METRICS_TOKEN = "secret";
+    process.env.METRICS_TOKEN = METRICS_TOKEN_VALUE;
     mocks.metrics.mockResolvedValue("my_metric 1\n");
-    const req = new NextRequest("http://localhost:3000/api/metrics", {
-      headers: { authorization: "Bearer secret" },
+    const req = new NextRequest(URL_METRICS, {
+      headers: { authorization: `Bearer ${METRICS_TOKEN_VALUE}` },
     });
     const res = await GET(req);
     expect(res.status).toBe(200);
@@ -40,7 +43,7 @@ describe("GET /api/metrics", () => {
 
   it("returns 500 when metrics collection fails", async () => {
     mocks.metrics.mockRejectedValue(new Error("boom"));
-    const req = new NextRequest("http://localhost:3000/api/metrics");
+    const req = new NextRequest(URL_METRICS);
     const res = await GET(req);
     expect(res.status).toBe(500);
   });

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           message: "Missing X-Timestamp or X-Signature headers",
         },
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           message: "Invalid JSON body",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             "Missing required fields: requestId, userId, entryId, youtubeUrl, transcription",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           message: "Server configuration error",
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     entryRepository,
     transcriptionRequestRepository,
     notificationRepository,
-    webhookSecret
+    webhookSecret,
   );
 
   const result = await handleCallback.execute({
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(
       { error: { code, message } },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 
@@ -132,6 +132,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       success: true,
       alreadyProcessed: result.value.alreadyProcessed ?? false,
     },
-    { status: 200 }
+    { status: 200 },
   );
 }

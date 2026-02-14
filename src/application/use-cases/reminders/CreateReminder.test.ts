@@ -23,7 +23,7 @@ describe("CreateReminder", () => {
       reminderRepository,
       entryRepository,
       queuePort,
-      () => "rem-test-id"
+      () => "rem-test-id",
     );
 
     // Create a test entry

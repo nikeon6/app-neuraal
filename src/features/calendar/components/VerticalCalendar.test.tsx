@@ -22,6 +22,9 @@ globalThis.IntersectionObserver =
 // ============================================================================
 // Mock Data (ApiEntry shape)
 // ============================================================================
+const MOCK_USER_ID = "user-123";
+const MOCK_DATE = "2024-01-15";
+
 function createMockEntry(
   id: string,
   title: string,
@@ -29,8 +32,8 @@ function createMockEntry(
 ): ApiEntry {
   return {
     id,
-    userId: "user-123",
-    date: "2024-01-15",
+    userId: MOCK_USER_ID,
+    date: MOCK_DATE,
     type: "task",
     title,
     content: null,
@@ -46,7 +49,7 @@ function createMockEntry(
 }
 
 const mockEntriesByDate: Record<string, ApiEntry[]> = {
-  "2024-01-15": [
+  [MOCK_DATE]: [
     createMockEntry("entry-1", "Complete project report", {
       topicId: "topic-work",
     }),
@@ -63,11 +66,11 @@ const mockEntriesByDate: Record<string, ApiEntry[]> = {
 };
 
 const mockTopics = [
-  { id: "topic-work", userId: "user-123", name: "Trabajo", color: "#3b82f6" },
-  { id: "topic-health", userId: "user-123", name: "Salud", color: "#22c55e" },
+  { id: "topic-work", userId: MOCK_USER_ID, name: "Trabajo", color: "#3b82f6" },
+  { id: "topic-health", userId: MOCK_USER_ID, name: "Salud", color: "#22c55e" },
   {
     id: "topic-learning",
-    userId: "user-123",
+    userId: MOCK_USER_ID,
     name: "Learning",
     color: "#f59e0b",
   },
@@ -98,7 +101,7 @@ vi.mock("@/shared/api/mutations", () => ({
 vi.mock("@/shared/store", () => ({
   useStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) => {
     const state = {
-      selectedDate: new Date("2024-01-15"),
+      selectedDate: new Date(MOCK_DATE),
       selectedDay: 15,
       setSelectedDay: mockSetSelectedDay,
       setSelectedDate: mockSetSelectedDate,
@@ -146,7 +149,7 @@ describe("VerticalCalendar", () => {
 
     vi.mocked(storeModule.useStore).mockImplementation((selector) => {
       const state = {
-        selectedDate: new Date("2024-01-15"),
+        selectedDate: new Date(MOCK_DATE),
         selectedDay: 15,
         setSelectedDay: mockSetSelectedDay,
         setSelectedDate: mockSetSelectedDate,

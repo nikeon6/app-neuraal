@@ -29,13 +29,15 @@ vi.mock("framer-motion", () => ({
   ),
 }));
 
+const DEFAULT_EDITOR_TEXT = "Hello world";
+
 describe("TiptapEditor", () => {
   const defaultContent = {
     type: "doc",
     content: [
       {
         type: "paragraph",
-        content: [{ type: "text", text: "Hello world" }],
+        content: [{ type: "text", text: DEFAULT_EDITOR_TEXT }],
       },
     ],
   };
@@ -74,7 +76,7 @@ describe("TiptapEditor", () => {
       render(<TiptapEditor content={defaultContent} onUpdate={onUpdateMock} />);
 
       await waitFor(() => {
-        expect(screen.getByText("Hello world")).toBeInTheDocument();
+        expect(screen.getByText(DEFAULT_EDITOR_TEXT)).toBeInTheDocument();
       });
     });
 
@@ -123,7 +125,7 @@ describe("TiptapEditor", () => {
 
       // When not editable, the ProseMirror element should have contenteditable=false
       const proseMirror = screen
-        .getByText("Hello world")
+        .getByText(DEFAULT_EDITOR_TEXT)
         .closest("[contenteditable]");
       expect(proseMirror).not.toBeNull();
       expect(proseMirror).toHaveAttribute("contenteditable", "false");

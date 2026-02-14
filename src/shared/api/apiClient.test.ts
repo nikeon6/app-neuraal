@@ -9,7 +9,7 @@ import { apiFetch, get, post, patch, del, ApiError } from "./apiClient";
 function jsonResponse(
   body: unknown,
   status = 200,
-  contentType = "application/json"
+  contentType = "application/json",
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -130,11 +130,11 @@ describe("apiFetch", () => {
 
   it("should parse JSON response", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse({ topics: [{ id: "1", name: "Work" }] })
+      jsonResponse({ topics: [{ id: "1", name: "Work" }] }),
     );
 
     const data = await apiFetch<{ topics: { id: string; name: string }[] }>(
-      "/api/topics"
+      "/api/topics",
     );
 
     expect(data.topics).toHaveLength(1);
@@ -151,7 +151,7 @@ describe("apiFetch", () => {
 
   it("should return null for 204 No Content", async () => {
     fetchSpy.mockResolvedValueOnce(
-      new Response(null, { status: 204, headers: {} })
+      new Response(null, { status: 204, headers: {} }),
     );
 
     const data = await apiFetch("/api/topics/1", { method: "DELETE" });
@@ -167,8 +167,8 @@ describe("apiFetch", () => {
     fetchSpy.mockResolvedValueOnce(
       jsonResponse(
         { error: { code: "NOT_FOUND", message: "Topic not found" } },
-        404
-      )
+        404,
+      ),
     );
 
     try {
@@ -184,9 +184,7 @@ describe("apiFetch", () => {
   });
 
   it("should throw ApiError with raw body when error is not structured JSON", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      textResponse("Internal Server Error", 500)
-    );
+    fetchSpy.mockResolvedValueOnce(textResponse("Internal Server Error", 500));
 
     try {
       await apiFetch("/api/boom");
@@ -202,7 +200,7 @@ describe("apiFetch", () => {
 
   it("should throw ApiError with code/message from non-structured JSON error", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse({ message: "Rate limit exceeded" }, 429)
+      jsonResponse({ message: "Rate limit exceeded" }, 429),
     );
 
     try {
@@ -228,9 +226,11 @@ describe("apiFetch", () => {
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
           });
-        })
+        }),
     );
 
     const promise = apiFetch("/api/slow");
@@ -250,9 +250,11 @@ describe("apiFetch", () => {
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
           });
-        })
+        }),
     );
 
     const promise = apiFetch("/api/slow", { timeoutMs: 5_000 });
@@ -271,9 +273,11 @@ describe("apiFetch", () => {
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
           });
-        })
+        }),
     );
 
     const promise = apiFetch("/api/slow", { signal: controller.signal });

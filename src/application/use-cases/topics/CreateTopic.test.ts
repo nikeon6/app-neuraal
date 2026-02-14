@@ -261,9 +261,18 @@ describe("CreateTopic", () => {
   it(`should reject creation when user already has ${MAX_TOPICS_PER_USER} topics`, async () => {
     // Create MAX topics
     const colors = [
-      "#3b82f6", "#22c55e", "#f59e0b", "#ef4444",
-      "#8b5cf6", "#ec4899", "#14b8a6", "#f97316",
-      "#6366f1", "#84cc16", "#06b6d4", "#d946ef",
+      "#3b82f6",
+      "#22c55e",
+      "#f59e0b",
+      "#ef4444",
+      "#8b5cf6",
+      "#ec4899",
+      "#14b8a6",
+      "#f97316",
+      "#6366f1",
+      "#84cc16",
+      "#06b6d4",
+      "#d946ef",
     ];
 
     for (let i = 0; i < MAX_TOPICS_PER_USER; i++) {
@@ -291,9 +300,18 @@ describe("CreateTopic", () => {
 
   it("should allow topic creation for a different user even if first user is at limit", async () => {
     const colors = [
-      "#3b82f6", "#22c55e", "#f59e0b", "#ef4444",
-      "#8b5cf6", "#ec4899", "#14b8a6", "#f97316",
-      "#6366f1", "#84cc16", "#06b6d4", "#d946ef",
+      "#3b82f6",
+      "#22c55e",
+      "#f59e0b",
+      "#ef4444",
+      "#8b5cf6",
+      "#ec4899",
+      "#14b8a6",
+      "#f97316",
+      "#6366f1",
+      "#84cc16",
+      "#06b6d4",
+      "#d946ef",
     ];
 
     for (let i = 0; i < MAX_TOPICS_PER_USER; i++) {

@@ -23,7 +23,7 @@ export class ReorderEntries {
   constructor(private readonly entryRepository: EntryRepository) {}
 
   async execute(
-    input: ReorderEntriesInput
+    input: ReorderEntriesInput,
   ): Promise<Result<void, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
@@ -58,8 +58,8 @@ export class ReorderEntries {
       if (!existingIds.has(id)) {
         return err(
           validationError(
-            `Entry ${id} does not belong to user ${userId} on date ${date}`
-          )
+            `Entry ${id} does not belong to user ${userId} on date ${date}`,
+          ),
         );
       }
     }

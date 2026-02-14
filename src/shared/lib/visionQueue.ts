@@ -43,14 +43,16 @@ class VisionQueueImpl {
       () => task(),
       // If the previous task threw (shouldn't happen since we catch below),
       // still run this task.
-      () => task()
+      () => task(),
     );
 
     // Update chain — catch to prevent unhandled rejections from breaking the chain
-    this.chain = result.catch(() => {}).finally(() => {
-      this._pending--;
-      this.notifyListeners();
-    });
+    this.chain = result
+      .catch(() => {})
+      .finally(() => {
+        this._pending--;
+        this.notifyListeners();
+      });
 
     return result;
   }

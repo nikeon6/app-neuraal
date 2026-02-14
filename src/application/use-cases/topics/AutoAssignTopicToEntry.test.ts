@@ -27,7 +27,7 @@ describe("AutoAssignTopicToEntry", () => {
       topicRepo,
       entryRepo,
       embeddingProvider,
-      { embeddingDim: DIM, defaultThreshold: 0.35 }
+      { embeddingDim: DIM, defaultThreshold: 0.35 },
     );
 
     // Seed a topic with a predefined embedding
@@ -74,7 +74,7 @@ describe("AutoAssignTopicToEntry", () => {
     // Make the embedding provider return a vector very similar to topic [1, 0, 0]
     embeddingProvider.setResponse(
       "Finish project report\nComplete the quarterly report for work",
-      [0.95, 0.05, 0.05]
+      [0.95, 0.05, 0.05],
     );
 
     const result = await useCase.execute({ userId, entryId });
@@ -93,7 +93,7 @@ describe("AutoAssignTopicToEntry", () => {
     // Make the embedding provider return an orthogonal vector
     embeddingProvider.setResponse(
       "Finish project report\nComplete the quarterly report for work",
-      [0, 1, 0]
+      [0, 1, 0],
     );
 
     const result = await useCase.execute({ userId, entryId });
@@ -171,7 +171,7 @@ describe("AutoAssignTopicToEntry", () => {
     // cosine similarity = 0.95 / sqrt(0.95^2 + 0.3^2 + 0.05^2) ≈ 0.95 → score ≈ 0.95
     embeddingProvider.setResponse(
       "Finish project report\nComplete the quarterly report for work",
-      [0.95, 0.3, 0.05]
+      [0.95, 0.3, 0.05],
     );
 
     // With high threshold
@@ -241,13 +241,13 @@ describe("AutoAssignTopicToEntry", () => {
       "topic-health",
       [0, 1, 0],
       "test-model",
-      new Date()
+      new Date(),
     );
 
     // Entry embedding closer to Health [0, 1, 0] than Work [1, 0, 0]
     embeddingProvider.setResponse(
       "Finish project report\nComplete the quarterly report for work",
-      [0.1, 0.95, 0.05]
+      [0.1, 0.95, 0.05],
     );
 
     const result = await useCase.execute({ userId, entryId });

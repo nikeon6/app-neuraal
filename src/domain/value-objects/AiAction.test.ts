@@ -58,7 +58,9 @@ describe("AiAction", () => {
       expect(AiAction.summary().toString()).toBe("SUMMARY");
     });
     it("transcriptYoutube() returns TRANSCRIPT_YOUTUBE", () => {
-      expect(AiAction.transcriptYoutube().toString()).toBe("TRANSCRIPT_YOUTUBE");
+      expect(AiAction.transcriptYoutube().toString()).toBe(
+        "TRANSCRIPT_YOUTUBE",
+      );
     });
     it("ocrImage() returns OCR_IMAGE", () => {
       expect(AiAction.ocrImage().toString()).toBe("OCR_IMAGE");

@@ -1,7 +1,7 @@
 /**
  * Result type for handling success/failure without exceptions.
  * Inspired by Rust's Result type.
- * 
+ *
  * @example
  * const result = HexColor.create("#3b82f6");
  * if (result.isOk()) {

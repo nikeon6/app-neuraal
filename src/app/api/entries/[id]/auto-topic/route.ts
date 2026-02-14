@@ -22,7 +22,7 @@ interface RouteContext {
  */
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -42,7 +42,7 @@ export async function POST(
           message: "entryId is required",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -59,7 +59,7 @@ export async function POST(
               message: "threshold must be between 0 and 1",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
       threshold = body.threshold;
@@ -73,8 +73,7 @@ export async function POST(
   const entryRepo = new PrismaEntryRepository();
   const embeddingProvider = new OllamaEmbeddingProvider({
     baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    model:
-      process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
+    model: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
   });
 
   const embeddingDim = process.env.EMBEDDING_DIM
@@ -89,7 +88,7 @@ export async function POST(
     topicRepo,
     entryRepo,
     embeddingProvider,
-    { embeddingDim, defaultThreshold }
+    { embeddingDim, defaultThreshold },
   );
 
   const result = await useCase.execute({ userId, entryId, threshold });
@@ -111,7 +110,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: { code, message } },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 

@@ -53,7 +53,7 @@ function shouldSkipAuth(pathname: string, request: NextRequest): boolean {
 function denyApiAccess(): NextResponse {
   return NextResponse.json(
     { error: "UNAUTHORIZED", message: "Authentication required" },
-    { status: 401 }
+    { status: 401 },
   );
 }
 
@@ -94,9 +94,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const jwtSecret = process.env.AUTH_JWT_SECRET;
   if (!jwtSecret) {
     // No secret configured — allow in development, deny in production
-    return process.env.NODE_ENV === "production"
-      ? deny()
-      : NextResponse.next();
+    return process.env.NODE_ENV === "production" ? deny() : NextResponse.next();
   }
 
   try {

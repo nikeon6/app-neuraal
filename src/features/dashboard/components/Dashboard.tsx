@@ -8,14 +8,13 @@ import React, {
   useMemo,
 } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
-import { useStore } from "@/shared/store";
+import { useStore, selectDateKey } from "@/shared/store";
 import { cn } from "@/shared/lib";
 import {
   useEntriesForDates,
   useSummaryDoneWatcher,
   useTranscriptionDoneWatcher,
 } from "@/shared/api/queries";
-import { selectDateKey } from "@/shared/store";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";

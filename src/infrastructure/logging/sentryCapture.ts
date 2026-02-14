@@ -21,7 +21,7 @@ export function initSentryForWorker(): void {
       environment: process.env.SENTRY_ENVIRONMENT ?? "development",
       release: process.env.SENTRY_RELEASE ?? undefined,
       tracesSampleRate: parseFloat(
-        process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0.1"
+        process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0.1",
       ),
     });
   } catch {
@@ -39,7 +39,7 @@ export function captureWorkerException(
     jobId?: string;
     action?: string;
     userId?: string;
-  }
+  },
 ): void {
   if (!Sentry) return;
 

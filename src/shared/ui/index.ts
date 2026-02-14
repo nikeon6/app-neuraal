@@ -1,9 +1,9 @@
 /**
  * Shared UI components
- * 
+ *
  * This folder contains reusable UI components that are used across multiple features.
  * Examples: Button, Modal, Input, Card, etc.
- * 
+ *
  * Add components here as the application grows.
  */
 

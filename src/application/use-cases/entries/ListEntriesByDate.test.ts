@@ -18,7 +18,7 @@ describe("ListEntriesByDate", () => {
     userId: string,
     date: string,
     title: string,
-    type: "task" | "note" = "task"
+    type: "task" | "note" = "task",
   ) {
     const result = await createEntry.execute({
       userId,

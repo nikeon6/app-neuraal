@@ -17,7 +17,7 @@ interface RouteContext {
  */
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   let queuePort: BullMQAdapter | null = null;
 
@@ -40,7 +40,7 @@ export async function POST(
             message: "entryId is required",
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,7 +56,7 @@ export async function POST(
             message: "Invalid JSON body",
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +68,7 @@ export async function POST(
             message: "youtubeUrl is required",
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -84,7 +84,7 @@ export async function POST(
       entryRepository,
       notificationRepository,
       transcriptionRequestRepository,
-      queuePort
+      queuePort,
     );
 
     const result = await requestTranscription.execute({
@@ -114,7 +114,7 @@ export async function POST(
 
       return NextResponse.json(
         { error: { code, message } },
-        { status: statusCode }
+        { status: statusCode },
       );
     }
 
@@ -123,10 +123,9 @@ export async function POST(
       {
         requestId: result.value.requestId,
         notificationId: result.value.notificationId,
-        message:
-          "Transcription started. Check notifications for progress.",
+        message: "Transcription started. Check notifications for progress.",
       },
-      { status: 202 }
+      { status: 202 },
     );
   } catch (error) {
     // Clean up queue connection on error
@@ -138,15 +137,19 @@ export async function POST(
       }
     }
 
-    console.error("[POST /api/entries/:id/transcription] Unhandled error:", error);
+    console.error(
+      "[POST /api/entries/:id/transcription] Unhandled error:",
+      error,
+    );
     return NextResponse.json(
       {
         error: {
           code: "INTERNAL_ERROR",
-          message: error instanceof Error ? error.message : "Internal server error",
+          message:
+            error instanceof Error ? error.message : "Internal server error",
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

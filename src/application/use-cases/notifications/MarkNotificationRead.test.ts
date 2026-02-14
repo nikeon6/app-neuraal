@@ -10,7 +10,10 @@ describe("MarkNotificationRead", () => {
   const userId = "user-123";
   const notificationId = "notif-123";
 
-  const createNotification = async (status: string = "unread", userIdOverride?: string) => {
+  const createNotification = async (
+    status: string = "unread",
+    userIdOverride?: string,
+  ) => {
     const notificationResult = Notification.create({
       id: notificationId,
       userId: userIdOverride ?? userId,

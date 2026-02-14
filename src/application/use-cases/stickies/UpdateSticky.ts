@@ -2,7 +2,11 @@ import { Result, ok, err } from "@/domain/core/Result";
 import type { StickyRepository } from "../../ports/StickyRepository";
 import type { UpdateStickyDTO, StickyDTO } from "../../dto/StickyDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, notFoundError, conflictError } from "../../core/UseCaseError";
+import {
+  validationError,
+  notFoundError,
+  conflictError,
+} from "../../core/UseCaseError";
 import { stickyToDTO } from "../../dto/stickyToDTO";
 
 /**
@@ -15,7 +19,7 @@ export class UpdateSticky {
   async execute(
     stickyId: string,
     userId: string,
-    input: UpdateStickyDTO
+    input: UpdateStickyDTO,
   ): Promise<Result<StickyDTO, UseCaseError>> {
     const sticky = await this.repo.findById(stickyId);
     if (!sticky) {

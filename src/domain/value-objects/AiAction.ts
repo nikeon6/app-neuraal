@@ -1,6 +1,11 @@
 import { Result, ok, err } from "../core/Result";
 
-const VALID_ACTIONS = ["SUMMARY", "TRANSCRIPT_YOUTUBE", "OCR_IMAGE", "REMINDER_WHATSAPP"] as const;
+const VALID_ACTIONS = [
+  "SUMMARY",
+  "TRANSCRIPT_YOUTUBE",
+  "OCR_IMAGE",
+  "REMINDER_WHATSAPP",
+] as const;
 export type AiActionType = (typeof VALID_ACTIONS)[number];
 
 /**

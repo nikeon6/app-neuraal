@@ -15,7 +15,7 @@ interface RouteContext {
  */
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -38,7 +38,7 @@ export async function GET(
     {
       entryLimitBytes: config.maxEntryAttachmentSizeBytes.toNumber(),
       userLimitBytes: config.maxUserStorageQuotaBytes.toNumber(),
-    }
+    },
   );
 
   const result = await listAttachments.execute({ userId, entryId });

@@ -19,11 +19,11 @@ export interface DeleteAttachmentInput {
 export class DeleteAttachment {
   constructor(
     private readonly attachmentRepository: AttachmentRepository,
-    private readonly objectStorage: ObjectStoragePort
+    private readonly objectStorage: ObjectStoragePort,
   ) {}
 
   async execute(
-    input: DeleteAttachmentInput
+    input: DeleteAttachmentInput,
   ): Promise<Result<void, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
@@ -42,7 +42,11 @@ export class DeleteAttachment {
     const attachment = await this.attachmentRepository.findById(attachmentId);
 
     // Check existence, ownership, and not already deleted
-    if (!attachment || attachment.userId !== userId || attachment.status.isDeleted()) {
+    if (
+      !attachment ||
+      attachment.userId !== userId ||
+      attachment.status.isDeleted()
+    ) {
       return err(notFoundError("Attachment not found"));
     }
 
@@ -52,7 +56,7 @@ export class DeleteAttachment {
     } catch (error) {
       console.error(
         `[DeleteAttachment] Failed to delete object ${attachment.storageKey.toString()} from storage (continuing):`,
-        error
+        error,
       );
     }
 

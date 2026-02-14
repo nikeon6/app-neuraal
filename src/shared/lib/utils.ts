@@ -41,7 +41,7 @@ export function quadPath(
   y1: number,
   x2: number,
   y2: number,
-  biasX: number
+  biasX: number,
 ) {
   const dx = Math.abs(x2 - x1);
   const bend = Math.max(12, Math.min(90, dx * 0.35));

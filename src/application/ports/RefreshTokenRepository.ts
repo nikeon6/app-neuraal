@@ -13,9 +13,21 @@ export interface RefreshTokenData {
 }
 
 export interface RefreshTokenRepository {
-  create(data: Omit<RefreshTokenData, "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById">): Promise<RefreshTokenData>;
+  create(
+    data: Omit<
+      RefreshTokenData,
+      "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById"
+    >,
+  ): Promise<RefreshTokenData>;
   findByTokenHash(tokenHash: string): Promise<RefreshTokenData | null>;
   revokeByTokenHash(tokenHash: string, now: Date): Promise<void>;
   revokeAllForUser(userId: string, now: Date): Promise<void>;
-  rotateToken(oldTokenHash: string, newTokenData: Omit<RefreshTokenData, "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById">, now: Date): Promise<RefreshTokenData>;
+  rotateToken(
+    oldTokenHash: string,
+    newTokenData: Omit<
+      RefreshTokenData,
+      "id" | "createdAt" | "revokedAt" | "rotatedAt" | "replacedById"
+    >,
+    now: Date,
+  ): Promise<RefreshTokenData>;
 }

@@ -18,9 +18,7 @@ async function start() {
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
   // Create queue instances (read-only, for monitoring)
-  const queues = QUEUE_NAMES.map(
-    (name) => new Queue(name, { connection })
-  );
+  const queues = QUEUE_NAMES.map((name) => new Queue(name, { connection }));
 
   // Setup Bull Board
   const serverAdapter = new ExpressAdapter();
@@ -58,10 +56,7 @@ async function start() {
   app.use("/", serverAdapter.getRouter());
 
   app.listen(PORT, () => {
-    logger.info(
-      { port: PORT, queues: QUEUE_NAMES },
-      "Bull Board started"
-    );
+    logger.info({ port: PORT, queues: QUEUE_NAMES }, "Bull Board started");
   });
 
   // Graceful shutdown

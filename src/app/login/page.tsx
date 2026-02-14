@@ -53,14 +53,16 @@ export default function LoginPage() {
     try {
       const data = await post<{ user: { id: string; email: string } }>(
         "/api/auth/login",
-        { email, password }
+        { email, password },
       );
       login(data.user);
       router.push("/");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 429) {
-          setError(err.message || "Too many attempts. Please wait a few minutes.");
+          setError(
+            err.message || "Too many attempts. Please wait a few minutes.",
+          );
         } else if (err.status === 401) {
           setError("Invalid email or password");
         } else if (err.status === 400) {
@@ -81,7 +83,10 @@ export default function LoginPage() {
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "1s" }} />
+        <div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] animate-pulse"
+          style={{ animationDelay: "1s" }}
+        />
       </div>
 
       <motion.div
@@ -94,7 +99,9 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Brain className="w-10 h-10 text-primary" />
-            <span className="text-2xl font-bold text-white tracking-wide">Neuraal</span>
+            <span className="text-2xl font-bold text-white tracking-wide">
+              Neuraal
+            </span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
           <p className="text-white/40">Sign in to access your daily log</p>
@@ -154,7 +161,9 @@ export default function LoginPage() {
             className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-primary/90 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>{loading ? "Signing in..." : "Sign In"}</span>
-            {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+            {!loading && (
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            )}
           </button>
         </form>
 

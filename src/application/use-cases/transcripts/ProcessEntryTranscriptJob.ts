@@ -26,11 +26,11 @@ export class ProcessEntryTranscriptJob {
     private readonly notificationRepository: NotificationRepository,
     private readonly automationPort: AutomationPort,
     private readonly callbackUrl: string,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: ProcessEntryTranscriptJobInput
+    input: ProcessEntryTranscriptJobInput,
   ): Promise<Result<ProcessEntryTranscriptJobResult, UseCaseError>> {
     const { requestId, userId, entryId, youtubeUrl } = input;
 
@@ -40,7 +40,10 @@ export class ProcessEntryTranscriptJob {
       return ok({ status: "skipped", reason: "Request not found" });
     }
     if (request.status !== "pending") {
-      return ok({ status: "skipped", reason: `Request status is ${request.status}` });
+      return ok({
+        status: "skipped",
+        reason: `Request status is ${request.status}`,
+      });
     }
 
     // Get entry for title
@@ -51,17 +54,21 @@ export class ProcessEntryTranscriptJob {
     }
 
     // Call n8n
-    const automationResult = await this.automationPort.requestEntryTranscription({
-      requestId,
-      userId,
-      entryId,
-      youtubeUrl,
-      callbackUrl: this.callbackUrl,
-      entryTitle: entry.title.toString(),
-    });
+    const automationResult =
+      await this.automationPort.requestEntryTranscription({
+        requestId,
+        userId,
+        entryId,
+        youtubeUrl,
+        callbackUrl: this.callbackUrl,
+        entryTitle: entry.title.toString(),
+      });
 
     if (automationResult.success) {
-      await this.transcriptRequestRepository.markSubmitted(requestId, new Date());
+      await this.transcriptRequestRepository.markSubmitted(
+        requestId,
+        new Date(),
+      );
       return ok({ status: "submitted" });
     }
 

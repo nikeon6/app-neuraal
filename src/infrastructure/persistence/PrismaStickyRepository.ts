@@ -89,15 +89,15 @@ export class PrismaStickyRepository implements StickyRepository {
 
   async reorder(
     userId: string,
-    items: { id: string; sortOrder: number; columnIndex: number }[]
+    items: { id: string; sortOrder: number; columnIndex: number }[],
   ): Promise<void> {
     await prisma.$transaction(
       items.map((item) =>
         prisma.sticky.updateMany({
           where: { id: item.id, userId },
           data: { sortOrder: item.sortOrder, columnIndex: item.columnIndex },
-        })
-      )
+        }),
+      ),
     );
   }
 }

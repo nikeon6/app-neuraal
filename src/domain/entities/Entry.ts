@@ -78,7 +78,7 @@ export class Entry {
     updatedAt: Date,
     summary: string | null,
     summaryFormat: string | null,
-    summaryUpdatedAt: Date | null
+    summaryUpdatedAt: Date | null,
   ) {
     this.id = id;
     this.userId = userId;
@@ -161,8 +161,8 @@ export class Entry {
         props.updatedAt,
         props.summary ?? null,
         props.summaryFormat ?? null,
-        props.summaryUpdatedAt ?? null
-      )
+        props.summaryUpdatedAt ?? null,
+      ),
     );
   }
 
@@ -224,7 +224,7 @@ export class Entry {
       new Date(),
       this.summary,
       this.summaryFormat,
-      this.summaryUpdatedAt
+      this.summaryUpdatedAt,
     );
   }
 
@@ -292,8 +292,8 @@ export class Entry {
         new Date(),
         this.summary,
         this.summaryFormat,
-        this.summaryUpdatedAt
-      )
+        this.summaryUpdatedAt,
+      ),
     );
   }
 }

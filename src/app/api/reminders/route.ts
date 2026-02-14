@@ -18,14 +18,15 @@ import { SystemClock } from "@/infrastructure/auth/SystemClock";
  */
 async function guardWhatsappReminder(
   userId: string,
-  messageLength: number
+  messageLength: number,
 ): Promise<NextResponse | null> {
   const config = getAiGuardrailsConfig();
   const waConfig = config.reminderWhatsapp;
   const reminderRepo = new PrismaReminderRepository();
 
   const whatsappConcurrencyChecker = {
-    countActiveByUserId: (uid: string) => reminderRepo.countPendingWhatsappByUserId(uid),
+    countActiveByUserId: (uid: string) =>
+      reminderRepo.countPendingWhatsappByUserId(uid),
   };
 
   const guardAiAction = new GuardAiAction(
@@ -42,7 +43,7 @@ async function guardWhatsappReminder(
       rateLimitPerHour: 0,
       monthlyQuotaRequests: waConfig.monthlyQuotaRequests,
       rateLimitPrefix: config.rateLimitPrefix,
-    }
+    },
   );
 
   const guardResult = await guardAiAction.execute({
@@ -55,19 +56,35 @@ async function guardWhatsappReminder(
     const { code, message: msg, details } = guardResult.error;
     let statusCode: number;
     switch (code) {
-      case "RATE_LIMITED": statusCode = 429; break;
-      case "QUOTA_EXCEEDED": statusCode = 403; break;
-      case "CONCURRENCY_LIMIT": statusCode = 409; break;
-      default: statusCode = 400;
+      case "RATE_LIMITED":
+        statusCode = 429;
+        break;
+      case "QUOTA_EXCEEDED":
+        statusCode = 403;
+        break;
+      case "CONCURRENCY_LIMIT":
+        statusCode = 409;
+        break;
+      default:
+        statusCode = 400;
     }
     return NextResponse.json(
-      { error: { code, message: msg, ...(details !== undefined && { details }) } },
-      { status: statusCode }
+      {
+        error: {
+          code,
+          message: msg,
+          ...(details !== undefined && { details }),
+        },
+      },
+      { status: statusCode },
     );
   }
 
   // Consume WhatsApp request quota
-  const consumeAiRequest = new ConsumeAiRequest(new PrismaAiUsageRepository(), new SystemClock());
+  const consumeAiRequest = new ConsumeAiRequest(
+    new PrismaAiUsageRepository(),
+    new SystemClock(),
+  );
   await consumeAiRequest.execute({ userId, action: "REMINDER_WHATSAPP" });
 
   return null;
@@ -97,7 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -105,14 +122,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!entryId || !scheduledAt || !channel) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "entryId, scheduledAt, and channel are required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "entryId, scheduledAt, and channel are required",
+        },
+      },
+      { status: 400 },
     );
   }
 
   // WhatsApp guardrails
   if (channel === "whatsapp") {
-    const guardError = await guardWhatsappReminder(userId, message?.length ?? 0);
+    const guardError = await guardWhatsappReminder(
+      userId,
+      message?.length ?? 0,
+    );
     if (guardError) return guardError;
   }
 
@@ -121,8 +146,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const entryRepository = new PrismaEntryRepository();
   const queuePort = new BullMQAdapter();
 
-  const createReminder = new CreateReminder(reminderRepository, entryRepository, queuePort);
-  const result = await createReminder.execute({ userId, entryId, scheduledAt, channel, message });
+  const createReminder = new CreateReminder(
+    reminderRepository,
+    entryRepository,
+    queuePort,
+  );
+  const result = await createReminder.execute({
+    userId,
+    entryId,
+    scheduledAt,
+    channel,
+    message,
+  });
 
   await queuePort.close();
 
@@ -131,7 +166,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let statusCode = 400;
     if (code === "NOT_FOUND") statusCode = 404;
     else if (code === "CONFLICT") statusCode = 409;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ reminder: result.value }, { status: 201 });

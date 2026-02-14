@@ -54,7 +54,7 @@ export class ApiError extends Error {
     message: string,
     status: number,
     code?: string,
-    details?: unknown
+    details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -145,7 +145,7 @@ async function buildApiError(response: Response): Promise<ApiError> {
           (err.message as string) ?? `Request failed with status ${status}`,
           status,
           err.code as string | undefined,
-          json
+          json,
         );
       }
 
@@ -165,7 +165,7 @@ async function buildApiError(response: Response): Promise<ApiError> {
     `Request failed with status ${status}`,
     status,
     undefined,
-    rawBody
+    rawBody,
   );
 }
 
@@ -203,9 +203,75 @@ async function attemptTokenRefresh(): Promise<boolean> {
  * Redirects to login page. Only runs in the browser.
  */
 function redirectToLoginPage(): void {
-  if (typeof globalThis.window !== "undefined") {
+  if (globalThis.window !== undefined) {
     globalThis.window.location.href = "/login";
   }
+}
+
+function buildRequestInit(
+  restInit: Omit<ApiFetchOptions, "body" | "headers" | "timeoutMs" | "signal">,
+  headers: Headers,
+  body: unknown,
+  hasBody: boolean,
+  signal?: AbortSignal,
+): RequestInit {
+  return {
+    method: restInit.method ?? "GET",
+    headers,
+    body: hasBody ? JSON.stringify(body) : undefined,
+    signal,
+    credentials: "include",
+    ...restInit,
+  };
+}
+
+async function parseResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return null as T;
+  }
+  if (isJsonContentType(response)) {
+    return (await response.json()) as T;
+  }
+  return (await response.text()) as T;
+}
+
+interface RetryContext {
+  response: Response;
+  path: string;
+  url: string;
+  restInit: Omit<ApiFetchOptions, "body" | "headers" | "timeoutMs" | "signal">;
+  headers: Headers;
+  body: unknown;
+  hasBody: boolean;
+  signal?: AbortSignal;
+}
+
+async function handleUnauthorizedRetry(
+  context: RetryContext,
+): Promise<Response> {
+  const { response, path, url, restInit, headers, body, hasBody, signal } =
+    context;
+  if (response.status !== 401 || path.startsWith("/api/auth/")) {
+    return response;
+  }
+
+  const refreshed = await attemptTokenRefresh();
+  if (!refreshed) {
+    redirectToLoginPage();
+    throw await buildApiError(response);
+  }
+
+  const retryResponse = await fetch(
+    url,
+    buildRequestInit(restInit, headers, body, hasBody, signal),
+  );
+
+  if (retryResponse.status === 401) {
+    redirectToLoginPage();
+    throw await buildApiError(retryResponse);
+  }
+
+  return retryResponse;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +290,7 @@ function redirectToLoginPage(): void {
  */
 export async function apiFetch<T = unknown>(
   path: string,
-  options: ApiFetchOptions = {}
+  options: ApiFetchOptions = {},
 ): Promise<T> {
   const {
     body,
@@ -268,72 +334,34 @@ export async function apiFetch<T = unknown>(
 
   // --- Fetch ----------------------------------------------------------------
   try {
-    const response = await fetch(url, {
-      method: restInit.method ?? "GET",
-      headers,
-      body: hasBody ? JSON.stringify(body) : undefined,
-      signal: combinedSignal,
-      credentials: "include",
-      ...restInit,
-    });
+    let response = await fetch(
+      url,
+      buildRequestInit(restInit, headers, body, hasBody, combinedSignal),
+    );
 
-    // --- Error responses ----------------------------------------------------
     if (!response.ok) {
-      // 401 interceptor: attempt refresh and retry once
-      if (response.status === 401 && !path.startsWith("/api/auth/")) {
-        const refreshed = await attemptTokenRefresh();
-        if (refreshed) {
-          // Retry the original request
-          const retryResponse = await fetch(url, {
-            method: restInit.method ?? "GET",
-            headers,
-            body: hasBody ? JSON.stringify(body) : undefined,
-            credentials: "include",
-            ...restInit,
-          });
+      response = await handleUnauthorizedRetry({
+        response,
+        path,
+        url,
+        restInit,
+        headers,
+        body,
+        hasBody,
+        signal: combinedSignal,
+      });
+    }
 
-          if (retryResponse.ok) {
-            if (retryResponse.status === 204) return null as T;
-            if (isJsonContentType(retryResponse)) return (await retryResponse.json()) as T;
-            return (await retryResponse.text()) as T;
-          }
-
-          // Retry also failed — redirect to login
-          if (retryResponse.status === 401) {
-            redirectToLoginPage();
-            throw await buildApiError(retryResponse);
-          }
-
-          throw await buildApiError(retryResponse);
-        } else {
-          // Refresh failed — redirect to login
-          redirectToLoginPage();
-          throw await buildApiError(response);
-        }
-      }
-
+    if (!response.ok) {
       throw await buildApiError(response);
     }
 
-    // --- 204 No Content -----------------------------------------------------
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    // --- Parse response -----------------------------------------------------
-    if (isJsonContentType(response)) {
-      return (await response.json()) as T;
-    }
-
-    return (await response.text()) as T;
+    return await parseResponseBody<T>(response);
   } catch (error) {
     // Wrap AbortError into a friendlier message
-    if (
-      error instanceof DOMException &&
-      error.name === "AbortError"
-    ) {
+    if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error(
-        `Request timed out after ${timeoutMs}ms: ${options.method ?? "GET"} ${path}`
+        `Request timed out after ${timeoutMs}ms: ${options.method ?? "GET"} ${path}`,
       );
     }
     throw error;
@@ -349,10 +377,7 @@ export async function apiFetch<T = unknown>(
 /**
  * Combines two AbortSignals into one that aborts when either fires.
  */
-function combineSignals(
-  a: AbortSignal,
-  b: AbortSignal
-): AbortSignal {
+function combineSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
   // Use AbortSignal.any if available (modern runtimes)
   if ("any" in AbortSignal && typeof AbortSignal.any === "function") {
     return AbortSignal.any([a, b]);
@@ -381,7 +406,7 @@ function combineSignals(
 /** GET request. */
 export function get<T = unknown>(
   path: string,
-  options?: Omit<ApiFetchOptions, "method" | "body">
+  options?: Omit<ApiFetchOptions, "method" | "body">,
 ): Promise<T> {
   return apiFetch<T>(path, { ...options, method: "GET" });
 }
@@ -390,7 +415,7 @@ export function get<T = unknown>(
 export function post<T = unknown>(
   path: string,
   body?: unknown,
-  options?: Omit<ApiFetchOptions, "method" | "body">
+  options?: Omit<ApiFetchOptions, "method" | "body">,
 ): Promise<T> {
   return apiFetch<T>(path, { ...options, method: "POST", body });
 }
@@ -399,7 +424,7 @@ export function post<T = unknown>(
 export function patch<T = unknown>(
   path: string,
   body?: unknown,
-  options?: Omit<ApiFetchOptions, "method" | "body">
+  options?: Omit<ApiFetchOptions, "method" | "body">,
 ): Promise<T> {
   return apiFetch<T>(path, { ...options, method: "PATCH", body });
 }
@@ -407,7 +432,7 @@ export function patch<T = unknown>(
 /** DELETE request. */
 export function del<T = unknown>(
   path: string,
-  options?: Omit<ApiFetchOptions, "method" | "body">
+  options?: Omit<ApiFetchOptions, "method" | "body">,
 ): Promise<T> {
   return apiFetch<T>(path, { ...options, method: "DELETE" });
 }

@@ -34,7 +34,7 @@ export interface AiUsageRepository {
   getMonthly(
     userId: string,
     action: string,
-    monthKey: string
+    monthKey: string,
   ): Promise<AiUsageMonthlyRecord | null>;
 
   /**
@@ -44,7 +44,7 @@ export interface AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void>;
 
   /**
@@ -54,7 +54,7 @@ export interface AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void>;
 
   /**

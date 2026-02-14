@@ -25,7 +25,10 @@ describe("InitAttachmentUpload", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      { maxEntryAttachmentSizeBytes: maxEntrySize, maxUserStorageQuotaBytes: maxUserQuota }
+      {
+        maxEntryAttachmentSizeBytes: maxEntrySize,
+        maxUserStorageQuotaBytes: maxUserQuota,
+      },
     );
     createEntry = new CreateEntry(entryRepository);
   });
@@ -78,7 +81,9 @@ describe("InitAttachmentUpload", () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const saved = await attachmentRepository.findById(result.value.attachment.id);
+        const saved = await attachmentRepository.findById(
+          result.value.attachment.id,
+        );
         expect(saved).not.toBeNull();
         expect(saved?.status.isPending()).toBe(true);
       }
@@ -108,7 +113,7 @@ describe("InitAttachmentUpload", () => {
       expect(result1.isOk() && result2.isOk()).toBe(true);
       if (result1.isOk() && result2.isOk()) {
         expect(result1.value.attachment.storageKey).not.toBe(
-          result2.value.attachment.storageKey
+          result2.value.attachment.storageKey,
         );
       }
     });

@@ -23,7 +23,10 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   const entry = await repository.findById(entryId);
 
   if (!entry || entry.userId !== userId) {
-    return NextResponse.json({ error: { message: "Entry not found", code: "NOT_FOUND" } }, { status: 404 });
+    return NextResponse.json(
+      { error: { message: "Entry not found", code: "NOT_FOUND" } },
+      { status: 404 },
+    );
   }
 
   await repository.clearSummary(entryId);

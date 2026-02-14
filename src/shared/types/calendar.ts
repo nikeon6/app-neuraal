@@ -1,9 +1,9 @@
 /**
  * Calendar types for the Neuraal application
- * 
+ *
  * Types for calendar data and entry summaries.
  * These are domain types used for data transfer.
- * 
+ *
  * NOTE: UI-specific types (CalendarViewState, visual state)
  * should go in src/features/calendar/types.ts
  */
@@ -32,7 +32,7 @@ export interface CalendarRange {
 
 /**
  * Lightweight summary of an entry for calendar display.
- * 
+ *
  * Used in day lists and calendar overviews where full entry
  * data is not needed.
  */
@@ -59,7 +59,7 @@ export interface EntrySummary {
 
 /**
  * A single day in the calendar with its entries.
- * 
+ *
  * NOTE: dayOfMonth, weekday, isToday, isSelected are derivable
  * from `date` and should be computed in UI/mappers, not stored.
  */
@@ -77,7 +77,7 @@ export interface CalendarDay {
 /**
  * Aggregated topic data for bubble display.
  * This is the DATA for a bubble, not its visual position.
- * 
+ *
  * NOTE: Visual position/state should be in features/topics/types.ts
  */
 export interface TopicBubbleData {

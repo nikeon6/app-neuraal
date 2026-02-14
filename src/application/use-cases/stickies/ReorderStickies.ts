@@ -18,7 +18,7 @@ export class ReorderStickies {
 
   async execute(
     userId: string,
-    items: readonly ReorderItem[]
+    items: readonly ReorderItem[],
   ): Promise<Result<void, UseCaseError>> {
     if (items.length === 0) {
       return err(validationError("items cannot be empty"));
@@ -33,7 +33,11 @@ export class ReorderStickies {
 
     await this.repo.reorder(
       userId,
-      items.map((i) => ({ id: i.id, sortOrder: i.sortOrder, columnIndex: i.columnIndex }))
+      items.map((i) => ({
+        id: i.id,
+        sortOrder: i.sortOrder,
+        columnIndex: i.columnIndex,
+      })),
     );
     return ok(undefined);
   }

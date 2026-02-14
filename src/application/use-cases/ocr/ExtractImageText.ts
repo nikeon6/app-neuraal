@@ -42,11 +42,11 @@ export class ExtractImageText {
     private readonly entryRepository: EntryRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly objectStorage: ObjectStoragePort,
-    private readonly ocrProvider: OcrPort
+    private readonly ocrProvider: OcrPort,
   ) {}
 
   async execute(
-    input: ExtractImageTextInput
+    input: ExtractImageTextInput,
   ): Promise<Result<ExtractImageTextOutput, UseCaseError>> {
     // 1. Validate input
     if (!input.userId?.trim()) {
@@ -79,7 +79,11 @@ export class ExtractImageText {
     }
     if (!attachment.status.isReady()) {
       return err(
-        validationError("Attachment is not ready (status: " + attachment.status.toString() + ")")
+        validationError(
+          "Attachment is not ready (status: " +
+            attachment.status.toString() +
+            ")",
+        ),
       );
     }
 
@@ -93,7 +97,7 @@ export class ExtractImageText {
     let imageBuffer: Buffer;
     try {
       imageBuffer = await this.objectStorage.getObjectBuffer(
-        attachment.storageKey.toString()
+        attachment.storageKey.toString(),
       );
     } catch (error) {
       const message =
@@ -105,7 +109,11 @@ export class ExtractImageText {
     const imageBase64 = imageBuffer.toString("base64");
     let extractedText: string;
     try {
-      extractedText = await this.ocrProvider.extractText(imageBase64, mimeType, input.prompt);
+      extractedText = await this.ocrProvider.extractText(
+        imageBase64,
+        mimeType,
+        input.prompt,
+      );
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown OCR error";

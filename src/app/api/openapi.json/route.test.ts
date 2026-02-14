@@ -48,9 +48,7 @@ describe("GET /api/openapi.json", () => {
   it("should include callback endpoint in paths", async () => {
     const response = await GET();
     const body = await response.json();
-    expect(
-      body.paths["/api/automations/entry-summary/callback"]
-    ).toBeDefined();
+    expect(body.paths["/api/automations/entry-summary/callback"]).toBeDefined();
   });
 
   it("should include securitySchemes", async () => {
@@ -74,8 +72,6 @@ describe("GET /api/openapi.json", () => {
 
   it("should set Cache-Control header", async () => {
     const response = await GET();
-    expect(response.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600"
-    );
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600");
   });
 });

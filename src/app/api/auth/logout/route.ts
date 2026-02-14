@@ -22,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const useCase = new LogoutUser(
     new PrismaRefreshTokenRepository(),
     new CryptoRefreshTokenService(),
-    new SystemClock()
+    new SystemClock(),
   );
 
   if (authResult.ok) {

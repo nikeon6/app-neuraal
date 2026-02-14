@@ -18,7 +18,10 @@ export interface SummaryRequestRepository {
    * Finds a summary request by ID with ownership check.
    * Returns null if not found OR not owned by user.
    */
-  findByIdForUser(id: string, userId: string): Promise<EntrySummaryRequest | null>;
+  findByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<EntrySummaryRequest | null>;
 
   /**
    * Updates an existing summary request.

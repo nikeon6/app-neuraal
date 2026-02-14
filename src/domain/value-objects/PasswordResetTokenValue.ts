@@ -27,9 +27,7 @@ export class PasswordResetTokenValue {
     }
 
     if (trimmed.length < 32) {
-      return err(
-        "Password reset token must be at least 32 characters"
-      );
+      return err("Password reset token must be at least 32 characters");
     }
 
     return ok(new PasswordResetTokenValue(input));

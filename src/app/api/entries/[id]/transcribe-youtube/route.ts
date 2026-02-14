@@ -24,7 +24,7 @@ interface RouteContext {
  */
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   try {
     const authResult = await getAuthUserId(request);
@@ -42,7 +42,7 @@ export async function POST(
     } catch {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,7 +50,7 @@ export async function POST(
     if (!url || typeof url !== "string" || !url.trim()) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "url is required" } },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -73,7 +73,7 @@ export async function POST(
         rateLimitPerHour: 0,
         monthlyQuotaRequests: actionConfig.monthlyQuotaRequests,
         rateLimitPrefix: config.rateLimitPrefix,
-      }
+      },
     );
 
     const guardResult = await guardAiAction.execute({
@@ -87,14 +87,21 @@ export async function POST(
       const { code, message, details } = guardResult.error;
       let statusCode: number;
       switch (code) {
-        case "RATE_LIMITED": statusCode = 429; break;
-        case "QUOTA_EXCEEDED": statusCode = 403; break;
-        case "CONCURRENCY_LIMIT": statusCode = 409; break;
-        default: statusCode = 400;
+        case "RATE_LIMITED":
+          statusCode = 429;
+          break;
+        case "QUOTA_EXCEEDED":
+          statusCode = 403;
+          break;
+        case "CONCURRENCY_LIMIT":
+          statusCode = 409;
+          break;
+        default:
+          statusCode = 400;
       }
       return NextResponse.json(
         { error: { code, message, ...(details !== undefined && { details }) } },
-        { status: statusCode }
+        { status: statusCode },
       );
     }
 
@@ -106,7 +113,7 @@ export async function POST(
       transcriptRequestRepo,
       queuePort,
       new PrismaAiUsageRepository(),
-      new SystemClock()
+      new SystemClock(),
     );
 
     const result = await requestTranscript.execute({
@@ -120,23 +127,35 @@ export async function POST(
     if (result.isErr()) {
       const { code, message } = result.error;
       const statusCode = code === "NOT_FOUND" ? 404 : 400;
-      return NextResponse.json({ error: { code, message } }, { status: statusCode });
+      return NextResponse.json(
+        { error: { code, message } },
+        { status: statusCode },
+      );
     }
 
     return NextResponse.json(
       {
         requestId: result.value.requestId,
         notificationId: result.value.notificationId,
-        message: "Transcript generation started. Check notifications for progress.",
+        message:
+          "Transcript generation started. Check notifications for progress.",
       },
-      { status: 202 }
+      { status: 202 },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[POST /api/entries/:id/transcribe-youtube]", error);
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: process.env.NODE_ENV === "production" ? "Transcript request failed." : message } },
-      { status: 500 }
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message:
+            process.env.NODE_ENV === "production"
+              ? "Transcript request failed."
+              : message,
+        },
+      },
+      { status: 500 },
     );
   }
 }

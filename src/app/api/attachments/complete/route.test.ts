@@ -16,7 +16,7 @@ import { POST } from "./route";
 
 function createRequest(
   body: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   return new NextRequest("http://localhost:3000/api/attachments/complete", {
     method: "POST",
@@ -45,7 +45,7 @@ describe("POST /api/attachments/complete", () => {
 
     const request = createRequest(
       { attachmentId: "attach-123" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -82,7 +82,7 @@ describe("POST /api/attachments/complete", () => {
 
     const request = createRequest(
       { attachmentId: "attach-123" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -108,7 +108,7 @@ describe("POST /api/attachments/complete", () => {
 
     const request = createRequest(
       { attachmentId: "attach-123" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 

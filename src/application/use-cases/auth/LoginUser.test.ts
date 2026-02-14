@@ -36,7 +36,7 @@ describe("LoginUser", () => {
       refreshTokenService,
       clock,
       900,
-      7
+      7,
     );
     registerUser = new RegisterUser(
       userRepository,
@@ -46,7 +46,7 @@ describe("LoginUser", () => {
       refreshTokenService,
       clock,
       900,
-      7
+      7,
     );
   });
 
@@ -81,8 +81,12 @@ describe("LoginUser", () => {
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
-      expect(result.value.tokens.accessToken).toMatch(/^fake-header\..*\.fake-signature$/);
-      expect(result.value.tokens.refreshToken).toMatch(/^fake-refresh-token-.*-\d+$/);
+      expect(result.value.tokens.accessToken).toMatch(
+        /^fake-header\..*\.fake-signature$/,
+      );
+      expect(result.value.tokens.refreshToken).toMatch(
+        /^fake-refresh-token-.*-\d+$/,
+      );
     }
   });
 

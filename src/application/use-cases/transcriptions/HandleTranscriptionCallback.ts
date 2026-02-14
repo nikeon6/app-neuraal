@@ -65,11 +65,11 @@ export class HandleTranscriptionCallback {
     private readonly transcriptionRequestRepository: TranscriptionRequestRepository,
     private readonly notificationRepository: NotificationRepository,
     private readonly webhookSecret: string,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: HandleTranscriptionCallbackInput
+    input: HandleTranscriptionCallbackInput,
   ): Promise<Result<HandleTranscriptionCallbackOutput, UseCaseError>> {
     const { rawBody, timestamp, signature, payload } = input;
 
@@ -81,7 +81,7 @@ export class HandleTranscriptionCallback {
 
     // 3. Load transcription request
     const request = await this.transcriptionRequestRepository.findById(
-      payload.requestId
+      payload.requestId,
     );
     if (!request) {
       return err(notFoundError("Transcription request not found"));
@@ -101,8 +101,8 @@ export class HandleTranscriptionCallback {
     if (request.entryId !== payload.entryId) {
       return err(
         validationError(
-          "Entry ID mismatch: payload does not match original request"
-        )
+          "Entry ID mismatch: payload does not match original request",
+        ),
       );
     }
 
@@ -122,7 +122,7 @@ export class HandleTranscriptionCallback {
     const updatedContent = this.injectTranscription(
       entry.content.toJSON(),
       request.youtubeUrl,
-      payload.transcription.trim()
+      payload.transcription.trim(),
     );
 
     if (!updatedContent) {
@@ -131,8 +131,8 @@ export class HandleTranscriptionCallback {
       await this.transcriptionRequestRepository.update(failedRequest);
       return err(
         validationError(
-          "YouTube embed not found in entry content — transcription could not be injected"
-        )
+          "YouTube embed not found in entry content — transcription could not be injected",
+        ),
       );
     }
 
@@ -179,7 +179,7 @@ export class HandleTranscriptionCallback {
   private injectTranscription(
     content: Record<string, unknown>,
     youtubeUrl: string,
-    transcription: string
+    transcription: string,
   ): Record<string, unknown> | null {
     const doc = structuredClone(content);
     const injected = this.walkAndInject(doc, youtubeUrl, transcription);
@@ -190,7 +190,7 @@ export class HandleTranscriptionCallback {
   private walkAndInject(
     node: Record<string, unknown>,
     youtubeUrl: string,
-    transcription: string
+    transcription: string,
   ): boolean {
     // Check if this is a YouTube node with matching src
     if (node.type === "youtube" && node.attrs) {
@@ -211,7 +211,7 @@ export class HandleTranscriptionCallback {
           this.walkAndInject(
             child as Record<string, unknown>,
             youtubeUrl,
-            transcription
+            transcription,
           )
         ) {
           return true;
@@ -263,7 +263,7 @@ export class HandleTranscriptionCallback {
   private verifySignature(
     rawBody: string,
     timestamp: string,
-    signature: string
+    signature: string,
   ): Result<void, UseCaseError> {
     const timestampMs = Number.parseInt(timestamp, 10);
     if (Number.isNaN(timestampMs)) {
@@ -291,7 +291,7 @@ export class HandleTranscriptionCallback {
     if (
       !crypto.timingSafeEqual(
         Buffer.from(signature),
-        Buffer.from(expectedSignature)
+        Buffer.from(expectedSignature),
       )
     ) {
       return err(unauthorizedError("Invalid signature"));
