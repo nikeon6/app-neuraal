@@ -6,7 +6,10 @@ import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore, selectDateKey } from "@/shared/store";
 import { useEntriesByDateQuery } from "@/shared/api/queries";
-import { createEntryAndInvalidate, reorderEntriesAndInvalidate } from "@/shared/api/mutations";
+import {
+  createEntryAndInvalidate,
+  reorderEntriesAndInvalidate,
+} from "@/shared/api/mutations";
 import { TaskEditor } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
@@ -49,28 +52,26 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
   isDragDisabled,
 }: TaskEditorWrapperProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const lastKnownHeightRef = useRef(0);
 
-  // Initialize height tracking after mount
-  useEffect(() => {
-    if (wrapperRef.current) {
-      lastKnownHeightRef.current = wrapperRef.current.offsetHeight;
-    }
-  }, []);
-
-  // Handle TaskEditor expansion - only notify parent when height actually
-  // increases (i.e., the editor expanded). This prevents scroll jumps when
-  // clicking inside an already-expanded editor with images/videos.
+  // Handle TaskEditor expansion — auto-scroll only when this click caused the
+  // editor to grow (collapsed → expanded). We capture the height synchronously
+  // at click time and compare after React re-renders (250ms later). This avoids
+  // stale comparisons when NodeView interactions (e.g., expanding a transcription
+  // panel) change the height without propagating clicks to this handler.
   const handleEditorClick = useCallback(() => {
+    // Snapshot height at the moment of click, before React state changes
+    const heightAtClick = wrapperRef.current?.offsetHeight ?? 0;
+
     setTimeout(() => {
       if (!wrapperRef.current) return;
 
       const newHeight = wrapperRef.current.offsetHeight;
-      const heightGrew = newHeight > lastKnownHeightRef.current + 40;
-      lastKnownHeightRef.current = newHeight;
 
-      // Only auto-scroll when the editor actually expanded
-      if (heightGrew) {
+      // Only auto-scroll when THIS click caused a significant height increase
+      // (i.e., collapsed → expanded transition, typically +200px).
+      // Pre-existing height changes (transcription panels, loaded images) are
+      // already reflected in heightAtClick and won't trigger a false positive.
+      if (newHeight > heightAtClick + 40) {
         onExpand(wrapperRef.current);
       }
     }, 250);
@@ -85,7 +86,7 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
       if (isDragDisabled) return;
       dragControls.start(e);
     },
-    [dragControls, isDragDisabled]
+    [dragControls, isDragDisabled],
   );
 
   return (
@@ -115,9 +116,7 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
       </button>
 
       {/* TaskEditor */}
-      <TaskEditor
-        entry={entry}
-      />
+      <TaskEditor entry={entry} />
     </div>
   );
 });
@@ -157,7 +156,7 @@ function ReorderableTaskItem({
     (_: unknown, info: { point: { y: number } }) => {
       updatePointerY(info.point.y);
     },
-    [updatePointerY]
+    [updatePointerY],
   );
 
   return (
@@ -166,6 +165,7 @@ function ReorderableTaskItem({
       data-testid={`task-editor-wrapper-${entry.id}`}
       data-completed={entry.completed ? "true" : "false"}
       role="listitem"
+      aria-label={`Task item ${entry.id}`}
       dragListener={false}
       dragControls={dragControls}
       onDragStart={handleDragStart}
@@ -206,7 +206,8 @@ function ReorderableTaskItem({
 export function TasksContainer() {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
-  const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
+  const { data: entries = [], isPending: isLoading } =
+    useEntriesByDateQuery(dateKey);
   // Create a map for quick entry lookup by ID
   const entryMap = useMemo(() => {
     const map = new Map<string, ApiEntry>();
@@ -221,8 +222,11 @@ export function TasksContainer() {
     onReorder: (_day, newOrder) => {
       reorderEntriesAndInvalidate(queryClient, dateKey, newOrder).catch(
         (error) => {
-          console.error("[TasksContainer] Failed to persist entry order:", error);
-        }
+          console.error(
+            "[TasksContainer] Failed to persist entry order:",
+            error,
+          );
+        },
       );
     },
   });
@@ -297,7 +301,7 @@ export function TasksContainer() {
         });
       }
     },
-    [containerRef]
+    [containerRef],
   );
 
   // ---------------------------------------------------------------------------
@@ -320,7 +324,7 @@ export function TasksContainer() {
       attempts++;
       const container = containerRef.current as HTMLElement | null;
       const el = document.querySelector(
-        `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`
+        `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`,
       ) as HTMLElement | null;
 
       if (el && container) {
@@ -330,9 +334,11 @@ export function TasksContainer() {
         // which also scrolls ancestor containers and breaks the page layout).
         const containerRect = container.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
-        const elRelativeTop = elRect.top - containerRect.top + container.scrollTop;
+        const elRelativeTop =
+          elRect.top - containerRect.top + container.scrollTop;
         // Center the element vertically in the container
-        const targetScroll = elRelativeTop - containerRect.height / 2 + elRect.height / 2;
+        const targetScroll =
+          elRelativeTop - containerRect.height / 2 + elRect.height / 2;
 
         container.scrollTo({
           top: Math.max(0, targetScroll),
@@ -360,10 +366,13 @@ export function TasksContainer() {
       <div
         data-testid="tasks-container"
         role="list"
+        aria-label="Tasks container"
         className="flex flex-col h-full w-full pl-6 lg:pl-10"
       >
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-white/40 text-sm animate-pulse">Loading entries...</p>
+          <p className="text-white/40 text-sm animate-pulse">
+            Loading entries...
+          </p>
         </div>
       </div>
     );
@@ -375,15 +384,18 @@ export function TasksContainer() {
       <div
         data-testid="tasks-container"
         role="list"
+        aria-label="Tasks container"
         className="flex flex-col h-full w-full pl-6 lg:pl-10"
       >
         <div
           ref={containerRef as React.RefObject<HTMLDivElement>}
           data-testid="tasks-scroll-container"
+          aria-label="Tasks list"
           className="flex-1 overflow-y-auto tasks-scrollbar"
         >
           <div
             data-testid="tasks-empty-state"
+            aria-label="Tasks empty state"
             className="flex flex-col items-start py-8"
           >
             <p className="text-lg text-white/60">No entries for this day</p>
@@ -416,6 +428,7 @@ export function TasksContainer() {
     <div
       data-testid="tasks-container"
       role="list"
+      aria-label="Tasks container"
       className="flex flex-col h-full w-full"
       style={{ overflowX: "clip" }}
     >
@@ -426,6 +439,7 @@ export function TasksContainer() {
         values={orderedIds}
         onReorder={setOrderedIds}
         data-testid="tasks-scroll-container"
+        aria-label="Tasks list"
         className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 lg:space-y-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar"
         layoutScroll
       >

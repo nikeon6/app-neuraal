@@ -1,0 +1,4 @@
+# Enforce LF line endings for all text files.
+# This prevents CRLF/LF mismatches that break lint-staged + prettier
+# on Windows (core.autocrlf=true converts LF→CRLF during stash/pop).
+* text=auto eol=lf

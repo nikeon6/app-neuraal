@@ -97,12 +97,6 @@ export const YoutubeEmbed = Youtube.extend({
       root.className = "youtube-embed-wrapper";
       root.contentEditable = "false";
 
-      // Stop click propagation so clicks on buttons/panels inside this NodeView
-      // don't bubble up to the TaskEditorWrapper's onClick handler, which would
-      // detect the height change (from expanding transcription) and trigger
-      // an auto-scroll to the top of the task.
-      root.addEventListener("click", (e) => e.stopPropagation());
-
       // ---- Video container (16:9) ----
       const videoContainer = document.createElement("div");
       videoContainer.className = "youtube-embed-video";
@@ -269,6 +263,15 @@ export const YoutubeEmbed = Youtube.extend({
         resultPanel,
         errorPanel,
       );
+
+      // Stop click propagation on interactive panels only (not the root)
+      // so that height changes from toggling transcription/panels don't
+      // reach TaskEditorWrapper's onClick which triggers auto-scroll.
+      // Clicks on the video area still propagate so the editor can expand.
+      actionBar.addEventListener("click", (e) => e.stopPropagation());
+      resultPanel.addEventListener("click", (e) => e.stopPropagation());
+      requestedPanel.addEventListener("click", (e) => e.stopPropagation());
+      errorPanel.addEventListener("click", (e) => e.stopPropagation());
 
       // ---- Event handlers ----
 

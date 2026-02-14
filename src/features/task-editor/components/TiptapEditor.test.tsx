@@ -15,12 +15,18 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: React.forwardRef(function MockDiv(
       { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
-      ref: React.Ref<HTMLDivElement>
+      ref: React.Ref<HTMLDivElement>,
     ) {
-      return <div ref={ref} {...props}>{children}</div>;
+      return (
+        <div ref={ref} {...props}>
+          {children}
+        </div>
+      );
     }),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 describe("TiptapEditor", () => {
@@ -44,48 +50,28 @@ describe("TiptapEditor", () => {
 
   describe("rendering", () => {
     it("should render the editor container", () => {
-      render(
-        <TiptapEditor
-          content={defaultContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={defaultContent} onUpdate={onUpdateMock} />);
 
-      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
+      expect(screen.getByLabelText(/rich text editor/i)).toBeInTheDocument();
     });
 
     it("should render with tiptap-editor class", () => {
-      render(
-        <TiptapEditor
-          content={defaultContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={defaultContent} onUpdate={onUpdateMock} />);
 
-      const container = screen.getByTestId("tiptap-editor");
+      const container = screen.getByLabelText(/rich text editor/i);
       expect(container).toHaveClass("tiptap-editor");
     });
 
     it("should render editor content area with ProseMirror role", () => {
-      render(
-        <TiptapEditor
-          content={defaultContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={defaultContent} onUpdate={onUpdateMock} />);
 
       // Tiptap renders a div[role=textbox] or contenteditable div
-      const editor = screen.getByTestId("tiptap-editor");
+      const editor = screen.getByLabelText(/rich text editor/i);
       expect(editor).toBeInTheDocument();
     });
 
     it("should display text content from JSON", async () => {
-      render(
-        <TiptapEditor
-          content={defaultContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={defaultContent} onUpdate={onUpdateMock} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello world")).toBeInTheDocument();
@@ -93,14 +79,9 @@ describe("TiptapEditor", () => {
     });
 
     it("should render with empty content without crashing", () => {
-      render(
-        <TiptapEditor
-          content={emptyContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={emptyContent} onUpdate={onUpdateMock} />);
 
-      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
+      expect(screen.getByLabelText(/rich text editor/i)).toBeInTheDocument();
     });
   });
 
@@ -111,10 +92,10 @@ describe("TiptapEditor", () => {
           content={defaultContent}
           onUpdate={onUpdateMock}
           isExpanded={true}
-        />
+        />,
       );
 
-      const container = screen.getByTestId("tiptap-editor");
+      const container = screen.getByLabelText(/rich text editor/i);
       expect(container).toHaveClass("is-expanded");
     });
 
@@ -124,10 +105,10 @@ describe("TiptapEditor", () => {
           content={defaultContent}
           onUpdate={onUpdateMock}
           isExpanded={false}
-        />
+        />,
       );
 
-      const container = screen.getByTestId("tiptap-editor");
+      const container = screen.getByLabelText(/rich text editor/i);
       expect(container).not.toHaveClass("is-expanded");
     });
 
@@ -137,15 +118,15 @@ describe("TiptapEditor", () => {
           content={defaultContent}
           onUpdate={onUpdateMock}
           editable={false}
-        />
+        />,
       );
 
       // When not editable, the ProseMirror element should have contenteditable=false
-      const editor = screen.getByTestId("tiptap-editor");
-      const proseMirror = editor.querySelector("[contenteditable]");
-      if (proseMirror) {
-        expect(proseMirror.getAttribute("contenteditable")).toBe("false");
-      }
+      const proseMirror = screen
+        .getByText("Hello world")
+        .closest("[contenteditable]");
+      expect(proseMirror).not.toBeNull();
+      expect(proseMirror).toHaveAttribute("contenteditable", "false");
     });
   });
 
@@ -162,20 +143,20 @@ describe("TiptapEditor", () => {
     };
 
     it("should render code block content", async () => {
-      render(
-        <TiptapEditor
-          content={codeContent}
-          onUpdate={onUpdateMock}
-        />
-      );
+      render(<TiptapEditor content={codeContent} onUpdate={onUpdateMock} />);
 
       // Syntax highlighting splits text into multiple spans,
       // so we check for the pre>code element containing the text.
       await waitFor(() => {
-        const codeEl = screen.getByTestId("tiptap-editor").querySelector("pre code");
-        expect(codeEl).not.toBeNull();
-        expect(codeEl!.textContent).toContain("const");
-        expect(codeEl!.textContent).toContain("x = 1");
+        const codeText = screen.getByText((_, node) => {
+          const text = node?.textContent ?? "";
+          return (
+            node?.tagName === "CODE" &&
+            text.includes("const") &&
+            text.includes("x = 1")
+          );
+        });
+        expect(codeText).toBeInTheDocument();
       });
     });
   });
@@ -189,7 +170,7 @@ describe("TiptapEditor", () => {
           content={defaultContent}
           onUpdate={onUpdateMock}
           editorRef={editorRef}
-        />
+        />,
       );
 
       // The ref should be set after mount

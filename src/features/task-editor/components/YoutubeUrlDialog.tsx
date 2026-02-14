@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Youtube } from "lucide-react";
+import { CirclePlay } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 // ============================================================================
@@ -49,7 +49,7 @@ export function YoutubeUrlDialog({
       setUrl("");
       onClose();
     },
-    [isValidUrl, trimmedUrl, onSubmit, onClose]
+    [isValidUrl, trimmedUrl, onSubmit, onClose],
   );
 
   const handleCancel = useCallback(() => {
@@ -63,7 +63,7 @@ export function YoutubeUrlDialog({
         handleCancel();
       }
     },
-    [handleCancel]
+    [handleCancel],
   );
 
   if (!isOpen) return null;
@@ -89,7 +89,7 @@ export function YoutubeUrlDialog({
         {/* Header with icon */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20">
-            <Youtube className="w-5 h-5 text-red-400" />
+            <CirclePlay className="w-5 h-5 text-red-400" />
           </div>
           <div>
             <h2
@@ -98,9 +98,7 @@ export function YoutubeUrlDialog({
             >
               Embed YouTube video
             </h2>
-            <p className="text-xs text-white/40">
-              Paste the video URL below
-            </p>
+            <p className="text-xs text-white/40">Paste the video URL below</p>
           </div>
         </div>
 
@@ -125,13 +123,11 @@ export function YoutubeUrlDialog({
                 "focus:outline-none focus:ring-2 focus:ring-red-500/40 transition-all",
                 showError
                   ? "border-red-500/50"
-                  : "border-white/10 focus:border-red-500/40"
+                  : "border-white/10 focus:border-red-500/40",
               )}
             />
             {showError && (
-              <p className="text-sm text-red-400">
-                Enter a valid YouTube URL
-              </p>
+              <p className="text-sm text-red-400">Enter a valid YouTube URL</p>
             )}
           </div>
 
@@ -151,7 +147,7 @@ export function YoutubeUrlDialog({
                 "flex-1 px-4 py-2.5 rounded-xl font-medium transition-all",
                 isValidUrl
                   ? "bg-red-500 text-white hover:bg-red-400"
-                  : "bg-white/5 text-white/30 cursor-not-allowed"
+                  : "bg-white/5 text-white/30 cursor-not-allowed",
               )}
             >
               Embed

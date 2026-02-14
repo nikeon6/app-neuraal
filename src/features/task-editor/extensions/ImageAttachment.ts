@@ -85,9 +85,6 @@ export const ImageAttachment = Image.extend({
       root.contentEditable = "false";
       root.draggable = false;
       root.addEventListener("dragstart", blockNativeDrag);
-      // Stop click propagation so the TaskEditorWrapper's onClick (which
-      // auto-scrolls on height change) doesn't trigger from NodeView clicks.
-      root.addEventListener("click", (e) => e.stopPropagation());
 
       const frame = document.createElement("div");
       frame.className = "image-attachment-frame";
@@ -269,6 +266,13 @@ export const ImageAttachment = Image.extend({
       resultPanel.append(resultHeader, resultBody);
 
       root.append(frame, resultPanel);
+
+      // Stop click propagation on interactive controls/panels only (not the root)
+      // so that height changes from vision result panels don't reach
+      // TaskEditorWrapper's onClick which triggers auto-scroll.
+      // Clicks on the image area still propagate so the editor can expand.
+      controls.addEventListener("click", (e) => e.stopPropagation());
+      resultPanel.addEventListener("click", (e) => e.stopPropagation());
 
       const preventBtnInteraction = (e: MouseEvent) => {
         e.preventDefault();

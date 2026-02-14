@@ -54,15 +54,24 @@ const mockCreateReminderAndInvalidate = vi.fn();
 const mockUpdateReminderAndInvalidate = vi.fn();
 
 vi.mock("@/shared/api/mutations", () => ({
-  updateEntryAndInvalidate: (...args: unknown[]) => mockUpdateEntryAndInvalidate(...args),
-  deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
-  summarizeEntryAndInvalidate: (...args: unknown[]) => mockSummarizeEntryAndInvalidate(...args),
-  createReminderAndInvalidate: (...args: unknown[]) => mockCreateReminderAndInvalidate(...args),
-  updateReminderAndInvalidate: (...args: unknown[]) => mockUpdateReminderAndInvalidate(...args),
+  updateEntryAndInvalidate: (...args: unknown[]) =>
+    mockUpdateEntryAndInvalidate(...args),
+  deleteEntryAndInvalidate: (...args: unknown[]) =>
+    mockDeleteEntryAndInvalidate(...args),
+  summarizeEntryAndInvalidate: (...args: unknown[]) =>
+    mockSummarizeEntryAndInvalidate(...args),
+  createReminderAndInvalidate: (...args: unknown[]) =>
+    mockCreateReminderAndInvalidate(...args),
+  updateReminderAndInvalidate: (...args: unknown[]) =>
+    mockUpdateReminderAndInvalidate(...args),
 }));
 
 vi.mock("@/shared/api/sdk/entries", () => ({
-  autoTopicEntry: vi.fn().mockResolvedValue({ entryId: "entry-test", selectedTopicId: null, score: null }),
+  autoTopicEntry: vi.fn().mockResolvedValue({
+    entryId: "entry-test",
+    selectedTopicId: null,
+    score: null,
+  }),
 }));
 
 vi.mock("@/shared/api/sdk/attachments", () => ({
@@ -100,7 +109,7 @@ function renderEditor(entryOverrides: Partial<ApiEntry> = {}) {
   return render(
     <QueryClientProvider client={qc}>
       <TaskEditor entry={entry} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -111,39 +120,46 @@ describe("TaskEditor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTopicsQuery.mockReturnValue({ data: mockTopics, isPending: false });
-    mockUpdateEntryAndInvalidate.mockResolvedValue(createMockEntry({ version: 2 }));
+    mockUpdateEntryAndInvalidate.mockResolvedValue(
+      createMockEntry({ version: 2 }),
+    );
     mockDeleteEntryAndInvalidate.mockResolvedValue(undefined);
   });
 
   const expandEditor = async (user: ReturnType<typeof userEvent.setup>) => {
-    const editor = screen.getByTestId("task-editor");
-    await user.click(editor);
+    await user.click(screen.getByRole("textbox", { name: /title/i }));
   };
 
   describe("Rendering", () => {
     it("should render the component", () => {
       renderEditor();
-      expect(screen.getByTestId("task-editor")).toBeInTheDocument();
+      expect(screen.getByLabelText(/task editor/i)).toBeInTheDocument();
     });
 
     it("should render title input field", () => {
       renderEditor();
-      expect(screen.getByRole("textbox", { name: /title/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("textbox", { name: /title/i }),
+      ).toBeInTheDocument();
     });
 
     it("should render content area (Tiptap editor)", () => {
       renderEditor();
-      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
+      expect(screen.getByLabelText(/rich text editor/i)).toBeInTheDocument();
     });
 
     it("should render topic selector", () => {
       renderEditor();
-      expect(screen.getByRole("button", { name: /topic/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /topic/i }),
+      ).toBeInTheDocument();
     });
 
     it("should initialize title from entry prop", () => {
       renderEditor({ title: "My Custom Title" });
-      expect(screen.getByRole("textbox", { name: /title/i })).toHaveValue("My Custom Title");
+      expect(screen.getByRole("textbox", { name: /title/i })).toHaveValue(
+        "My Custom Title",
+      );
     });
   });
 
@@ -153,7 +169,9 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.getByRole("button", { name: /add content/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /add content/i }),
+      ).toBeInTheDocument();
     });
 
     it("should render format button when expanded", async () => {
@@ -161,7 +179,9 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.getByRole("button", { name: /format/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /format/i }),
+      ).toBeInTheDocument();
     });
 
     it("should open content dropdown when content button is clicked", async () => {
@@ -179,7 +199,9 @@ describe("TaskEditor", () => {
       await expandEditor(user);
 
       await user.click(screen.getByRole("button", { name: /add content/i }));
-      expect(screen.getByRole("menuitem", { name: /image/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: /image/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show code snippet option in content dropdown", async () => {
@@ -188,7 +210,9 @@ describe("TaskEditor", () => {
       await expandEditor(user);
 
       await user.click(screen.getByRole("button", { name: /add content/i }));
-      expect(screen.getByRole("menuitem", { name: /code/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: /code/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show YouTube video option in content dropdown", async () => {
@@ -197,7 +221,9 @@ describe("TaskEditor", () => {
       await expandEditor(user);
 
       await user.click(screen.getByRole("button", { name: /add content/i }));
-      expect(screen.getByRole("menuitem", { name: /youtube|video/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: /youtube|video/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show file attachment option in content dropdown", async () => {
@@ -206,19 +232,25 @@ describe("TaskEditor", () => {
       await expandEditor(user);
 
       await user.click(screen.getByRole("button", { name: /add content/i }));
-      expect(screen.getByRole("menuitem", { name: /file|attach/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: /file|attach/i }),
+      ).toBeInTheDocument();
     });
   });
 
   describe("Top Right Buttons", () => {
     it("should render reminder button", () => {
       renderEditor();
-      expect(screen.getByRole("button", { name: /reminder/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /reminder/i }),
+      ).toBeInTheDocument();
     });
 
     it("should render summarize button", () => {
       renderEditor();
-      expect(screen.getByRole("button", { name: /summarize/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /summarize/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -228,7 +260,9 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /delete/i }),
+      ).toBeInTheDocument();
     });
 
     it("should call deleteEntryAndInvalidate when delete is confirmed", async () => {
@@ -242,7 +276,9 @@ describe("TaskEditor", () => {
       // Wait for the confirm dialog to appear and click the confirm button.
       // The ConfirmDialog renders a second "Delete" button with confirmText="Delete".
       await waitFor(() => {
-        const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+        const allDeleteBtns = screen.getAllByRole("button", {
+          name: /delete/i,
+        });
         // At least 2: the original "Delete entry" button and the dialog "Delete" confirm
         expect(allDeleteBtns.length).toBeGreaterThanOrEqual(2);
       });
@@ -279,11 +315,9 @@ describe("TaskEditor", () => {
   describe("Content Area (Tiptap)", () => {
     it("should render Tiptap editor as the content area", () => {
       renderEditor();
-      const tiptapEditor = screen.getByTestId("tiptap-editor");
+      const tiptapEditor = screen.getByLabelText(/rich text editor/i);
       expect(tiptapEditor).toBeInTheDocument();
-      // Should contain a contenteditable element
-      const proseMirror = tiptapEditor.querySelector("[contenteditable]");
-      expect(proseMirror).not.toBeNull();
+      expect(tiptapEditor).toHaveClass("tiptap-editor");
     });
 
     it("should render content from entry JSON", async () => {
@@ -291,7 +325,10 @@ describe("TaskEditor", () => {
         content: {
           type: "doc",
           content: [
-            { type: "paragraph", content: [{ type: "text", text: "Existing content" }] },
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Existing content" }],
+            },
           ],
         },
       });
@@ -309,7 +346,7 @@ describe("TaskEditor", () => {
 
       await user.click(screen.getByRole("button", { name: /topic/i }));
 
-      expect(screen.getByRole("listbox")).toBeInTheDocument();
+      expect(screen.getByRole("menu")).toBeInTheDocument();
     });
 
     it("should allow selecting a topic", async () => {
@@ -318,7 +355,9 @@ describe("TaskEditor", () => {
 
       await user.click(screen.getByRole("button", { name: /topic/i }));
 
-      const trabajoOption = screen.getByRole("option", { name: /trabajo/i });
+      const trabajoOption = screen.getByRole("menuitemradio", {
+        name: /trabajo/i,
+      });
       await user.click(trabajoOption);
 
       const topicButton = screen.getByRole("button", { name: /topic/i });
@@ -331,7 +370,7 @@ describe("TaskEditor", () => {
 
       await user.click(screen.getByRole("button", { name: /topic/i }));
 
-      const options = screen.getAllByRole("option");
+      const options = screen.getAllByRole("menuitemradio");
       expect(options[0]).toHaveTextContent(/auto/i);
     });
   });
@@ -342,7 +381,7 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.getByTestId("auto-save-indicator")).toBeInTheDocument();
+      expect(screen.getByLabelText(/auto-save indicator/i)).toBeInTheDocument();
     });
 
     it("should not have a manual save button (auto-save only)", async () => {
@@ -350,7 +389,9 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.queryByRole("button", { name: /^save$/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^save$/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -359,11 +400,15 @@ describe("TaskEditor", () => {
       const user = userEvent.setup();
       renderEditor();
 
-      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /delete/i }),
+      ).not.toBeInTheDocument();
 
       await expandEditor(user);
 
-      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /delete/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show bottom toolbar when expanded", async () => {
@@ -371,31 +416,45 @@ describe("TaskEditor", () => {
       renderEditor();
       await expandEditor(user);
 
-      expect(screen.getByRole("button", { name: /add content/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /format/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /add content/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /format/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /delete/i }),
+      ).toBeInTheDocument();
     });
   });
 
   describe("Entry Type Toggle", () => {
     it("should show task type by default for task entries", () => {
       renderEditor({ type: "task" });
-      expect(screen.getByRole("button", { name: /switch to note/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /switch to note/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show note type for note entries", () => {
       renderEditor({ type: "note" });
-      expect(screen.getByRole("button", { name: /switch to task/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /switch to task/i }),
+      ).toBeInTheDocument();
     });
 
     it("should show complete button only for tasks", () => {
       renderEditor({ type: "task" });
-      expect(screen.getByRole("button", { name: /mark as/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /mark as/i }),
+      ).toBeInTheDocument();
     });
 
     it("should not show complete button for notes", () => {
       renderEditor({ type: "note" });
-      expect(screen.queryByRole("button", { name: /mark as/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /mark as/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -404,8 +463,10 @@ describe("TaskEditor", () => {
       renderEditor();
 
       expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /topic/i })).toBeInTheDocument();
+      expect(screen.getByLabelText(/rich text editor/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /topic/i }),
+      ).toBeInTheDocument();
     });
   });
 });

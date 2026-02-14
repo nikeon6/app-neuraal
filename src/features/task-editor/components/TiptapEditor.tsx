@@ -275,6 +275,91 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     }
   }, [editor, entryId]);
 
+  // ---------------------------------------------------------------------------
+  // Scroll containment — prevent ProseMirror from scrolling ancestor
+  // containers (TasksContainer, page body) during normal editing operations.
+  //
+  // Two separate mechanisms can cause unwanted scroll in ancestor containers:
+  //
+  // 1. scrollToSelection(): ProseMirror calls this after transactions with
+  //    scrollIntoView (e.g., deleting a large image/video node). It walks up
+  //    the DOM and adjusts scrollTop on every scrollable ancestor, which can
+  //    shift the entire page layout.
+  //
+  // 2. view.dom.focus(): When ProseMirror regains focus (e.g., user clicked
+  //    the title input, then clicks back on the editor), it calls
+  //    this.dom.focus() which triggers the browser's native scroll-into-view
+  //    behavior. This happens BEFORE scrollToSelection and cannot be caught
+  //    by patching scrollToSelection alone.
+  //
+  // We patch both methods to keep scroll effects contained within the editor.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    const view = editor.view;
+
+    // --- Patch 1: scrollToSelection ---
+    const originalScroll = view.scrollToSelection.bind(view);
+
+    view.scrollToSelection = function patchedScrollToSelection() {
+      // Save scroll positions of all scrollable ancestors + window
+      const savedScrolls: Array<{
+        el: Element;
+        top: number;
+        left: number;
+      }> = [];
+      let ancestor: Element | null = view.dom.parentElement;
+      while (ancestor) {
+        if (ancestor.scrollHeight > ancestor.clientHeight) {
+          savedScrolls.push({
+            el: ancestor,
+            top: ancestor.scrollTop,
+            left: ancestor.scrollLeft,
+          });
+        }
+        ancestor = ancestor.parentElement;
+      }
+      const pageX = window.scrollX;
+      const pageY = window.scrollY;
+
+      // Let ProseMirror scroll within the editor itself
+      originalScroll();
+
+      // Restore ancestor scroll positions to prevent layout shift
+      for (const s of savedScrolls) {
+        if (s.el.scrollTop !== s.top) s.el.scrollTop = s.top;
+        if (s.el.scrollLeft !== s.left) s.el.scrollLeft = s.left;
+      }
+      if (window.scrollX !== pageX || window.scrollY !== pageY) {
+        window.scrollTo(pageX, pageY);
+      }
+    };
+
+    // --- Patch 2: dom.focus (prevent native browser focus-scroll) ---
+    // HTMLElement.focus is defined on the prototype, so we need
+    // Object.defineProperty to override it on the instance.
+    const editorDom = view.dom as HTMLElement;
+    const originalFocus = editorDom.focus.bind(editorDom);
+
+    Object.defineProperty(editorDom, "focus", {
+      value: function patchedFocus(options?: FocusOptions) {
+        originalFocus({ ...options, preventScroll: true });
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    return () => {
+      // Restore original methods on cleanup
+      if (!view.isDestroyed) {
+        view.scrollToSelection = originalScroll;
+      }
+      // Remove the instance override so the prototype method is used again
+      delete (editorDom as Record<string, unknown>).focus;
+    };
+  }, [editor]);
+
   // Sync external content changes (e.g., when entry changes from API)
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -473,6 +558,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   return (
     <div
       data-testid="tiptap-editor"
+      aria-label="Rich text editor"
       className={cn("tiptap-editor", isExpanded && "is-expanded")}
     >
       <EditorContent editor={editor} />
