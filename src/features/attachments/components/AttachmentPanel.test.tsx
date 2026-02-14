@@ -394,6 +394,32 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       );
       expect(downloadBtn).toBeDisabled();
     });
+
+    it("should fail silently when download URL request throws", async () => {
+      const user = userEvent.setup();
+      mockGetDownloadUrl.mockRejectedValueOnce(new Error("network"));
+      const openSpy = vi
+        .spyOn(globalThis, "open")
+        .mockImplementation(() => null);
+
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [mockAttachmentReady],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      await user.click(
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
+      );
+
+      expect(mockGetDownloadUrl).toHaveBeenCalledWith(mockAttachmentReady.id);
+      expect(openSpy).not.toHaveBeenCalled();
+      openSpy.mockRestore();
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -426,6 +452,127 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
           "entry-abc",
         );
       });
+    });
+
+    it("should notify parent callback after successful delete", async () => {
+      const user = userEvent.setup();
+      const onAttachmentDeleted = vi.fn();
+      mockDeleteAttachmentAndInvalidate.mockResolvedValueOnce(undefined);
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [mockAttachmentReady],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+
+      const queryClient = createQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AttachmentPanel
+            entryId="entry-abc"
+            dateKey="2026-01-29"
+            onAttachmentDeleted={onAttachmentDeleted}
+          />
+        </QueryClientProvider>,
+      );
+      await expandPanel(user);
+
+      await user.click(
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
+      );
+
+      await waitFor(() => {
+        expect(onAttachmentDeleted).toHaveBeenCalledWith(
+          mockAttachmentReady.id,
+        );
+      });
+    });
+  });
+
+  describe("mime and formatting branches", () => {
+    it("should display labels for multiple mime types", async () => {
+      const user = userEvent.setup();
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [
+            {
+              ...mockAttachmentReady,
+              id: "v1",
+              filename: "clip.mp4",
+              mimeType: "video/mp4",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "a1",
+              filename: "audio.mp3",
+              mimeType: "audio/mpeg",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "s1",
+              filename: "sheet.xlsx",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "d1",
+              filename: "doc.docx",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "z1",
+              filename: "archive.zip",
+              mimeType: "application/zip",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "f1",
+              filename: "data.bin",
+              mimeType: "application/octet-stream",
+            },
+          ],
+          usage: undefined,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      expect(screen.getByText(/Video/)).toBeInTheDocument();
+      expect(screen.getByText(/Audio/)).toBeInTheDocument();
+      expect(screen.getByText(/Sheet/)).toBeInTheDocument();
+      expect(screen.getByText(/Doc/)).toBeInTheDocument();
+      expect(screen.getByText(/Zip/)).toBeInTheDocument();
+      expect(screen.getByText(/File/)).toBeInTheDocument();
+      expect(screen.queryByText(/Entry:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Account:/)).not.toBeInTheDocument();
+    });
+
+    it("should render zero-byte attachments as 0 B", async () => {
+      const user = userEvent.setup();
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [
+            {
+              ...mockAttachmentReady,
+              id: "zero",
+              filename: "empty.txt",
+              sizeBytes: 0,
+              mimeType: "text/plain",
+            },
+          ],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      expect(screen.getByText(/0 B/)).toBeInTheDocument();
     });
   });
 });

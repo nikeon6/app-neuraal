@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,10 +12,28 @@ Element.prototype.scrollTo = vi.fn();
 
 // Mock IntersectionObserver since jsdom doesn't implement it
 class MockIntersectionObserver {
+  private readonly callback: IntersectionObserverCallback;
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+  }
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
 }
+MockIntersectionObserver.prototype.observe = vi.fn(function observe(
+  this: MockIntersectionObserver,
+  target: Element,
+) {
+  this.callback(
+    [
+      {
+        isIntersecting: true,
+        target,
+      } as IntersectionObserverEntry,
+    ],
+    this as unknown as IntersectionObserver,
+  );
+});
 globalThis.IntersectionObserver =
   MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
@@ -120,6 +138,28 @@ vi.mock("@/shared/store", () => ({
 // Import for resetting mock
 import * as storeModule from "../../../shared/store";
 
+function mockStoreState(overrides: Partial<Record<string, unknown>> = {}) {
+  vi.mocked(storeModule.useStore).mockImplementation((selector) => {
+    const state = {
+      selectedDate: new Date(MOCK_DATE),
+      selectedDay: 15,
+      setSelectedDay: mockSetSelectedDay,
+      setSelectedDate: mockSetSelectedDate,
+      selectedTopicIds: [],
+      expandedDayKeys: [],
+      pinnedDayKeys: [],
+      expandDay: mockExpandDay,
+      collapseDay: mockCollapseDay,
+      pinDay: mockPinDay,
+      unpinDay: mockUnpinDay,
+      ...overrides,
+    };
+    return typeof selector === "function"
+      ? selector(state as Record<string, unknown>)
+      : state;
+  });
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -146,29 +186,16 @@ describe("VerticalCalendar", () => {
     vi.clearAllMocks();
     mockTopicsQuery.mockReturnValue({ data: mockTopics, isPending: false });
     mockDeleteEntryAndInvalidate.mockResolvedValue(undefined);
-
-    vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-      const state = {
-        selectedDate: new Date(MOCK_DATE),
-        selectedDay: 15,
-        setSelectedDay: mockSetSelectedDay,
-        setSelectedDate: mockSetSelectedDate,
-        selectedTopicIds: [],
-        expandedDayKeys: [],
-        pinnedDayKeys: [],
-        expandDay: mockExpandDay,
-        collapseDay: mockCollapseDay,
-        pinDay: mockPinDay,
-        unpinDay: mockUnpinDay,
-      };
-      return typeof selector === "function"
-        ? selector(state as Record<string, unknown>)
-        : state;
+    mockStoreState();
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(16);
+      return 1;
     });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   // --------------------------------------------------------------------------
@@ -304,6 +331,101 @@ describe("VerticalCalendar", () => {
       const dayButtons = screen.getAllByRole("button");
       dayButtons.forEach((button) => {
         expect(button).not.toHaveAttribute("tabindex", "-1");
+      });
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Expanded/Pin/Delete flows (desktop)
+  // --------------------------------------------------------------------------
+  describe("Expanded Day Interactions", () => {
+    it("collapses an expanded non-pinned day on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [MOCK_DATE], pinnedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-15 selected/i));
+      expect(mockCollapseDay).toHaveBeenCalledWith(
+        MOCK_DATE,
+        mockEntriesByDate,
+      );
+    });
+
+    it("keeps expanded pinned day open and navigates on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+      });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-15 selected/i));
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(15);
+      expect(mockCollapseDay).not.toHaveBeenCalled();
+    });
+
+    it("pins day from pin button when currently unpinned", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [MOCK_DATE], pinnedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /pin day/i }));
+      expect(mockPinDay).toHaveBeenCalledWith(MOCK_DATE);
+    });
+
+    it("unpins selected day without collapsing", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+        selectedDate: new Date(MOCK_DATE),
+      });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /unpin day/i }));
+      expect(mockUnpinDay).toHaveBeenCalledWith(MOCK_DATE, mockEntriesByDate);
+      expect(mockCollapseDay).not.toHaveBeenCalled();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Month picker
+  // --------------------------------------------------------------------------
+  describe("Month Picker", () => {
+    it("opens month picker and allows selecting another month", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+      await user.click(screen.getByRole("button", { name: "Feb" }));
+
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(1);
+    });
+
+    it("closes month picker on outside click", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+      expect(screen.getByRole("button", { name: "Feb" })).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Feb" }),
+        ).not.toBeInTheDocument();
       });
     });
   });
