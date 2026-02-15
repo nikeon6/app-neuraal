@@ -94,6 +94,19 @@ describe("YoutubeUrlDialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("does not submit when form is submitted with invalid URL", async () => {
+    const { onSubmit, onClose } = renderDialog();
+    const input = screen.getByLabelText(/youtube url/i);
+
+    fireEvent.change(input, {
+      target: { value: "https://example.com/not-youtube" },
+    });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("focuses the input shortly after opening", async () => {
     renderDialog();
     const input = screen.getByLabelText(/youtube url/i);

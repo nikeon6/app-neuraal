@@ -237,6 +237,64 @@ const createMockContainerRefStack = () => {
   };
 };
 
+const createMockContainerRefDesktopLane = () => {
+  const container = document.createElement("div");
+  container.style.width = "1200px";
+  container.style.height = "800px";
+  container.style.position = "relative";
+  document.body.appendChild(container);
+
+  const lane = document.createElement("div");
+  container.appendChild(lane);
+
+  const aside = document.createElement("aside");
+  container.appendChild(aside);
+
+  container.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    right: 1200,
+    bottom: 800,
+    width: 1200,
+    height: 800,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+
+  // Desktop grid: lane is left of aside and vertically overlapping.
+  lane.getBoundingClientRect = () => ({
+    left: 520,
+    top: 80,
+    right: 780,
+    bottom: 700,
+    width: 260,
+    height: 620,
+    x: 520,
+    y: 80,
+    toJSON: () => ({}),
+  });
+
+  aside.getBoundingClientRect = () => ({
+    left: 800,
+    top: 0,
+    right: 1200,
+    bottom: 800,
+    width: 400,
+    height: 800,
+    x: 800,
+    y: 0,
+    toJSON: () => ({}),
+  });
+
+  return {
+    containerRef: {
+      current: container,
+    } as React.RefObject<HTMLDivElement | null>,
+    laneRef: { current: lane } as React.RefObject<HTMLDivElement | null>,
+  };
+};
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -638,6 +696,218 @@ describe("FloatingTopics", () => {
       });
 
       stackRefs.containerRef.current?.remove();
+    });
+
+    it("should keep drag loop running while pointer remains active", async () => {
+      const scheduled: FrameRequestCallback[] = [];
+      const rafSpy = vi
+        .spyOn(globalThis, "requestAnimationFrame")
+        .mockImplementation((cb: FrameRequestCallback) => {
+          scheduled.push(cb);
+          return scheduled.length;
+        });
+      const cancelSpy = vi
+        .spyOn(globalThis, "cancelAnimationFrame")
+        .mockImplementation(() => undefined);
+
+      renderFloatingTopics(containerRef);
+
+      await waitFor(() => {
+        const workNode = screen.getByLabelText(/topic trabajo/i);
+        workNode.setPointerCapture = vi.fn();
+        workNode.releasePointerCapture = vi.fn();
+        workNode.hasPointerCapture = vi.fn(() => true);
+
+        fireEvent.pointerDown(workNode, {
+          pointerId: 21,
+          clientX: 180,
+          clientY: 180,
+          pointerType: "mouse",
+        });
+      });
+
+      expect(scheduled.length).toBeGreaterThan(0);
+
+      // Execute one queued frame while drag is still active.
+      scheduled[0]?.(16);
+
+      expect(rafSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+      const workNode = screen.getByLabelText(/topic trabajo/i);
+      fireEvent.pointerUp(workNode, {
+        pointerId: 21,
+        clientX: 180,
+        clientY: 180,
+        pointerType: "mouse",
+      });
+
+      expect(cancelSpy).toHaveBeenCalled();
+      rafSpy.mockRestore();
+      cancelSpy.mockRestore();
+    });
+
+    it("should handle stack pointer move with lane and day anchors", async () => {
+      const stackRefs = createMockContainerRefStack();
+      addDayAnchor(stackRefs.containerRef, "2024-01-15", "15", {
+        left: 650,
+        top: 520,
+        width: 40,
+        height: 20,
+      });
+
+      renderFloatingTopics(
+        stackRefs.containerRef,
+        { "2024-01-15": [createMockEntry("entry-stack", "topic-work")] },
+        stackRefs.laneRef,
+      );
+
+      await waitFor(() => {
+        const workNode = screen.getByLabelText(/topic trabajo/i);
+        workNode.setPointerCapture = vi.fn();
+        workNode.releasePointerCapture = vi.fn();
+        workNode.hasPointerCapture = vi.fn(() => true);
+
+        const firstBluePath = document.querySelector('path[stroke="#3b82f6"]');
+        expect(firstBluePath).toBeTruthy();
+
+        fireEvent.pointerDown(workNode, {
+          pointerId: 30,
+          clientX: 180,
+          clientY: 180,
+          pointerType: "touch",
+        });
+        fireEvent.pointerMove(workNode, {
+          pointerId: 30,
+          clientX: 240,
+          clientY: 220,
+          pointerType: "touch",
+        });
+        fireEvent.pointerUp(workNode, {
+          pointerId: 30,
+          clientX: 240,
+          clientY: 220,
+          pointerType: "touch",
+        });
+
+        expect(mockSetTopicPosition).toHaveBeenCalledWith(
+          "topic-work",
+          expect.objectContaining({
+            x: expect.any(Number),
+            y: expect.any(Number),
+          }),
+        );
+      });
+
+      stackRefs.containerRef.current?.remove();
+    });
+
+    it("should update desktop lane junction x during pointer move", async () => {
+      const desktopRefs = createMockContainerRefDesktopLane();
+      addDayAnchor(desktopRefs.containerRef, "2024-01-15", "15", {
+        left: 900,
+        top: 220,
+        width: 40,
+        height: 20,
+      });
+      addDayAnchor(desktopRefs.containerRef, "2024-01-16", "16", {
+        left: 920,
+        top: 280,
+        width: 40,
+        height: 20,
+      });
+
+      renderFloatingTopics(
+        desktopRefs.containerRef,
+        multiDaySameTopicEntries,
+        desktopRefs.laneRef,
+      );
+
+      await waitFor(() => {
+        const workNode = screen.getByLabelText(/topic trabajo/i);
+        workNode.setPointerCapture = vi.fn();
+        workNode.releasePointerCapture = vi.fn();
+        workNode.hasPointerCapture = vi.fn(() => true);
+
+        fireEvent.pointerDown(workNode, {
+          pointerId: 31,
+          clientX: 560,
+          clientY: 240,
+          pointerType: "mouse",
+        });
+        fireEvent.pointerMove(workNode, {
+          pointerId: 31,
+          clientX: 640,
+          clientY: 280,
+          pointerType: "mouse",
+        });
+        fireEvent.pointerUp(workNode, {
+          pointerId: 31,
+          clientX: 640,
+          clientY: 280,
+          pointerType: "mouse",
+        });
+
+        expect(mockSetTopicPosition).toHaveBeenCalledWith(
+          "topic-work",
+          expect.objectContaining({
+            x: expect.any(Number),
+            y: expect.any(Number),
+          }),
+        );
+      });
+
+      desktopRefs.containerRef.current?.remove();
+    });
+
+    it("should update fallback junction x during pointer move without lane", async () => {
+      addDayAnchor(containerRef, "2024-01-15", "15", {
+        left: 900,
+        top: 220,
+        width: 40,
+        height: 20,
+      });
+      addDayAnchor(containerRef, "2024-01-16", "16", {
+        left: 920,
+        top: 280,
+        width: 40,
+        height: 20,
+      });
+
+      renderFloatingTopics(containerRef, multiDaySameTopicEntries);
+
+      await waitFor(() => {
+        const workNode = screen.getByLabelText(/topic trabajo/i);
+        workNode.setPointerCapture = vi.fn();
+        workNode.releasePointerCapture = vi.fn();
+        workNode.hasPointerCapture = vi.fn(() => true);
+
+        fireEvent.pointerDown(workNode, {
+          pointerId: 32,
+          clientX: 160,
+          clientY: 160,
+          pointerType: "mouse",
+        });
+        fireEvent.pointerMove(workNode, {
+          pointerId: 32,
+          clientX: 230,
+          clientY: 200,
+          pointerType: "mouse",
+        });
+        fireEvent.pointerUp(workNode, {
+          pointerId: 32,
+          clientX: 230,
+          clientY: 200,
+          pointerType: "mouse",
+        });
+
+        expect(mockSetTopicPosition).toHaveBeenCalledWith(
+          "topic-work",
+          expect.objectContaining({
+            x: expect.any(Number),
+            y: expect.any(Number),
+          }),
+        );
+      });
     });
   });
 
