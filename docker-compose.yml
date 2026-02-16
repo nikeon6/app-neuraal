@@ -271,5 +271,4 @@ volumes:
   neuraal_minio_data:
   neuraal_n8n_data:
   neuraal_ollama_data:
-  neuraal_waha_sessions:
   neuraal_evolution_instances:

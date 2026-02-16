@@ -226,6 +226,98 @@ describe("TiptapEditor", () => {
       });
     });
 
+    it("should append a new code block when already inside a code block", async () => {
+      const editorRef = React.createRef<{
+        insertCodeBlock: (language?: string | null) => void;
+      }>();
+      const codeContent = {
+        type: "doc",
+        content: [
+          {
+            type: "codeBlock",
+            attrs: { language: "javascript" },
+            content: [{ type: "text", text: "const a = 1;" }],
+          },
+        ],
+      };
+      render(
+        <TiptapEditor
+          content={codeContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      const initialBlocks = document.querySelectorAll("pre").length;
+      const codeEl = document.querySelector("pre code");
+      if (codeEl) {
+        fireEvent.click(codeEl);
+      }
+
+      editorRef.current?.insertCodeBlock("javascript");
+
+      await waitFor(() => {
+        expect(document.querySelectorAll("pre").length).toBeGreaterThan(
+          initialBlocks,
+        );
+      });
+    });
+
+    it("should insert youtube embed via editorRef API", async () => {
+      const editorRef = React.createRef<{
+        insertYoutube: (url: string) => void;
+      }>();
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      editorRef.current?.insertYoutube(
+        "https://www.youtube.com/watch?v=test321",
+      );
+
+      await waitFor(() => {
+        const iframe = document.querySelector("iframe");
+        expect(iframe).not.toBeNull();
+      });
+    });
+
+    it("should insert file attachment node via editorRef API", async () => {
+      const editorRef = React.createRef<{
+        insertFileNode: (attrs: {
+          attachmentId: string;
+          filename: string;
+          mimeType: string;
+          sizeBytes: number;
+        }) => void;
+      }>();
+      render(
+        <TiptapEditor
+          content={defaultContent}
+          onUpdate={onUpdateMock}
+          editorRef={editorRef}
+        />,
+      );
+
+      await waitFor(() => expect(editorRef.current).not.toBeNull());
+      editorRef.current?.insertFileNode({
+        attachmentId: "att-123",
+        filename: "doc.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 2048,
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("doc.pdf")).toBeInTheDocument();
+        expect(document.querySelector(".file-attachment-node")).not.toBeNull();
+      });
+    });
+
     it("sync helpers should return null with empty maps", async () => {
       const editorRef = React.createRef<{
         syncYoutubeTranscriptions: (map: Map<string, string>) => unknown;

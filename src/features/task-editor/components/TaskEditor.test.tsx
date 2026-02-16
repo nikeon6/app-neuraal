@@ -136,6 +136,18 @@ function renderEditor(entryOverrides: Partial<ApiEntry> = {}) {
   );
 }
 
+function renderEditorWithClient(
+  qc: QueryClient,
+  entryOverrides: Partial<ApiEntry> = {},
+) {
+  const entry = createMockEntry(entryOverrides);
+  return render(
+    <QueryClientProvider client={qc}>
+      <TaskEditor entry={entry} />
+    </QueryClientProvider>,
+  );
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -469,6 +481,17 @@ describe("TaskEditor", () => {
           screen.queryByRole("menu", { name: /select topic/i }),
         ).not.toBeInTheDocument();
       });
+    });
+
+    it("should allow selecting Auto topic option explicitly", async () => {
+      const user = userEvent.setup();
+      renderEditor({ title: "Has title" });
+
+      await user.click(screen.getByRole("button", { name: /topic/i }));
+      await user.click(screen.getByRole("menuitemradio", { name: /auto/i }));
+
+      const topicButton = screen.getByRole("button", { name: /topic/i });
+      expect(topicButton).toHaveTextContent(/auto/i);
     });
   });
 
@@ -865,6 +888,92 @@ describe("TaskEditor", () => {
       await waitFor(() => {
         expect(onClose).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it("should log delete errors for non-404 failures", async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const qc = createQueryClient();
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      mockDeleteEntryAndInvalidate.mockRejectedValue(new Error("boom"));
+
+      render(
+        <QueryClientProvider client={qc}>
+          <TaskEditor entry={createMockEntry()} onClose={onClose} />
+        </QueryClientProvider>,
+      );
+
+      await expandEditor(user);
+      await user.click(screen.getByTitle("Delete entry"));
+      await waitFor(() => {
+        const allDeleteBtns = screen.getAllByRole("button", {
+          name: /delete/i,
+        });
+        expect(allDeleteBtns.length).toBeGreaterThanOrEqual(2);
+      });
+      const allDeleteBtns = screen.getAllByRole("button", { name: /delete/i });
+      await user.click(allDeleteBtns[allDeleteBtns.length - 1]);
+
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          "[TaskEditor] delete failed:",
+          expect.any(Error),
+        );
+      });
+      expect(onClose).not.toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("should close delete confirmation when cancel is clicked", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      await user.click(screen.getByTitle("Delete entry"));
+      expect(
+        screen.getByRole("button", { name: /^cancel$/i }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: /^cancel$/i }),
+        ).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Optimistic cache updates", () => {
+    it("should update cached entry type immediately on toggle", async () => {
+      const user = userEvent.setup();
+      const qc = createQueryClient();
+      qc.setQueryData(["entries", "2024-01-15"], [createMockEntry()]);
+
+      renderEditorWithClient(qc, { type: "task" });
+      await user.click(screen.getByRole("button", { name: /switch to note/i }));
+
+      const cached = qc.getQueryData<ApiEntry[]>(["entries", "2024-01-15"]);
+      expect(cached?.[0]?.type).toBe("note");
+    });
+
+    it("should update cached completion immediately on toggle complete", async () => {
+      const user = userEvent.setup();
+      const qc = createQueryClient();
+      qc.setQueryData(
+        ["entries", "2024-01-15"],
+        [createMockEntry({ completed: false })],
+      );
+
+      renderEditorWithClient(qc, { type: "task", completed: false });
+      await user.click(
+        screen.getByRole("button", { name: /mark as complete/i }),
+      );
+
+      const cached = qc.getQueryData<ApiEntry[]>(["entries", "2024-01-15"]);
+      expect(cached?.[0]?.completed).toBe(true);
     });
   });
 });
