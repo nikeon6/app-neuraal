@@ -1,18 +1,22 @@
 # ---------- deps ----------
     FROM node:20-alpine AS deps
+    ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     WORKDIR /app
     RUN corepack enable
     
     COPY package.json pnpm-lock.yaml ./
-    RUN pnpm install --frozen-lockfile
+    RUN pnpm install --frozen-lockfile --ignore-scripts=false
     
     # ---------- build ----------
     FROM node:20-alpine AS build
+    ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     WORKDIR /app
     RUN corepack enable
     
     COPY --from=deps /app/node_modules ./node_modules
     COPY . .
+    ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/neuraal?schema=public
+    ENV DATABASE_URL=${DATABASE_URL}
     
     # Prisma client (si tu build lo necesita)
     RUN pnpm prisma generate
@@ -22,6 +26,7 @@
     
     # ---------- runtime ----------
     FROM node:20-alpine AS runtime
+    ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     WORKDIR /app
     ENV NODE_ENV=production
     ENV PORT=3000

@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+coverage
+dist
+build
+*.log
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.env.prod
+docker-compose*.yml
