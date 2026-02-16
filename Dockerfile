@@ -40,6 +40,7 @@
     COPY --from=build /app/node_modules ./node_modules
     COPY --from=build /app/.next ./.next
     COPY --from=build /app/prisma ./prisma
+    COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
     # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
     COPY --from=build /app/src/generated ./src/generated
