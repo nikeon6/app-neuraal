@@ -23,6 +23,10 @@
     
     # Build Next
     RUN pnpm build
+
+    # Build workers
+    RUN pnpm build:workers
+
     
     # ---------- runtime ----------
     FROM node:20-alpine AS runtime
@@ -43,6 +47,7 @@
     COPY --from=build /app/prisma ./prisma
     COPY --from=build /app/src ./src
     COPY --from=build /app/tsconfig.json ./tsconfig.json
+    COPY --from=build /app/dist ./dist
 
     # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
     COPY --from=build /app/src/generated ./src/generated
