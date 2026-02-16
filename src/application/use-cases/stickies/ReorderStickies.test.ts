@@ -15,8 +15,12 @@ describe("ReorderStickies", () => {
   });
 
   it("accepts valid reorder items", async () => {
-    const s1 = (await createSticky.execute({ userId: "u-1", title: "A", content: {} })).unwrap();
-    const s2 = (await createSticky.execute({ userId: "u-1", title: "B", content: {} })).unwrap();
+    const s1 = (
+      await createSticky.execute({ userId: "u-1", title: "A", content: {} })
+    ).unwrap();
+    const s2 = (
+      await createSticky.execute({ userId: "u-1", title: "B", content: {} })
+    ).unwrap();
 
     const result = await reorderStickies.execute("u-1", [
       { id: s2.id, sortOrder: 0, columnIndex: 0 },

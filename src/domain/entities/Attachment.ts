@@ -50,7 +50,7 @@ export class Attachment {
     kind: AttachmentKind,
     status: AttachmentStatus,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -132,8 +132,8 @@ export class Attachment {
         kindResult.value,
         statusResult.value,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
@@ -152,7 +152,7 @@ export class Attachment {
       this.kind,
       AttachmentStatus.ready(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -171,7 +171,7 @@ export class Attachment {
       this.kind,
       AttachmentStatus.deleted(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 

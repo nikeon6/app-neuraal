@@ -6,7 +6,11 @@
  */
 
 import { post, patch } from "../apiClient";
-import type { ApiReminder, CreateReminderBody, UpdateReminderBody } from "./types";
+import type {
+  ApiReminder,
+  CreateReminderBody,
+  UpdateReminderBody,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -14,7 +18,7 @@ import type { ApiReminder, CreateReminderBody, UpdateReminderBody } from "./type
 
 /** POST /api/reminders — creates a new reminder for an entry. */
 export async function createReminder(
-  input: CreateReminderBody
+  input: CreateReminderBody,
 ): Promise<ApiReminder> {
   const data = await post<{ reminder: ApiReminder }>("/api/reminders", input);
   return data.reminder;
@@ -30,11 +34,11 @@ export async function createReminder(
  */
 export async function updateReminder(
   id: string,
-  input: UpdateReminderBody
+  input: UpdateReminderBody,
 ): Promise<ApiReminder> {
   const data = await patch<{ reminder: ApiReminder }>(
     `/api/reminders/${id}`,
-    input
+    input,
   );
   return data.reminder;
 }

@@ -82,7 +82,8 @@ export function YoutubeEmbedComponent({
 
       if (transcribeState === "loading") return;
 
-      const entryId = editor.storage.youtube?.entryId as string | undefined;
+      const entryId = (editor.storage as { youtube?: { entryId?: string } })
+        .youtube?.entryId as string | undefined;
       if (!entryId || !src) return;
 
       setTranscribeState("loading");
@@ -92,7 +93,7 @@ export function YoutubeEmbedComponent({
         await requestTranscriptionAndInvalidate(
           queryClient,
           entryId,
-          src as string
+          src as string,
         );
         setTranscribeState("done");
       } catch (error) {
@@ -104,7 +105,7 @@ export function YoutubeEmbedComponent({
         setTranscribeState("error");
       }
     },
-    [transcribeState, editor, src, queryClient]
+    [transcribeState, editor, src, queryClient],
   );
 
   const handleCopy = useCallback(
@@ -130,7 +131,7 @@ export function YoutubeEmbedComponent({
         setTimeout(() => setCopied(false), 2000);
       }
     },
-    [transcription]
+    [transcription],
   );
 
   const hasTranscription = !!transcription;

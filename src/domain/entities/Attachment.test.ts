@@ -25,7 +25,7 @@ describe("Attachment", () => {
         expect(result.value.userId).toBe("user-456");
         expect(result.value.entryId).toBe("entry-789");
         expect(result.value.storageKey.toString()).toBe(
-          "attachments/user-456/file.pdf"
+          "attachments/user-456/file.pdf",
         );
         expect(result.value.filename.toString()).toBe("document.pdf");
         expect(result.value.mimeType.toString()).toBe("application/pdf");
@@ -158,7 +158,7 @@ describe("Attachment", () => {
       if (result.isOk()) {
         const ready = result.value.markReady();
         expect(ready.updatedAt.getTime()).toBeGreaterThanOrEqual(
-          result.value.updatedAt.getTime()
+          result.value.updatedAt.getTime(),
         );
       }
     });

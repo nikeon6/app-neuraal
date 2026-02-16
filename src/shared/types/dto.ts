@@ -1,21 +1,21 @@
 /**
  * Data Transfer Objects (DTOs) for the Neuraal application
- * 
+ *
  * DTOs define the shape of data for API requests.
  * They exclude auto-generated fields like id, meta, etc.
- * 
+ *
  * IMPORTANT: These DTOs explicitly define allowed fields to prevent
  * accidental updates to protected fields (like meta, userId, etc.)
  */
 
-import type { 
-  EntryId, 
-  TopicId, 
-  ReminderId, 
+import type {
+  EntryId,
+  TopicId,
+  ReminderId,
   AttachmentId,
-  ISODate, 
-  ISODateTime, 
-  Timezone 
+  ISODate,
+  ISODateTime,
+  Timezone,
 } from "./base";
 import type {
   EntryType,
@@ -24,7 +24,11 @@ import type {
   Content,
   Attachment,
 } from "./entry";
-import type { ReminderStatus, ReminderChannel, RecurrenceRule } from "./reminder";
+import type {
+  ReminderStatus,
+  ReminderChannel,
+  RecurrenceRule,
+} from "./reminder";
 
 // ============================================================================
 // Entry DTOs
@@ -32,7 +36,7 @@ import type { ReminderStatus, ReminderChannel, RecurrenceRule } from "./reminder
 
 /**
  * Input for creating a new entry.
- * 
+ *
  * Required: date, title
  * Optional: everything else (sensible defaults applied)
  */
@@ -59,7 +63,7 @@ export interface CreateEntryInput {
 
 /**
  * Allowed fields for updating an entry.
- * 
+ *
  * Explicitly excludes: id, userId, entryType, meta, attachments, reminderIds
  * - Use AddAttachmentInput/RemoveAttachmentInput for attachments
  * - Use CreateReminderInput for reminders
@@ -85,7 +89,7 @@ export interface EntryPatch {
 
 /**
  * Input for updating an existing entry.
- * 
+ *
  * Uses explicit patch object to prevent accidental meta/userId updates.
  * Includes version for optimistic concurrency control.
  */

@@ -13,7 +13,7 @@ interface RouteParams {
  */
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -33,7 +33,10 @@ export async function POST(
   if (result.isErr()) {
     const { code, message } = result.error;
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ success: true }, { status: 200 });

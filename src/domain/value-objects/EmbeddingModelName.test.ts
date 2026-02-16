@@ -4,7 +4,9 @@ import { EmbeddingModelName } from "./EmbeddingModelName";
 describe("EmbeddingModelName", () => {
   describe("create", () => {
     it("should create a valid model name", () => {
-      const result = EmbeddingModelName.create("nomic-embed-text-v2-moe:latest");
+      const result = EmbeddingModelName.create(
+        "nomic-embed-text-v2-moe:latest",
+      );
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.toString()).toBe("nomic-embed-text-v2-moe:latest");

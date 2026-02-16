@@ -7,7 +7,9 @@ import type { TiptapEditorHandle } from "../components/TiptapEditor";
 /**
  * Collects all attachment IDs from image and fileAttachment nodes in the editor doc.
  */
-function collectAttachmentIds(editor: NonNullable<TiptapEditorHandle["editor"]>): Set<string> {
+function collectAttachmentIds(
+  editor: NonNullable<TiptapEditorHandle["editor"]>,
+): Set<string> {
   const ids = new Set<string>();
   if (!editor || editor.isDestroyed) return ids;
   editor.state.doc.descendants((node) => {
@@ -37,7 +39,7 @@ const MAX_RETRIES = 50; // 50 × 100ms = 5 seconds max wait
  */
 export function useTrackDeletedImages(
   entryId: string | undefined,
-  editorRef: React.RefObject<TiptapEditorHandle | null>
+  editorRef: React.RefObject<TiptapEditorHandle | null>,
 ) {
   const queryClient = useQueryClient();
   const previousIdsRef = useRef<Set<string>>(new Set());
@@ -47,6 +49,8 @@ export function useTrackDeletedImages(
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let retryCount = 0;
     let subscribed = false;
+    let subscribedEditor: NonNullable<TiptapEditorHandle["editor"]> | null =
+      null;
 
     const handleUpdate = () => {
       const editor = editorRef.current?.editor;
@@ -80,10 +84,14 @@ export function useTrackDeletedImages(
             .then(() =>
               queryClient.invalidateQueries({
                 queryKey: attachmentsQueryKey(entryId),
-              })
+              }),
             )
             .catch((err) =>
-              console.error("[useTrackDeletedImages] Failed to delete attachment:", id, err)
+              console.error(
+                "[useTrackDeletedImages] Failed to delete attachment:",
+                id,
+                err,
+              ),
             );
         }
       }
@@ -108,17 +116,15 @@ export function useTrackDeletedImages(
       previousIdsRef.current = collectAttachmentIds(editor);
       initializedRef.current = true;
       subscribed = true;
+      subscribedEditor = editor;
     }
 
     trySubscribe();
 
     return () => {
       if (retryTimer) clearTimeout(retryTimer);
-      if (subscribed) {
-        const editor = editorRef.current?.editor;
-        if (editor && !editor.isDestroyed) {
-          editor.off("update", handleUpdate);
-        }
+      if (subscribed && subscribedEditor && !subscribedEditor.isDestroyed) {
+        subscribedEditor.off("update", handleUpdate);
       }
       initializedRef.current = false;
     };

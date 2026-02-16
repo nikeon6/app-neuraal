@@ -6,6 +6,7 @@ import {
   EnqueueEntrySummaryData,
   EnqueueEntryTranscriptionData,
 } from "../../application/ports/QueuePort";
+import { withSentrySpan } from "../logging/sentryTracing";
 
 /**
  * BullMQ implementation of QueuePort.
@@ -22,81 +23,121 @@ export class BullMQAdapter implements QueuePort {
       redisUrl ?? process.env.REDIS_URL ?? "redis://localhost:6379",
       {
         maxRetriesPerRequest: null,
-      }
+      },
     );
 
-    this.remindersQueue = new Queue("reminders", { connection: this.connection });
-    this.summariesQueue = new Queue("summaries", { connection: this.connection });
-    this.transcriptionsQueue = new Queue("transcriptions", { connection: this.connection });
+    this.remindersQueue = new Queue("reminders", {
+      connection: this.connection,
+    });
+    this.summariesQueue = new Queue("summaries", {
+      connection: this.connection,
+    });
+    this.transcriptionsQueue = new Queue("transcriptions", {
+      connection: this.connection,
+    });
   }
 
   async enqueueReminder(data: EnqueueReminderData): Promise<void> {
     const scheduledAt = new Date(data.scheduledAt);
     const delay = Math.max(0, scheduledAt.getTime() - Date.now());
 
-    await this.remindersQueue.add(
-      "send-reminder",
+    await withSentrySpan(
       {
-        reminderId: data.reminderId,
-        originalScheduledAt: data.scheduledAt,
-      },
-      {
-        jobId: `reminder-${data.reminderId}-${data.scheduledAt}`,
-        delay,
-        attempts: 5,
-        backoff: {
-          type: "exponential",
-          delay: 5000, // Start with 5 seconds
+        name: "bullmq.enqueue.reminder",
+        op: "queue.enqueue",
+        attributes: {
+          "queue.name": "reminders",
+          "job.id": `reminder-${data.reminderId}-${data.scheduledAt}`,
+          "queue.delay_ms": delay,
         },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
+      },
+      () =>
+        this.remindersQueue.add(
+          "send-reminder",
+          {
+            reminderId: data.reminderId,
+            originalScheduledAt: data.scheduledAt,
+          },
+          {
+            jobId: `reminder-${data.reminderId}-${data.scheduledAt}`,
+            delay,
+            attempts: 5,
+            backoff: {
+              type: "exponential",
+              delay: 30_000, // 30s → 1m → 2m → 4m → 8m
+            },
+            removeOnComplete: { count: 200 },
+            removeOnFail: { count: 500 },
+          },
+        ),
     );
   }
 
   async enqueueEntrySummary(data: EnqueueEntrySummaryData): Promise<void> {
-    await this.summariesQueue.add(
-      "generate-summary",
+    await withSentrySpan(
       {
-        requestId: data.requestId,
-        userId: data.userId,
-        entryId: data.entryId,
-        plainTextForSummary: data.plainTextForSummary,
-      },
-      {
-        jobId: `summary-${data.requestId}`,
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 10000, // Start with 10 seconds
+        name: "bullmq.enqueue.summary",
+        op: "queue.enqueue",
+        attributes: {
+          "queue.name": "summaries",
+          "job.id": `summary-${data.requestId}`,
         },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
+      },
+      () =>
+        this.summariesQueue.add(
+          "generate-summary",
+          {
+            requestId: data.requestId,
+            userId: data.userId,
+            entryId: data.entryId,
+            plainTextForSummary: data.plainTextForSummary,
+          },
+          {
+            jobId: `summary-${data.requestId}`,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 30_000, // 30s → 1m → 2m
+            },
+            removeOnComplete: { count: 200 },
+            removeOnFail: { count: 500 },
+          },
+        ),
     );
   }
 
   async enqueueEntryTranscription(
-    data: EnqueueEntryTranscriptionData
+    data: EnqueueEntryTranscriptionData,
   ): Promise<void> {
-    await this.transcriptionsQueue.add(
-      "transcribe-video",
+    await withSentrySpan(
       {
-        requestId: data.requestId,
-        userId: data.userId,
-        entryId: data.entryId,
-        youtubeUrl: data.youtubeUrl,
-      },
-      {
-        jobId: `transcription-${data.requestId}`,
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 10000,
+        name: "bullmq.enqueue.transcription",
+        op: "queue.enqueue",
+        attributes: {
+          "queue.name": "transcriptions",
+          "job.id": `transcription-${data.requestId}`,
         },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
+      },
+      () =>
+        this.transcriptionsQueue.add(
+          "transcribe-video",
+          {
+            requestId: data.requestId,
+            userId: data.userId,
+            entryId: data.entryId,
+            youtubeUrl: data.youtubeUrl,
+          },
+          {
+            jobId: `transcription-${data.requestId}`,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 30_000, // 30s → 1m → 2m
+            },
+            removeOnComplete: { count: 200 },
+            removeOnFail: { count: 500 },
+          },
+        ),
     );
   }
 

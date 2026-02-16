@@ -1,6 +1,9 @@
 import { Result, ok, err } from "../../../domain/core/Result";
 import { Notification } from "../../../domain/entities/Notification";
-import { SummaryText, SummaryFormat } from "../../../domain/value-objects/SummaryText";
+import {
+  SummaryText,
+  SummaryFormat,
+} from "../../../domain/value-objects/SummaryText";
 import { EntryRepository } from "../../ports/EntryRepository";
 import { SummaryRequestRepository } from "../../ports/SummaryRequestRepository";
 import { NotificationRepository } from "../../ports/NotificationRepository";
@@ -80,11 +83,11 @@ export class HandleEntrySummaryCallback {
     private readonly notificationRepository: NotificationRepository,
     private readonly webhookSecret: string,
     private readonly recordAiUsage?: RecordAiUsageFromCallback,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: HandleEntrySummaryCallbackInput
+    input: HandleEntrySummaryCallbackInput,
   ): Promise<Result<HandleEntrySummaryCallbackOutput, UseCaseError>> {
     const { rawBody, timestamp, signature, payload } = input;
 
@@ -96,7 +99,7 @@ export class HandleEntrySummaryCallback {
 
     // 3. Load summary request
     const request = await this.summaryRequestRepository.findById(
-      payload.requestId
+      payload.requestId,
     );
     if (!request) {
       return err(notFoundError("Summary request not found"));
@@ -114,7 +117,11 @@ export class HandleEntrySummaryCallback {
 
     // 5b. Validate entryId matches — use the stored request as source of truth
     if (request.entryId !== payload.entryId) {
-      return err(validationError("Entry ID mismatch: payload does not match original request"));
+      return err(
+        validationError(
+          "Entry ID mismatch: payload does not match original request",
+        ),
+      );
     }
 
     // 6. Validate summary
@@ -130,7 +137,7 @@ export class HandleEntrySummaryCallback {
     await this.entryRepository.updateSummary(
       entryId,
       summaryResult.value.toString(),
-      summaryResult.value.getFormat()
+      summaryResult.value.getFormat(),
     );
 
     // 8. Mark request as done
@@ -175,7 +182,7 @@ export class HandleEntrySummaryCallback {
   private verifySignature(
     rawBody: string,
     timestamp: string,
-    signature: string
+    signature: string,
   ): Result<void, UseCaseError> {
     // Validate timestamp
     const timestampMs = parseInt(timestamp, 10);
@@ -207,7 +214,7 @@ export class HandleEntrySummaryCallback {
     if (
       !crypto.timingSafeEqual(
         Buffer.from(signature),
-        Buffer.from(expectedSignature)
+        Buffer.from(expectedSignature),
       )
     ) {
       return err(unauthorizedError("Invalid signature"));

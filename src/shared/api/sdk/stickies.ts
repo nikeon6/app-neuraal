@@ -20,7 +20,9 @@ export async function listStickies(): Promise<ApiSticky[]> {
 // ---------------------------------------------------------------------------
 
 /** POST /api/stickies — creates a new sticky. */
-export async function createSticky(input: CreateStickyBody): Promise<ApiSticky> {
+export async function createSticky(
+  input: CreateStickyBody,
+): Promise<ApiSticky> {
   const data = await post<{ sticky: ApiSticky }>("/api/stickies", input);
   return data.sticky;
 }
@@ -32,7 +34,7 @@ export async function createSticky(input: CreateStickyBody): Promise<ApiSticky> 
 /** PATCH /api/stickies/{id} — updates an existing sticky. */
 export async function updateSticky(
   id: string,
-  input: UpdateStickyBody
+  input: UpdateStickyBody,
 ): Promise<ApiSticky> {
   const data = await patch<{ sticky: ApiSticky }>(`/api/stickies/${id}`, input);
   return data.sticky;
@@ -53,7 +55,7 @@ export async function deleteSticky(id: string): Promise<void> {
 
 /** PATCH /api/stickies/reorder — bulk-updates sortOrder and columnIndex. */
 export async function reorderStickies(
-  items: { id: string; sortOrder: number; columnIndex: number }[]
+  items: { id: string; sortOrder: number; columnIndex: number }[],
 ): Promise<void> {
   await patch("/api/stickies/reorder", { items });
 }

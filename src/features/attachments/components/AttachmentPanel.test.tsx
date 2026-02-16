@@ -52,7 +52,8 @@ const mockUsage = {
 const mockAttachmentsQuery = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
-  useEntryAttachmentsQuery: (...args: unknown[]) => mockAttachmentsQuery(...args),
+  useEntryAttachmentsQuery: (...args: unknown[]) =>
+    mockAttachmentsQuery(...args),
   attachmentsQueryKey: (entryId: string) => ["attachments", entryId],
 }));
 
@@ -76,7 +77,7 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: React.forwardRef(function MockDiv(
       { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
-      ref: React.Ref<HTMLDivElement>
+      ref: React.Ref<HTMLDivElement>,
     ) {
       return (
         <div ref={ref} {...props}>
@@ -85,7 +86,9 @@ vi.mock("framer-motion", () => ({
       );
     }),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 // ============================================================================
@@ -106,7 +109,7 @@ function renderPanel(entryId = "entry-abc", dateKey = "2026-01-29") {
   return render(
     <QueryClientProvider client={queryClient}>
       <AttachmentPanel entryId={entryId} dateKey={dateKey} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -151,15 +154,15 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       expect(screen.getByText("Attachments")).toBeInTheDocument();
     });
 
-    it("should show loading state (header visible while loading)", () => {
+    it("should render nothing while loading (prevents flash)", () => {
       mockAttachmentsQuery.mockReturnValue({
         data: undefined,
         isLoading: true,
       });
-      renderPanel();
-      // The loading state is inside the expandable content, but the header should render
-      // when isLoading is true (since we don't hide the component during loading)
-      expect(screen.getByText("Attachments")).toBeInTheDocument();
+      const { container } = renderPanel();
+      // The component explicitly returns null during loading to prevent
+      // a brief flash of the panel header on entries with no attachments.
+      expect(container.innerHTML).toBe("");
     });
 
     it("should display attachment count in header", () => {
@@ -275,7 +278,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       renderPanel();
       await expandPanel(user);
       expect(
-        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
       ).toBeInTheDocument();
     });
 
@@ -291,7 +294,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       renderPanel();
       await expandPanel(user);
       expect(
-        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
       ).toBeInTheDocument();
     });
   });
@@ -312,7 +315,9 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       });
       renderPanel();
       await expandPanel(user);
-      expect(screen.getByText(/Entry: 1\.5 MB \/ 20\.0 MB/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Entry: 1\.5 MB \/ 20\.0 MB/),
+      ).toBeInTheDocument();
     });
 
     it("should display account usage when expanded", async () => {
@@ -326,7 +331,9 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       });
       renderPanel();
       await expandPanel(user);
-      expect(screen.getByText(/Account: 5\.0 MB \/ 1\.0 GB/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Account: 5\.0 MB \/ 1\.0 GB/),
+      ).toBeInTheDocument();
     });
   });
 
@@ -337,10 +344,13 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
   describe("download", () => {
     it("should request presigned URL and open in new tab", async () => {
       const user = userEvent.setup();
-      const mockUrl = "https://s3.example.com/download/report.pdf?signature=abc";
+      const mockUrl =
+        "https://s3.example.com/download/report.pdf?signature=abc";
       mockGetDownloadUrl.mockResolvedValueOnce({ presignedGetUrl: mockUrl });
 
-      const openSpy = vi.spyOn(globalThis, "open").mockImplementation(() => null);
+      const openSpy = vi
+        .spyOn(globalThis, "open")
+        .mockImplementation(() => null);
 
       mockAttachmentsQuery.mockReturnValue({
         data: {
@@ -353,7 +363,7 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       await user.click(
-        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
       );
 
       await waitFor(() => {
@@ -380,9 +390,35 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       const downloadBtn = screen.getByLabelText(
-        `Download ${mockAttachmentPending.filename}`
+        `Download ${mockAttachmentPending.filename}`,
       );
       expect(downloadBtn).toBeDisabled();
+    });
+
+    it("should fail silently when download URL request throws", async () => {
+      const user = userEvent.setup();
+      mockGetDownloadUrl.mockRejectedValueOnce(new Error("network"));
+      const openSpy = vi
+        .spyOn(globalThis, "open")
+        .mockImplementation(() => null);
+
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [mockAttachmentReady],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      await user.click(
+        screen.getByLabelText(`Download ${mockAttachmentReady.filename}`),
+      );
+
+      expect(mockGetDownloadUrl).toHaveBeenCalledWith(mockAttachmentReady.id);
+      expect(openSpy).not.toHaveBeenCalled();
+      openSpy.mockRestore();
     });
   });
 
@@ -406,16 +442,137 @@ describe("AttachmentPanel (collapsible, read-only)", () => {
       await expandPanel(user);
 
       await user.click(
-        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`)
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
       );
 
       await waitFor(() => {
         expect(mockDeleteAttachmentAndInvalidate).toHaveBeenCalledWith(
           expect.anything(), // queryClient
           mockAttachmentReady.id,
-          "entry-abc"
+          "entry-abc",
         );
       });
+    });
+
+    it("should notify parent callback after successful delete", async () => {
+      const user = userEvent.setup();
+      const onAttachmentDeleted = vi.fn();
+      mockDeleteAttachmentAndInvalidate.mockResolvedValueOnce(undefined);
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [mockAttachmentReady],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+
+      const queryClient = createQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AttachmentPanel
+            entryId="entry-abc"
+            dateKey="2026-01-29"
+            onAttachmentDeleted={onAttachmentDeleted}
+          />
+        </QueryClientProvider>,
+      );
+      await expandPanel(user);
+
+      await user.click(
+        screen.getByLabelText(`Delete ${mockAttachmentReady.filename}`),
+      );
+
+      await waitFor(() => {
+        expect(onAttachmentDeleted).toHaveBeenCalledWith(
+          mockAttachmentReady.id,
+        );
+      });
+    });
+  });
+
+  describe("mime and formatting branches", () => {
+    it("should display labels for multiple mime types", async () => {
+      const user = userEvent.setup();
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [
+            {
+              ...mockAttachmentReady,
+              id: "v1",
+              filename: "clip.mp4",
+              mimeType: "video/mp4",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "a1",
+              filename: "audio.mp3",
+              mimeType: "audio/mpeg",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "s1",
+              filename: "sheet.xlsx",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "d1",
+              filename: "doc.docx",
+              mimeType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "z1",
+              filename: "archive.zip",
+              mimeType: "application/zip",
+            },
+            {
+              ...mockAttachmentReady,
+              id: "f1",
+              filename: "data.bin",
+              mimeType: "application/octet-stream",
+            },
+          ],
+          usage: undefined,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      expect(screen.getByText(/Video/)).toBeInTheDocument();
+      expect(screen.getByText(/Audio/)).toBeInTheDocument();
+      expect(screen.getByText(/Sheet/)).toBeInTheDocument();
+      expect(screen.getByText(/Doc/)).toBeInTheDocument();
+      expect(screen.getByText(/Zip/)).toBeInTheDocument();
+      expect(screen.getByText(/File/)).toBeInTheDocument();
+      expect(screen.queryByText(/Entry:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Account:/)).not.toBeInTheDocument();
+    });
+
+    it("should render zero-byte attachments as 0 B", async () => {
+      const user = userEvent.setup();
+      mockAttachmentsQuery.mockReturnValue({
+        data: {
+          attachments: [
+            {
+              ...mockAttachmentReady,
+              id: "zero",
+              filename: "empty.txt",
+              sizeBytes: 0,
+              mimeType: "text/plain",
+            },
+          ],
+          usage: mockUsage,
+        },
+        isLoading: false,
+      });
+      renderPanel();
+      await expandPanel(user);
+
+      expect(screen.getByText(/0 B/)).toBeInTheDocument();
     });
   });
 });

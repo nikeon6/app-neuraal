@@ -26,13 +26,14 @@ describe("CompletionDonutChart", () => {
     });
 
     it("renders SVG with two circle strokes", () => {
-      const { container } = render(
-        <CompletionDonutChart completed={5} pending={5} />
-      );
-
-      const circles = container.querySelectorAll("circle");
-      // Background track + completed arc
-      expect(circles.length).toBeGreaterThanOrEqual(2);
+      render(<CompletionDonutChart completed={5} pending={5} />);
+      expect(
+        screen.getByLabelText(/task completion chart/i),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/pending tasks ring/i)).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/completed tasks ring/i),
+      ).toBeInTheDocument();
     });
 
     it("shows the title 'Task Completion'", () => {

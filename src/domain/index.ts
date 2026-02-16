@@ -2,8 +2,8 @@
 // Pure business logic - no framework dependencies
 
 // Core
-export { Result, Ok, Err, ok, err } from "./core/Result";
-export type { Result as ResultType } from "./core/Result";
+export type { Result, Result as ResultType } from "./core/Result";
+export { Ok, Err, ok, err } from "./core/Result";
 
 // Value Objects - Topics
 export { HexColor } from "./value-objects/HexColor";

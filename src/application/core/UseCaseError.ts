@@ -76,7 +76,10 @@ export function quotaExceededError(message: string): UseCaseError {
  * Creates a rate limit exceeded error (429).
  * details may include { remaining: number, resetAt: string (ISO) } for the API.
  */
-export function rateLimitedError(message: string, details?: unknown): UseCaseError {
+export function rateLimitedError(
+  message: string,
+  details?: unknown,
+): UseCaseError {
   return { code: "RATE_LIMITED", message, details };
 }
 

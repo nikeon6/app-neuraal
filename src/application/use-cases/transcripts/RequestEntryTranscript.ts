@@ -21,7 +21,8 @@ export interface RequestEntryTranscriptOutput {
   notificationId: string;
 }
 
-const YOUTUBE_REGEX = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
+const YOUTUBE_REGEX =
+  /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
 
 export class RequestEntryTranscript {
   constructor(
@@ -31,17 +32,21 @@ export class RequestEntryTranscript {
     private readonly queuePort: QueuePort,
     private readonly aiUsageRepository: AiUsageRepository,
     private readonly clock: ClockPort,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: RequestEntryTranscriptInput
+    input: RequestEntryTranscriptInput,
   ): Promise<Result<RequestEntryTranscriptOutput, UseCaseError>> {
     const { userId, entryId, youtubeUrl } = input;
 
     // Validate YouTube URL
     if (!youtubeUrl || !YOUTUBE_REGEX.test(youtubeUrl.trim())) {
-      return err(validationError("Invalid YouTube URL. Must be a youtube.com or youtu.be link."));
+      return err(
+        validationError(
+          "Invalid YouTube URL. Must be a youtube.com or youtu.be link.",
+        ),
+      );
     }
 
     // Validate entry ownership
@@ -81,7 +86,12 @@ export class RequestEntryTranscript {
 
     // Increment monthly usage
     const monthKey = MonthKey.fromDate(now).toString();
-    await this.aiUsageRepository.incrementRequests(userId, "TRANSCRIPT_YOUTUBE", monthKey, 1);
+    await this.aiUsageRepository.incrementRequests(
+      userId,
+      "TRANSCRIPT_YOUTUBE",
+      monthKey,
+      1,
+    );
 
     // Enqueue job
     try {
@@ -93,7 +103,12 @@ export class RequestEntryTranscript {
       });
     } catch (enqueueError) {
       // Revert usage increment
-      await this.aiUsageRepository.incrementRequests(userId, "TRANSCRIPT_YOUTUBE", monthKey, -1);
+      await this.aiUsageRepository.incrementRequests(
+        userId,
+        "TRANSCRIPT_YOUTUBE",
+        monthKey,
+        -1,
+      );
       throw enqueueError;
     }
 

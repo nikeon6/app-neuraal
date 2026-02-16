@@ -15,12 +15,12 @@ vi.mock("framer-motion", () => ({
     div: React.forwardRef(
       (
         { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
-        ref: React.Ref<HTMLDivElement>
+        ref: React.Ref<HTMLDivElement>,
       ) => (
         <div ref={ref} {...props}>
           {children}
         </div>
-      )
+      ),
     ),
   },
   AnimatePresence: ({ children }: { children: React.ReactNode }) => (
@@ -68,7 +68,7 @@ describe("ReminderDialog", () => {
       renderDialog();
 
       expect(
-        screen.getByRole("dialog", { name: /schedule reminder/i })
+        screen.getByRole("dialog", { name: /schedule reminder/i }),
       ).toBeInTheDocument();
     });
 
@@ -76,7 +76,7 @@ describe("ReminderDialog", () => {
       renderDialog({ open: false });
 
       expect(
-        screen.queryByRole("dialog", { name: /schedule reminder/i })
+        screen.queryByRole("dialog", { name: /schedule reminder/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -121,10 +121,8 @@ describe("ReminderDialog", () => {
       const user = userEvent.setup();
       renderDialog({ onClose });
 
-      // Backdrop has the bg-black/50 class
-      const backdrop = document.querySelector("[class*='bg-black']");
-      expect(backdrop).toBeInTheDocument();
-      await user.click(backdrop as HTMLElement);
+      const backdrop = screen.getByLabelText(/close reminder dialog/i);
+      await user.click(backdrop);
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
@@ -166,7 +164,7 @@ describe("ReminderDialog", () => {
 
       expect(screen.queryByText("Message (optional)")).not.toBeInTheDocument();
       expect(
-        screen.queryByPlaceholderText("Reminder message...")
+        screen.queryByPlaceholderText("Reminder message..."),
       ).not.toBeInTheDocument();
     });
   });
@@ -180,7 +178,7 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: false });
 
       expect(
-        screen.getByRole("button", { name: /schedule/i })
+        screen.getByRole("button", { name: /schedule/i }),
       ).toBeInTheDocument();
     });
 
@@ -188,10 +186,10 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: false });
 
       expect(
-        screen.queryByRole("button", { name: /reschedule/i })
+        screen.queryByRole("button", { name: /reschedule/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: /cancel reminder/i })
+        screen.queryByRole("button", { name: /cancel reminder/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -221,7 +219,7 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: false, isSaving: true });
 
       expect(
-        screen.getByRole("button", { name: /scheduling/i })
+        screen.getByRole("button", { name: /scheduling/i }),
       ).toBeDisabled();
     });
   });
@@ -235,10 +233,10 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: true });
 
       expect(
-        screen.getByRole("button", { name: /reschedule/i })
+        screen.getByRole("button", { name: /reschedule/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /cancel reminder/i })
+        screen.getByRole("button", { name: /cancel reminder/i }),
       ).toBeInTheDocument();
     });
 
@@ -246,7 +244,7 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: true });
 
       expect(
-        screen.queryByRole("button", { name: /^schedule$/i })
+        screen.queryByRole("button", { name: /^schedule$/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -268,7 +266,7 @@ describe("ReminderDialog", () => {
       renderDialog({ hasActiveReminder: true, onCancel });
 
       await user.click(
-        screen.getByRole("button", { name: /cancel reminder/i })
+        screen.getByRole("button", { name: /cancel reminder/i }),
       );
 
       expect(onCancel).toHaveBeenCalledTimes(1);
@@ -283,11 +281,9 @@ describe("ReminderDialog", () => {
     it("disables reschedule and cancel buttons when isSaving", () => {
       renderDialog({ hasActiveReminder: true, isSaving: true });
 
+      expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
       expect(
-        screen.getByRole("button", { name: /saving/i })
-      ).toBeDisabled();
-      expect(
-        screen.getByRole("button", { name: /cancel reminder/i })
+        screen.getByRole("button", { name: /cancel reminder/i }),
       ).toBeDisabled();
     });
   });
@@ -308,7 +304,7 @@ describe("ReminderDialog", () => {
       renderDialog();
 
       expect(
-        screen.getByRole("dialog", { name: /schedule reminder/i })
+        screen.getByRole("dialog", { name: /schedule reminder/i }),
       ).toBeInTheDocument();
     });
   });

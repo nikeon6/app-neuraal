@@ -1,6 +1,6 @@
 /**
  * Features barrel file
- * 
+ *
  * Re-exports all features for easier imports.
  * Each feature is a self-contained module with its own components, hooks, and types.
  */

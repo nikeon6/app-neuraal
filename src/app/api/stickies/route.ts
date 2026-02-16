@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -54,8 +54,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (title === undefined || !content) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "title and content are required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "title and content are required",
+        },
+      },
+      { status: 400 },
     );
   }
 

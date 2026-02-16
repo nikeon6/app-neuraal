@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { Notification } from "./Notification";
 
+const TEST_NOTIF_ID = "notif-123";
+const TEST_USER_ID = "user-123";
+
 describe("Notification Entity", () => {
   const validProps = {
-    id: "notif-123",
-    userId: "user-123",
+    id: TEST_NOTIF_ID,
+    userId: TEST_USER_ID,
     type: "REMINDER_SENT",
     title: "Reminder Sent",
     message: "Your reminder was sent successfully",
@@ -19,11 +22,13 @@ describe("Notification Entity", () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.id).toBe("notif-123");
-        expect(result.value.userId).toBe("user-123");
+        expect(result.value.id).toBe(TEST_NOTIF_ID);
+        expect(result.value.userId).toBe(TEST_USER_ID);
         expect(result.value.type.isReminderSent()).toBe(true);
         expect(result.value.title).toBe("Reminder Sent");
-        expect(result.value.message).toBe("Your reminder was sent successfully");
+        expect(result.value.message).toBe(
+          "Your reminder was sent successfully",
+        );
         expect(result.value.status.isUnread()).toBe(true);
         expect(result.value.payload).toEqual({ reminderId: "rem-123" });
       }
@@ -39,7 +44,10 @@ describe("Notification Entity", () => {
     });
 
     it("should create REMINDER_FAILED notification", () => {
-      const result = Notification.create({ ...validProps, type: "REMINDER_FAILED" });
+      const result = Notification.create({
+        ...validProps,
+        type: "REMINDER_FAILED",
+      });
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -48,7 +56,10 @@ describe("Notification Entity", () => {
     });
 
     it("should create REMINDER_CANCELED notification", () => {
-      const result = Notification.create({ ...validProps, type: "REMINDER_CANCELED" });
+      const result = Notification.create({
+        ...validProps,
+        type: "REMINDER_CANCELED",
+      });
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -75,7 +86,10 @@ describe("Notification Entity", () => {
     });
 
     it("should reject invalid type", () => {
-      const result = Notification.create({ ...validProps, type: "INVALID_TYPE" });
+      const result = Notification.create({
+        ...validProps,
+        type: "INVALID_TYPE",
+      });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -129,8 +143,8 @@ describe("Notification Entity", () => {
 
       const json = notification.toJSON();
 
-      expect(json.id).toBe("notif-123");
-      expect(json.userId).toBe("user-123");
+      expect(json.id).toBe(TEST_NOTIF_ID);
+      expect(json.userId).toBe(TEST_USER_ID);
       expect(json.type).toBe("REMINDER_SENT");
       expect(json.title).toBe("Reminder Sent");
       expect(json.message).toBe("Your reminder was sent successfully");

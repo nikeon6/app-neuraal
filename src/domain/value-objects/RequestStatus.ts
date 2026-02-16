@@ -33,16 +33,18 @@ export class RequestStatus {
 
     if (
       !RequestStatus.VALID_STATUSES.includes(
-        normalized as (typeof RequestStatus.VALID_STATUSES)[number]
+        normalized as (typeof RequestStatus.VALID_STATUSES)[number],
       )
     ) {
       return err(
-        `Invalid status. Allowed: ${RequestStatus.VALID_STATUSES.join(", ")}`
+        `Invalid status. Allowed: ${RequestStatus.VALID_STATUSES.join(", ")}`,
       );
     }
 
     return ok(
-      new RequestStatus(normalized as "pending" | "submitted" | "done" | "failed")
+      new RequestStatus(
+        normalized as "pending" | "submitted" | "done" | "failed",
+      ),
     );
   }
 

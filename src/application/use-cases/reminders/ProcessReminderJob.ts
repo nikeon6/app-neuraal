@@ -1,9 +1,9 @@
-import { Result, ok, err } from "../../../domain/core/Result";
+import { Result, ok } from "../../../domain/core/Result";
 import { Notification } from "../../../domain/entities/Notification";
 import { ReminderRepository } from "../../ports/ReminderRepository";
 import { NotificationRepository } from "../../ports/NotificationRepository";
 import { AutomationPort } from "../../ports/AutomationPort";
-import { UseCaseError, notFoundError, internalError } from "../../core/UseCaseError";
+import { UseCaseError } from "../../core/UseCaseError";
 
 /**
  * Input for ProcessReminderJob use case.
@@ -24,7 +24,7 @@ export interface ProcessReminderJobResult {
 
 /**
  * Use case: Process a reminder job from the queue.
- * 
+ *
  * Logic:
  * 1. Load reminder from DB
  * 2. If not found → skip (was deleted)
@@ -39,10 +39,12 @@ export class ProcessReminderJob {
     private readonly reminderRepository: ReminderRepository,
     private readonly notificationRepository: NotificationRepository,
     private readonly automationPort: AutomationPort,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
-  async execute(input: ProcessReminderJobInput): Promise<Result<ProcessReminderJobResult, UseCaseError>> {
+  async execute(
+    input: ProcessReminderJobInput,
+  ): Promise<Result<ProcessReminderJobResult, UseCaseError>> {
     // 1. Load reminder
     const reminder = await this.reminderRepository.findById(input.reminderId);
 
@@ -142,8 +144,8 @@ export class ProcessReminderJob {
         title: "Reminder Failed",
         message: `Failed to send reminder via ${channel}: ${automationResult.error || "Unknown error"}`,
         status: "unread",
-        payload: { 
-          reminderId: reminder.id, 
+        payload: {
+          reminderId: reminder.id,
           entryId: reminder.entryId,
           error: automationResult.error,
         },

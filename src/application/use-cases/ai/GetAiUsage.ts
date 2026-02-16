@@ -44,7 +44,7 @@ export class GetAiUsage {
   constructor(
     private readonly aiUsageRepository: AiUsageRepository,
     private readonly clock: ClockPort,
-    private readonly configs: ActionConfigForUsage[]
+    private readonly configs: ActionConfigForUsage[],
   ) {}
 
   async execute(input: GetAiUsageInput): Promise<GetAiUsageOverviewOutput> {
@@ -63,7 +63,7 @@ export class GetAiUsage {
       const monthly = await this.aiUsageRepository.getMonthly(
         userId,
         cfg.action,
-        monthKey
+        monthKey,
       );
       items.push({
         action: cfg.action,

@@ -27,11 +27,11 @@ export class HandleEntryTranscriptCallback {
     private readonly entryRepository: EntryRepository,
     private readonly notificationRepository: NotificationRepository,
     private readonly generateId: () => string = () => crypto.randomUUID(),
-    private readonly recordAiUsage?: RecordAiUsageFromCallback
+    private readonly recordAiUsage?: RecordAiUsageFromCallback,
   ) {}
 
   async execute(
-    payload: TranscriptCallbackPayload
+    payload: TranscriptCallbackPayload,
   ): Promise<Result<void, UseCaseError>> {
     const { requestId, userId, entryId, transcriptText } = payload;
 

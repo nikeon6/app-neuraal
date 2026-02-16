@@ -21,12 +21,12 @@ const DEFAULT_MAX_USER_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024; // 1GB
 export function getAttachmentConfig(): AttachmentConfig {
   const maxEntrySize = parseEnvBytes(
     "MAX_ENTRY_ATTACHMENT_SIZE_BYTES",
-    DEFAULT_MAX_ENTRY_ATTACHMENT_SIZE_BYTES
+    DEFAULT_MAX_ENTRY_ATTACHMENT_SIZE_BYTES,
   );
 
   const maxUserQuota = parseEnvBytes(
     "MAX_USER_STORAGE_QUOTA_BYTES",
-    DEFAULT_MAX_USER_STORAGE_QUOTA_BYTES
+    DEFAULT_MAX_USER_STORAGE_QUOTA_BYTES,
   );
 
   return {
@@ -50,7 +50,7 @@ function parseEnvBytes(key: string, defaultValue: number): number {
 
   if (isNaN(parsed) || parsed < 0) {
     console.warn(
-      `Invalid value for ${key}: "${value}". Using default: ${defaultValue}`
+      `Invalid value for ${key}: "${value}". Using default: ${defaultValue}`,
     );
     return defaultValue;
   }

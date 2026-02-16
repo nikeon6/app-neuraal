@@ -28,7 +28,7 @@ describe("CompleteAttachmentUpload", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      config
+      config,
     );
     completeUpload = new CompleteAttachmentUpload(attachmentRepository);
     createEntry = new CreateEntry(entryRepository);

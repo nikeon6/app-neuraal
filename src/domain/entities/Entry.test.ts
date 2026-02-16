@@ -234,7 +234,9 @@ describe("Entry", () => {
       const result = Entry.create(validTaskProps);
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const updateResult = result.value.withUpdates({ title: "Updated Title" });
+        const updateResult = result.value.withUpdates({
+          title: "Updated Title",
+        });
         expect(updateResult.isOk()).toBe(true);
         if (updateResult.isOk()) {
           expect(updateResult.value.title.toString()).toBe("Updated Title");
@@ -251,7 +253,9 @@ describe("Entry", () => {
         });
         expect(updateResult.isOk()).toBe(true);
         if (updateResult.isOk()) {
-          expect(updateResult.value.content.toJSON()).toEqual({ newContent: true });
+          expect(updateResult.value.content.toJSON()).toEqual({
+            newContent: true,
+          });
         }
       }
     });
@@ -343,7 +347,9 @@ describe("Entry", () => {
       const result = Entry.create(validTaskProps);
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const updateResult = result.value.withUpdates({ title: "a".repeat(121) });
+        const updateResult = result.value.withUpdates({
+          title: "a".repeat(121),
+        });
         expect(updateResult.isErr()).toBe(true);
       }
     });

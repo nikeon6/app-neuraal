@@ -6,6 +6,12 @@ import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
 import { PrismaTranscriptRequestRepository } from "../persistence/PrismaTranscriptRequestRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { N8NClient } from "../automation/N8NClient";
+import { logger, withJobContext } from "../logging/logger";
+import {
+  initSentryForWorker,
+  captureWorkerException,
+} from "../logging/sentryCapture";
+import { withSentrySpan } from "../logging/sentryTracing";
 
 /**
  * Job data structure for transcript jobs.
@@ -17,11 +23,14 @@ interface TranscriptJobData {
   youtubeUrl: string;
 }
 
+const QUEUE_NAME = "transcriptions";
+
 /**
  * Creates and starts the transcript worker.
  */
 async function startWorker() {
-  console.log("Starting transcript worker...");
+  initSentryForWorker();
+  logger.info({ queue: QUEUE_NAME }, "worker.starting");
 
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -40,55 +49,96 @@ async function startWorker() {
     transcriptRequestRepository,
     notificationRepository,
     automationPort,
-    callbackUrl
+    callbackUrl,
   );
 
   // Create worker
   const worker = new Worker<TranscriptJobData>(
-    "transcriptions",
+    QUEUE_NAME,
     async (job: Job<TranscriptJobData>) => {
-      console.log(`Processing job ${job.id} for transcript request ${job.data.requestId}`);
-
-      const result = await processJob.execute({
-        requestId: job.data.requestId,
+      const log = withJobContext({
+        jobId: job.id ?? "unknown",
+        queue: QUEUE_NAME,
         userId: job.data.userId,
-        entryId: job.data.entryId,
-        youtubeUrl: job.data.youtubeUrl,
+        action: "TRANSCRIPT_YOUTUBE",
+        requestId: job.data.requestId,
       });
+      const start = performance.now();
+
+      log.info(
+        { entryId: job.data.entryId, youtubeUrl: job.data.youtubeUrl },
+        "job.start",
+      );
+
+      const result = await withSentrySpan(
+        {
+          name: "worker.transcription.execute",
+          op: "queue.process",
+          attributes: {
+            "queue.name": QUEUE_NAME,
+            "job.id": job.id ?? "unknown",
+            "transcription.request_id": job.data.requestId,
+            "entry.id": job.data.entryId,
+          },
+        },
+        () =>
+          processJob.execute({
+            requestId: job.data.requestId,
+            userId: job.data.userId,
+            entryId: job.data.entryId,
+            youtubeUrl: job.data.youtubeUrl,
+          }),
+      );
+
+      const durationMs = Math.round(performance.now() - start);
 
       if (result.isErr()) {
-        console.error(`Job ${job.id} error:`, result.error);
+        log.error({ err: result.error, durationMs }, "job.use_case_error");
         throw new Error(result.error.message);
       }
 
       const outcome = result.value;
-      console.log(`Job ${job.id} result:`, outcome);
 
       if (outcome.status === "failed") {
+        log.warn({ reason: outcome.reason, durationMs }, "job.outcome_failed");
         throw new Error(`Transcript failed: ${outcome.reason}`);
       }
 
+      log.info({ status: outcome.status, durationMs }, "job.success");
       return outcome;
     },
-    { connection, concurrency: 3 }
+    { connection, concurrency: 3 },
   );
 
   // Event handlers
-  worker.on("completed", (job, result) => {
-    console.log(`Job ${job?.id} completed:`, result);
+  worker.on("completed", (job) => {
+    logger.debug({ jobId: job?.id, queue: QUEUE_NAME }, "job.completed");
   });
 
   worker.on("failed", (job, error) => {
-    console.error(`Job ${job?.id} failed:`, error.message);
+    logger.error(
+      { jobId: job?.id, queue: QUEUE_NAME, err: error },
+      "job.failed",
+    );
+    captureWorkerException(error, {
+      queue: QUEUE_NAME,
+      jobId: job?.id,
+      action: "TRANSCRIPT_YOUTUBE",
+      userId: job?.data?.userId,
+    });
+  });
+
+  worker.on("stalled", (jobId) => {
+    logger.warn({ jobId, queue: QUEUE_NAME }, "job.stalled");
   });
 
   worker.on("error", (error) => {
-    console.error("Worker error:", error);
+    logger.error({ queue: QUEUE_NAME, err: error }, "worker.error");
   });
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log("Shutting down transcript worker...");
+    logger.info({ queue: QUEUE_NAME }, "worker.shutting_down");
     await worker.close();
     await connection.quit();
     process.exit(0);
@@ -97,11 +147,11 @@ async function startWorker() {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  console.log("Transcript worker started. Waiting for jobs...");
+  logger.info({ queue: QUEUE_NAME }, "worker.ready");
 }
 
 // Start the worker
 startWorker().catch((error) => {
-  console.error("Failed to start transcript worker:", error);
+  logger.fatal({ queue: QUEUE_NAME, err: error }, "worker.start_failed");
   process.exit(1);
 });

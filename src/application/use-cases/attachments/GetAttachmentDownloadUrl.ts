@@ -21,11 +21,11 @@ export interface GetDownloadUrlInput {
 export class GetAttachmentDownloadUrl {
   constructor(
     private readonly attachmentRepository: AttachmentRepository,
-    private readonly objectStorage: ObjectStoragePort
+    private readonly objectStorage: ObjectStoragePort,
   ) {}
 
   async execute(
-    input: GetDownloadUrlInput
+    input: GetDownloadUrlInput,
   ): Promise<Result<DownloadUrlResult, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
@@ -44,13 +44,17 @@ export class GetAttachmentDownloadUrl {
     const attachment = await this.attachmentRepository.findById(attachmentId);
 
     // Check existence, ownership, and status
-    if (!attachment || attachment.userId !== userId || !attachment.status.isReady()) {
+    if (
+      !attachment ||
+      attachment.userId !== userId ||
+      !attachment.status.isReady()
+    ) {
       return err(notFoundError("Attachment not found"));
     }
 
     // Get presigned GET URL
     const presignedGetUrl = await this.objectStorage.getPresignedGetUrl(
-      attachment.storageKey.toString()
+      attachment.storageKey.toString(),
     );
 
     return ok({ presignedGetUrl });

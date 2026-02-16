@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { LogOut } from "lucide-react";
 
@@ -23,12 +24,24 @@ export function MainLayout({ children }: MainLayoutProps) {
       })
       .then((data) => {
         if (data?.user) {
+          Sentry.setUser({ id: data.user.id, email: data.user.email });
+          Sentry.addBreadcrumb({
+            category: "auth",
+            message: "Authenticated user loaded in main layout",
+            level: "info",
+          });
           login(data.user);
         } else {
           throw new Error("No user");
         }
       })
       .catch(() => {
+        Sentry.setUser(null);
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: "Auth check failed, redirecting to login",
+          level: "warning",
+        });
         logout();
         router.push("/login");
       })
@@ -41,9 +54,20 @@ export function MainLayout({ children }: MainLayoutProps) {
         method: "POST",
         credentials: "include",
       });
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Logout request completed",
+        level: "info",
+      });
     } catch {
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Logout request failed, continuing client logout",
+        level: "warning",
+      });
       // Proceed with client-side logout even if API fails
     }
+    Sentry.setUser(null);
     logout();
     router.push("/login");
   };

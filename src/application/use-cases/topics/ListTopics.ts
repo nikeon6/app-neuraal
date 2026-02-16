@@ -18,7 +18,9 @@ export interface ListTopicsInput {
 export class ListTopics {
   constructor(private readonly topicRepository: TopicRepository) {}
 
-  async execute(input: ListTopicsInput): Promise<Result<TopicDTO[], UseCaseError>> {
+  async execute(
+    input: ListTopicsInput,
+  ): Promise<Result<TopicDTO[], UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
       return err(validationError("userId cannot be empty"));

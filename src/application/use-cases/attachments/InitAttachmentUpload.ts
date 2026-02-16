@@ -10,7 +10,11 @@ import type { AttachmentRepository } from "../../ports/AttachmentRepository";
 import type { ObjectStoragePort } from "../../ports/ObjectStoragePort";
 import type { InitAttachmentResult } from "../../dto/AttachmentDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, notFoundError, quotaExceededError } from "../../core/UseCaseError";
+import {
+  validationError,
+  notFoundError,
+  quotaExceededError,
+} from "../../core/UseCaseError";
 
 /**
  * Configuration for attachment quotas.
@@ -51,11 +55,11 @@ export class InitAttachmentUpload {
     private readonly entryRepository: EntryRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly objectStorage: ObjectStoragePort,
-    private readonly config: AttachmentQuotaConfig
+    private readonly config: AttachmentQuotaConfig,
   ) {}
 
   async execute(
-    input: InitAttachmentInput
+    input: InitAttachmentInput,
   ): Promise<Result<InitAttachmentResult, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
@@ -105,35 +109,44 @@ export class InitAttachmentUpload {
     }
 
     // Check entry quota (sum of active attachments + new file)
-    const currentEntryBytes = await this.attachmentRepository.sumActiveBytesByEntry(entryId);
-    const newEntryTotal = Bytes.fromNumber(currentEntryBytes + sizeBytes.toNumber());
-    
+    const currentEntryBytes =
+      await this.attachmentRepository.sumActiveBytesByEntry(entryId);
+    const newEntryTotal = Bytes.fromNumber(
+      currentEntryBytes + sizeBytes.toNumber(),
+    );
+
     if (newEntryTotal.greaterThan(this.config.maxEntryAttachmentSizeBytes)) {
       return err(
         quotaExceededError(
           `Entry attachment quota exceeded. Max: ${this.config.maxEntryAttachmentSizeBytes.toHumanReadable()}, ` +
-          `Current: ${Bytes.fromNumber(currentEntryBytes).toHumanReadable()}, ` +
-          `New file: ${sizeBytes.toHumanReadable()}`
-        )
+            `Current: ${Bytes.fromNumber(currentEntryBytes).toHumanReadable()}, ` +
+            `New file: ${sizeBytes.toHumanReadable()}`,
+        ),
       );
     }
 
     // Check user quota (sum of all active attachments + new file)
-    const currentUserBytes = await this.attachmentRepository.sumActiveBytesByUser(userId);
-    const newUserTotal = Bytes.fromNumber(currentUserBytes + sizeBytes.toNumber());
-    
+    const currentUserBytes =
+      await this.attachmentRepository.sumActiveBytesByUser(userId);
+    const newUserTotal = Bytes.fromNumber(
+      currentUserBytes + sizeBytes.toNumber(),
+    );
+
     if (newUserTotal.greaterThan(this.config.maxUserStorageQuotaBytes)) {
       return err(
         quotaExceededError(
           `User storage quota exceeded. Max: ${this.config.maxUserStorageQuotaBytes.toHumanReadable()}, ` +
-          `Current: ${Bytes.fromNumber(currentUserBytes).toHumanReadable()}, ` +
-          `New file: ${sizeBytes.toHumanReadable()}`
-        )
+            `Current: ${Bytes.fromNumber(currentUserBytes).toHumanReadable()}, ` +
+            `New file: ${sizeBytes.toHumanReadable()}`,
+        ),
       );
     }
 
     // Generate storage key
-    const storageKey = StorageKey.generate(userId, filenameResult.value.toString());
+    const storageKey = StorageKey.generate(
+      userId,
+      filenameResult.value.toString(),
+    );
 
     // Create attachment entity
     const now = new Date();
@@ -164,7 +177,7 @@ export class InitAttachmentUpload {
     const presignedPutUrl = await this.objectStorage.getPresignedPutUrl(
       storageKey.toString(),
       mimeTypeResult.value.toString(),
-      sizeBytes.toNumber()
+      sizeBytes.toNumber(),
     );
 
     // Return result

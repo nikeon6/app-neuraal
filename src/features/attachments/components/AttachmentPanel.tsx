@@ -2,7 +2,14 @@
 
 import React, { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Paperclip, Download, Trash2, FileIcon, Loader2, ChevronDown } from "lucide-react";
+import {
+  Paperclip,
+  Download,
+  Trash2,
+  FileIcon,
+  Loader2,
+  ChevronDown,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEntryAttachmentsQuery } from "@/shared/api/queries";
 import { deleteAttachmentAndInvalidate } from "@/shared/api/mutations";
@@ -32,7 +39,10 @@ interface AttachmentPanelProps {
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
@@ -45,7 +55,8 @@ function mimeLabel(mimeType: string): string {
   if (mimeType.startsWith("video/")) return "Video";
   if (mimeType.startsWith("audio/")) return "Audio";
   if (mimeType === "application/pdf") return "PDF";
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "Sheet";
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+    return "Sheet";
   if (mimeType.includes("document") || mimeType.includes("word")) return "Doc";
   if (mimeType.includes("zip") || mimeType.includes("compressed")) return "Zip";
   return "File";
@@ -61,7 +72,11 @@ function mimeLabel(mimeType: string): string {
  * Shows existing attachments with download/delete functionality and quota info.
  * Collapsed by default, shows only "Attachments (N)" and a toggle button.
  */
-export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: AttachmentPanelProps) {
+export function AttachmentPanel({
+  entryId,
+  dateKey: _dateKey,
+  onAttachmentDeleted,
+}: AttachmentPanelProps) {
   const queryClient = useQueryClient();
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [isExpanded, setIsExpanded] = useState(false);
@@ -77,7 +92,8 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
 
   const handleDownload = useCallback(async (attachmentId: string) => {
     try {
-      const { presignedGetUrl } = await attachmentsSdk.getDownloadUrl(attachmentId);
+      const { presignedGetUrl } =
+        await attachmentsSdk.getDownloadUrl(attachmentId);
       globalThis.open(presignedGetUrl, "_blank", "noopener");
     } catch {
       // Silently fail — could add toast in the future
@@ -103,7 +119,7 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
         });
       }
     },
-    [queryClient, entryId, onAttachmentDeleted]
+    [queryClient, entryId, onAttachmentDeleted],
   );
 
   // -----------------------------------------------------------------------
@@ -119,7 +135,10 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
       {/* Collapsible header — always visible */}
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setIsExpanded((prev) => !prev); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded((prev) => !prev);
+        }}
         className="flex items-center gap-2 text-white/50 text-xs hover:text-white/70 transition-colors w-full group"
         aria-expanded={isExpanded}
       >
@@ -131,7 +150,7 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
         <ChevronDown
           className={cn(
             "w-3 h-3 ml-auto transition-transform",
-            isExpanded && "rotate-180"
+            isExpanded && "rotate-180",
           )}
         />
       </button>
@@ -150,10 +169,12 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
             {usage && (
               <div className="flex gap-4 mt-2 mb-2 text-[10px] text-white/30">
                 <span>
-                  Entry: {formatBytes(usage.entryBytesUsed)} / {formatBytes(usage.entryLimitBytes)}
+                  Entry: {formatBytes(usage.entryBytesUsed)} /{" "}
+                  {formatBytes(usage.entryLimitBytes)}
                 </span>
                 <span>
-                  Account: {formatBytes(usage.userBytesUsed)} / {formatBytes(usage.userLimitBytes)}
+                  Account: {formatBytes(usage.userBytesUsed)} /{" "}
+                  {formatBytes(usage.userLimitBytes)}
                 </span>
               </div>
             )}
@@ -181,16 +202,21 @@ export function AttachmentPanel({ entryId, dateKey, onAttachmentDeleted }: Attac
                         exit={{ opacity: 0, height: 0 }}
                         className={cn(
                           "flex items-center gap-2 px-2 py-1.5 rounded bg-white/5 group",
-                          isDeleting && "opacity-50"
+                          isDeleting && "opacity-50",
                         )}
                       >
                         <FileIcon className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-white/70 truncate">{att.filename}</p>
+                          <p className="text-xs text-white/70 truncate">
+                            {att.filename}
+                          </p>
                           <p className="text-[10px] text-white/30">
-                            {formatBytes(att.sizeBytes)} · {mimeLabel(att.mimeType)}
+                            {formatBytes(att.sizeBytes)} ·{" "}
+                            {mimeLabel(att.mimeType)}
                             {att.status === "pending" && (
-                              <span className="ml-1 text-yellow-400/70">(processing)</span>
+                              <span className="ml-1 text-yellow-400/70">
+                                (processing)
+                              </span>
                             )}
                           </p>
                         </div>

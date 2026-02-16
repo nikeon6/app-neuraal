@@ -1,11 +1,18 @@
 /**
  * Reminder types for the Neuraal application
- * 
+ *
  * Reminders are scheduled notifications linked to entries.
  * Unlike entries (date only), reminders have specific times and timezones.
  */
 
-import type { ReminderId, EntryId, UserId, ISODateTime, Timezone, EntityMeta } from "./base";
+import type {
+  ReminderId,
+  EntryId,
+  UserId,
+  ISODateTime,
+  Timezone,
+  EntityMeta,
+} from "./base";
 
 // Re-export ReminderId for convenience
 export type { ReminderId } from "./base";
@@ -16,14 +23,19 @@ export type { ReminderId } from "./base";
 
 /**
  * Lifecycle status of a reminder.
- * 
+ *
  * - scheduled: Waiting to be sent at scheduledFor time
  * - sent: Successfully delivered
  * - snoozed: Temporarily delayed by user
  * - cancelled: User cancelled before sending
  * - failed: Delivery failed (will be retried or marked permanent)
  */
-export type ReminderStatus = "scheduled" | "sent" | "snoozed" | "cancelled" | "failed";
+export type ReminderStatus =
+  | "scheduled"
+  | "sent"
+  | "snoozed"
+  | "cancelled"
+  | "failed";
 
 // ============================================================================
 // Reminder Channel
@@ -31,11 +43,11 @@ export type ReminderStatus = "scheduled" | "sent" | "snoozed" | "cancelled" | "f
 
 /**
  * Delivery channel for the reminder.
- * 
+ *
  * - in_app: Notification within the app
  * - email: Email notification
  * - push: Push notification to mobile/desktop
- * 
+ *
  * Future extensions: 'sms', 'webhook'
  */
 export type ReminderChannel = "in_app" | "email" | "push";
@@ -47,7 +59,7 @@ export type ReminderChannel = "in_app" | "email" | "push";
 /**
  * Recurrence rule for repeating reminders.
  * Uses iCalendar RRULE format for flexibility.
- * 
+ *
  * @example "FREQ=DAILY;INTERVAL=1" - every day
  * @example "FREQ=WEEKLY;BYDAY=MO,WE,FR" - Mon/Wed/Fri
  */
@@ -62,7 +74,7 @@ export interface RecurrenceRule {
 
 /**
  * Reminder entity for scheduled notifications.
- * 
+ *
  * Reminders are always linked to an Entry and have a specific
  * datetime with timezone for accurate scheduling across time zones.
  */

@@ -24,7 +24,7 @@ export async function listNotifications(params?: {
     ? `?since=${encodeURIComponent(params.since)}`
     : "";
   const data = await get<{ notifications: ApiNotification[] }>(
-    `/api/notifications${query}`
+    `/api/notifications${query}`,
   );
   return data.notifications;
 }
@@ -37,7 +37,7 @@ export async function listNotifications(params?: {
  * POST /api/notifications/{id}/read — marks a notification as read.
  */
 export async function markNotificationRead(
-  id: string
+  id: string,
 ): Promise<{ success: boolean }> {
   return await post<{ success: boolean }>(`/api/notifications/${id}/read`);
 }

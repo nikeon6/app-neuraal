@@ -29,6 +29,9 @@ class FakeOcrProvider implements OcrPort {
   }
 }
 
+const TEST_FILENAME_PHOTO = "photo.jpg";
+const ATTACHMENT_KIND_INLINE = "inline";
+
 describe("ExtractImageText", () => {
   let entryRepository: InMemoryEntryRepository;
   let attachmentRepository: InMemoryAttachmentRepository;
@@ -54,7 +57,7 @@ describe("ExtractImageText", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      config
+      config,
     );
     completeUpload = new CompleteAttachmentUpload(attachmentRepository);
     createEntry = new CreateEntry(entryRepository);
@@ -62,7 +65,7 @@ describe("ExtractImageText", () => {
       entryRepository,
       attachmentRepository,
       objectStorage,
-      ocrProvider
+      ocrProvider,
     );
   });
 
@@ -82,8 +85,8 @@ describe("ExtractImageText", () => {
   async function createReadyImageAttachment(
     uid: string,
     entryId: string,
-    filename = "photo.jpg",
-    mimeType = "image/jpeg"
+    filename = TEST_FILENAME_PHOTO,
+    mimeType = "image/jpeg",
   ) {
     const initResult = await initUpload.execute({
       userId: uid,
@@ -91,21 +94,22 @@ describe("ExtractImageText", () => {
       filename,
       mimeType,
       sizeBytes: 2048,
-      kind: "inline",
+      kind: ATTACHMENT_KIND_INLINE,
     });
     if (initResult.isErr()) throw new Error("Failed to init attachment");
 
     // Put fake image data into storage so getObjectBuffer works
     objectStorage.putObject(
       initResult.value.attachment.storageKey,
-      Buffer.from("fake-image-data")
+      Buffer.from("fake-image-data"),
     );
 
     const completeResult = await completeUpload.execute({
       userId: uid,
       attachmentId: initResult.value.attachment.id,
     });
-    if (completeResult.isErr()) throw new Error("Failed to complete attachment");
+    if (completeResult.isErr())
+      throw new Error("Failed to complete attachment");
     return completeResult.value;
   }
 
@@ -135,7 +139,7 @@ describe("ExtractImageText", () => {
         userId,
         entry.id,
         "screenshot.png",
-        "image/png"
+        "image/png",
       );
 
       await useCase.execute({
@@ -145,7 +149,7 @@ describe("ExtractImageText", () => {
       });
 
       expect(ocrProvider.lastImageBase64).toBe(
-        Buffer.from("fake-image-data").toString("base64")
+        Buffer.from("fake-image-data").toString("base64"),
       );
       expect(ocrProvider.lastMimeType).toBe("image/png");
     });
@@ -278,10 +282,10 @@ describe("ExtractImageText", () => {
       const initResult = await initUpload.execute({
         userId,
         entryId: entry.id,
-        filename: "photo.jpg",
+        filename: TEST_FILENAME_PHOTO,
         mimeType: "image/jpeg",
         sizeBytes: 1024,
-        kind: "inline",
+        kind: ATTACHMENT_KIND_INLINE,
       });
       if (initResult.isErr()) throw new Error("Failed");
 
@@ -310,7 +314,7 @@ describe("ExtractImageText", () => {
       if (initResult.isErr()) throw new Error("Failed");
       objectStorage.putObject(
         initResult.value.attachment.storageKey,
-        Buffer.from("fake-pdf-data")
+        Buffer.from("fake-pdf-data"),
       );
       await completeUpload.execute({
         userId,
@@ -360,10 +364,10 @@ describe("ExtractImageText", () => {
       const initResult = await initUpload.execute({
         userId,
         entryId: entry.id,
-        filename: "photo.jpg",
+        filename: TEST_FILENAME_PHOTO,
         mimeType: "image/jpeg",
         sizeBytes: 1024,
-        kind: "inline",
+        kind: ATTACHMENT_KIND_INLINE,
       });
       if (initResult.isErr()) throw new Error("Failed");
       // Complete without storing data -> getObjectBuffer will throw

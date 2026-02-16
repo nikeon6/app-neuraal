@@ -5,9 +5,7 @@ import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTop
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
-import {
-  DEFAULT_EMBEDDING_DIM,
-} from "@/shared/constants/embedding";
+import { DEFAULT_EMBEDDING_DIM } from "@/shared/constants/embedding";
 
 /**
  * GET /api/topics
@@ -17,10 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
 
   const { userId } = authResult;
@@ -32,10 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   if (result.isErr()) {
     // Shouldn't happen with valid userId, but handle defensively
-    return NextResponse.json(
-      { error: result.error },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   return NextResponse.json({ topics: result.value }, { status: 200 });
@@ -44,7 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /**
  * POST /api/topics
  * Creates a new topic for the authenticated user.
- * 
+ *
  * Request body:
  * - name: string (required)
  * - color: string (required, #RRGGBB format)
@@ -53,10 +45,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
 
   const { userId } = authResult;
@@ -68,7 +57,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -83,7 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           message: "name and color are required",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -94,11 +83,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (result.isErr()) {
     const { code, message } = result.error;
-    
+
     // Map error codes to HTTP status codes
     const statusCode = code === "DUPLICATE_ERROR" ? 409 : 400;
-    
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   // Fire-and-forget: generate embedding for the new topic.
@@ -111,12 +103,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const embeddingDim = process.env.EMBEDDING_DIM
     ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
     : DEFAULT_EMBEDDING_DIM;
-  const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
-    embeddingDim,
-    embeddingModel: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
-  });
+  const rebuildUseCase = new RebuildTopicEmbedding(
+    repository,
+    embeddingProvider,
+    {
+      embeddingDim,
+      embeddingModel:
+        process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
+    },
+  );
   rebuildUseCase.execute({ userId, topicId: topic.id }).catch((err) => {
-    console.error(`[POST /api/topics] Failed to generate embedding for topic ${topic.id}:`, err);
+    console.error(
+      `[POST /api/topics] Failed to generate embedding for topic ${topic.id}:`,
+      err,
+    );
   });
 
   return NextResponse.json({ topic }, { status: 201 });

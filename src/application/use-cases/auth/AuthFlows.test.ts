@@ -52,7 +52,7 @@ describe("AuthFlows (integration)", () => {
       tokenService,
       clock,
       ACCESS_TTL,
-      REFRESH_TTL_DAYS
+      REFRESH_TTL_DAYS,
     );
 
     loginUC = new LoginUser(
@@ -63,7 +63,7 @@ describe("AuthFlows (integration)", () => {
       tokenService,
       clock,
       ACCESS_TTL,
-      REFRESH_TTL_DAYS
+      REFRESH_TTL_DAYS,
     );
 
     refresh = new RefreshSession(
@@ -73,7 +73,7 @@ describe("AuthFlows (integration)", () => {
       tokenService,
       clock,
       ACCESS_TTL,
-      REFRESH_TTL_DAYS
+      REFRESH_TTL_DAYS,
     );
 
     logoutUC = new LogoutUser(refreshTokenRepo, tokenService, clock);
@@ -85,7 +85,7 @@ describe("AuthFlows (integration)", () => {
       resetTokenRepo,
       tokenService,
       clock,
-      RESET_TTL_MINUTES
+      RESET_TTL_MINUTES,
     );
   });
 
@@ -169,7 +169,9 @@ describe("AuthFlows (integration)", () => {
       const originalRefreshToken = regResult.value.tokens.refreshToken;
 
       // Refresh once -> get new tokens
-      const refresh1Result = await refresh.execute({ refreshToken: originalRefreshToken });
+      const refresh1Result = await refresh.execute({
+        refreshToken: originalRefreshToken,
+      });
       expect(refresh1Result.isOk()).toBe(true);
       if (!refresh1Result.isOk()) return;
 
@@ -183,11 +185,15 @@ describe("AuthFlows (integration)", () => {
       expect(oldStored!.revokedAt).not.toBeNull();
 
       // New refresh token should work for another refresh
-      const refresh2Result = await refresh.execute({ refreshToken: newRefreshToken });
+      const refresh2Result = await refresh.execute({
+        refreshToken: newRefreshToken,
+      });
       expect(refresh2Result.isOk()).toBe(true);
 
       // Using OLD refresh token again should fail (reuse detection)
-      const replayResult = await refresh.execute({ refreshToken: originalRefreshToken });
+      const replayResult = await refresh.execute({
+        refreshToken: originalRefreshToken,
+      });
       expect(replayResult.isErr()).toBe(true);
       if (replayResult.isErr()) {
         expect(replayResult.error.code).toBe("UNAUTHORIZED");
@@ -208,11 +214,15 @@ describe("AuthFlows (integration)", () => {
       const originalRefreshToken = regResult.value.tokens.refreshToken;
 
       // Refresh once (success)
-      const firstRefresh = await refresh.execute({ refreshToken: originalRefreshToken });
+      const firstRefresh = await refresh.execute({
+        refreshToken: originalRefreshToken,
+      });
       expect(firstRefresh.isOk()).toBe(true);
 
       // Try refreshing with original (now revoked) token again
-      const secondRefresh = await refresh.execute({ refreshToken: originalRefreshToken });
+      const secondRefresh = await refresh.execute({
+        refreshToken: originalRefreshToken,
+      });
       expect(secondRefresh.isErr()).toBe(true);
       if (secondRefresh.isErr()) {
         expect(secondRefresh.error.code).toBe("UNAUTHORIZED");
@@ -262,7 +272,9 @@ describe("AuthFlows (integration)", () => {
       expect(refresh2.isErr()).toBe(true);
       expect(refresh3.isErr()).toBe(true);
 
-      const allTokens = refreshTokenRepo.getAll().filter((t) => t.userId === userId);
+      const allTokens = refreshTokenRepo
+        .getAll()
+        .filter((t) => t.userId === userId);
       expect(allTokens.every((t) => t.revokedAt !== null)).toBe(true);
     });
   });
@@ -270,7 +282,9 @@ describe("AuthFlows (integration)", () => {
   describe("6. Password recover always returns ok", () => {
     it("existing email creates reset token, non-existing does not", async () => {
       // Recover with non-existing email -> ok, no token created
-      const recover1Result = await recover.execute({ email: "nonexistent@example.com" });
+      const recover1Result = await recover.execute({
+        email: "nonexistent@example.com",
+      });
       expect(recover1Result.isOk()).toBe(true);
       expect(resetTokenRepo.getAll()).toHaveLength(0);
 
@@ -303,7 +317,9 @@ describe("AuthFlows (integration)", () => {
       const thirtyOneDays = 31 * 24 * 60 * 60 * 1000;
       clock.advance(thirtyOneDays);
 
-      const refreshResult = await refresh.execute({ refreshToken: originalRefreshToken });
+      const refreshResult = await refresh.execute({
+        refreshToken: originalRefreshToken,
+      });
 
       expect(refreshResult.isErr()).toBe(true);
       if (refreshResult.isErr()) {

@@ -34,11 +34,14 @@ export class ListAttachmentsByEntry {
   constructor(
     private readonly entryRepository: EntryRepository,
     private readonly attachmentRepository: AttachmentRepository,
-    private readonly limits: { entryLimitBytes: number; userLimitBytes: number }
+    private readonly limits: {
+      entryLimitBytes: number;
+      userLimitBytes: number;
+    },
   ) {}
 
   async execute(
-    input: ListAttachmentsByEntryInput
+    input: ListAttachmentsByEntryInput,
   ): Promise<Result<ListAttachmentsByEntryResult, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {

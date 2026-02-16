@@ -30,7 +30,7 @@ interface UseAutoScrollOnDragReturn {
 }
 
 export function useAutoScrollOnDrag(
-  options: UseAutoScrollOnDragOptions = {}
+  options: UseAutoScrollOnDragOptions = {},
 ): UseAutoScrollOnDragReturn {
   const { edgeThreshold = 60, maxScrollSpeed = 12 } = options;
 

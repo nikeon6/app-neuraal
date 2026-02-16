@@ -22,7 +22,7 @@ export class User {
     email: Email,
     passwordHash: PasswordHash,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.email = email;
@@ -52,12 +52,18 @@ export class User {
         emailResult.value,
         hashResult.value,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
-  toJSON(): { id: string; email: string; passwordHash: string; createdAt: Date; updatedAt: Date } {
+  toJSON(): {
+    id: string;
+    email: string;
+    passwordHash: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } {
     return {
       id: this.id,
       email: this.email.toString(),

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const getAiUsage = new GetAiUsage(
     new PrismaAiUsageRepository(),
     new SystemClock(),
-    buildActionConfigs()
+    buildActionConfigs(),
   );
 
   const output = await getAiUsage.execute({ userId, action, month });

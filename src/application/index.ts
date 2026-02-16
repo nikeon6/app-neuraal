@@ -2,10 +2,7 @@
 // Use cases and ports (interfaces)
 
 // Core
-export type {
-  UseCaseError,
-  UseCaseErrorCode,
-} from "./core/UseCaseError";
+export type { UseCaseError, UseCaseErrorCode } from "./core/UseCaseError";
 export {
   validationError,
   duplicateError,
@@ -60,7 +57,10 @@ export type { ReorderEntriesInput } from "./use-cases/entries/ReorderEntries";
 
 // Use Cases - Attachments
 export { InitAttachmentUpload } from "./use-cases/attachments/InitAttachmentUpload";
-export type { InitAttachmentInput, AttachmentQuotaConfig } from "./use-cases/attachments/InitAttachmentUpload";
+export type {
+  InitAttachmentInput,
+  AttachmentQuotaConfig,
+} from "./use-cases/attachments/InitAttachmentUpload";
 export { CompleteAttachmentUpload } from "./use-cases/attachments/CompleteAttachmentUpload";
 export type { CompleteAttachmentInput } from "./use-cases/attachments/CompleteAttachmentUpload";
 export { GetAttachmentDownloadUrl } from "./use-cases/attachments/GetAttachmentDownloadUrl";

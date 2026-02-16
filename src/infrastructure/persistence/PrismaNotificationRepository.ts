@@ -17,7 +17,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
         title: json.title,
         message: json.message,
         status: json.status,
-        payload: json.payload as Prisma.InputJsonValue ?? Prisma.DbNull,
+        payload: (json.payload as Prisma.InputJsonValue) ?? Prisma.DbNull,
         createdAt: json.createdAt,
       },
     });
@@ -33,7 +33,10 @@ export class PrismaNotificationRepository implements NotificationRepository {
     return this.toDomain(record);
   }
 
-  async findByIdForUser(id: string, userId: string): Promise<Notification | null> {
+  async findByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<Notification | null> {
     const record = await prisma.notification.findFirst({
       where: { id, userId },
     });
@@ -53,9 +56,12 @@ export class PrismaNotificationRepository implements NotificationRepository {
     });
   }
 
-  async listByUserSince(userId: string, since: Date | null): Promise<Notification[]> {
+  async listByUserSince(
+    userId: string,
+    since: Date | null,
+  ): Promise<Notification[]> {
     const where: Prisma.NotificationWhereInput = { userId };
-    
+
     if (since) {
       where.createdAt = { gte: since };
     }

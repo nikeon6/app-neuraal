@@ -2,7 +2,11 @@ import { Result, ok, err } from "@/domain/core/Result";
 import type { EntryRepository } from "../../ports/EntryRepository";
 import type { EntryDTO, UpdateEntryDTO } from "../../dto/EntryDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, notFoundError, conflictError } from "../../core/UseCaseError";
+import {
+  validationError,
+  notFoundError,
+  conflictError,
+} from "../../core/UseCaseError";
 
 /**
  * Input for UpdateEntry use case.
@@ -19,7 +23,9 @@ export interface UpdateEntryInput extends UpdateEntryDTO {
 export class UpdateEntry {
   constructor(private readonly entryRepository: EntryRepository) {}
 
-  async execute(input: UpdateEntryInput): Promise<Result<EntryDTO, UseCaseError>> {
+  async execute(
+    input: UpdateEntryInput,
+  ): Promise<Result<EntryDTO, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
       return err(validationError("userId cannot be empty"));
@@ -65,8 +71,8 @@ export class UpdateEntry {
     if (existingEntry.version !== input.version) {
       return err(
         conflictError(
-          `Version mismatch: expected ${input.version}, current is ${existingEntry.version}`
-        )
+          `Version mismatch: expected ${input.version}, current is ${existingEntry.version}`,
+        ),
       );
     }
 

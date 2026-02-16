@@ -5,7 +5,11 @@ import { ReminderRepository } from "../../ports/ReminderRepository";
 import { EntryRepository } from "../../ports/EntryRepository";
 import { QueuePort } from "../../ports/QueuePort";
 import { CreateReminderDTO, ReminderDTO } from "../../dto/ReminderDTO";
-import { UseCaseError, validationError, notFoundError } from "../../core/UseCaseError";
+import {
+  UseCaseError,
+  validationError,
+  notFoundError,
+} from "../../core/UseCaseError";
 
 /**
  * Input for CreateReminder use case.
@@ -27,10 +31,12 @@ export class CreateReminder {
     private readonly reminderRepository: ReminderRepository,
     private readonly entryRepository: EntryRepository,
     private readonly queuePort: QueuePort,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
-  async execute(input: CreateReminderInput): Promise<Result<ReminderDTO, UseCaseError>> {
+  async execute(
+    input: CreateReminderInput,
+  ): Promise<Result<ReminderDTO, UseCaseError>> {
     // Validate entry ownership
     const entry = await this.entryRepository.findById(input.entryId);
     if (!entry || entry.userId !== input.userId) {

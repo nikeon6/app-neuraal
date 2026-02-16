@@ -1,6 +1,7 @@
 import { Entry } from "@/domain/entities/Entry";
 import type { EntryRepository } from "@/application/ports/EntryRepository";
 import type { SummaryFormat } from "@/domain/value-objects/SummaryText";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 /**
@@ -76,7 +77,7 @@ export class PrismaEntryRepository implements EntryRepository {
         date: entry.date.toString(),
         type: entry.type.toString(),
         title: entry.title.toString(),
-        content: entry.content.toJSON(),
+        content: entry.content.toJSON() as Prisma.InputJsonValue,
         topicId: entry.topicId,
         completed: entry.completed,
         version: entry.version,
@@ -92,7 +93,7 @@ export class PrismaEntryRepository implements EntryRepository {
       data: {
         type: entry.type.toString(),
         title: entry.title.toString(),
-        content: entry.content.toJSON(),
+        content: entry.content.toJSON() as Prisma.InputJsonValue,
         topicId: entry.topicId,
         completed: entry.completed,
         version: entry.version,
@@ -109,7 +110,7 @@ export class PrismaEntryRepository implements EntryRepository {
   async updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },
@@ -134,15 +135,18 @@ export class PrismaEntryRepository implements EntryRepository {
 
   async updateContent(
     entryId: string,
-    content: Record<string, unknown>
+    content: Record<string, unknown>,
   ): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },
-      data: { content },
+      data: { content: content as Prisma.InputJsonValue },
     });
   }
 
-  async updateTranscript(entryId: string, transcriptText: string): Promise<void> {
+  async updateTranscript(
+    entryId: string,
+    transcriptText: string,
+  ): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },
       data: {
@@ -162,15 +166,15 @@ export class PrismaEntryRepository implements EntryRepository {
   async reorderEntries(
     userId: string,
     date: string,
-    orderedIds: string[]
+    orderedIds: string[],
   ): Promise<void> {
     await prisma.$transaction(
       orderedIds.map((id, index) =>
         prisma.entry.updateMany({
           where: { id, userId, date },
           data: { sortOrder: index },
-        })
-      )
+        }),
+      ),
     );
   }
 }

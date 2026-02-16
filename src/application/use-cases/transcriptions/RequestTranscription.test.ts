@@ -6,7 +6,9 @@ import { InMemoryTranscriptionRequestRepository } from "../../test/InMemoryTrans
 import { FakeQueuePort } from "../../test/FakeQueuePort";
 import { Entry } from "@/domain/entities/Entry";
 
-function createTestEntry(overrides: Partial<{ id: string; userId: string }> = {}): Entry {
+function createTestEntry(
+  overrides: Partial<{ id: string; userId: string }> = {},
+): Entry {
   const result = Entry.create({
     id: overrides.id ?? "entry-1",
     userId: overrides.userId ?? "user-1",
@@ -44,7 +46,7 @@ describe("RequestTranscription", () => {
       transcriptionRepo,
       queuePort,
       () => "req-1",
-      () => "notif-1"
+      () => "notif-1",
     );
   });
 
@@ -159,7 +161,7 @@ describe("RequestTranscription", () => {
       transcriptionRepo,
       queuePort,
       () => "req-2",
-      () => "notif-2"
+      () => "notif-2",
     );
 
     const result = await useCase2.execute({

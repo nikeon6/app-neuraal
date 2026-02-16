@@ -14,6 +14,16 @@ import { cn } from "@/shared/lib/utils";
 /** Maximum topics per user (mirrors backend MAX_TOPICS_PER_USER). */
 const MAX_TOPICS = 12;
 
+function getTopicsSubtitle(
+  isLoading: boolean,
+  hasTopics: boolean,
+  count: number,
+): string {
+  if (isLoading) return "Loading topics...";
+  if (hasTopics) return `${count}/${MAX_TOPICS} topic${count !== 1 ? "s" : ""}`;
+  return "Organize your tasks by topic";
+}
+
 // ============================================================================
 // TopicsSection Component (Main Container)
 // ============================================================================
@@ -68,11 +78,7 @@ export function TopicsSection() {
         <div>
           <h2 className="text-lg font-semibold text-white">Your Topics</h2>
           <p className="text-sm text-white/50">
-            {isLoading
-              ? "Loading topics..."
-              : hasTopics
-                ? `${topics.length}/${MAX_TOPICS} topic${topics.length !== 1 ? "s" : ""}`
-                : "Organize your tasks by topic"}
+            {getTopicsSubtitle(isLoading, hasTopics, topics.length)}
           </p>
         </div>
         <button
@@ -80,12 +86,14 @@ export function TopicsSection() {
           type="button"
           onClick={handleOpenCreate}
           disabled={isAtLimit}
-          aria-label={isAtLimit ? `Topic limit reached (${MAX_TOPICS})` : "Add topic"}
+          aria-label={
+            isAtLimit ? `Topic limit reached (${MAX_TOPICS})` : "Add topic"
+          }
           className={cn(
             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border backdrop-blur-sm",
             isAtLimit
               ? "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"
-              : "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_12px_-3px_rgba(56,189,248,0.25)] hover:from-sky-500/30 hover:to-indigo-500/25 hover:shadow-[0_0_16px_-3px_rgba(56,189,248,0.4)] hover:border-sky-400/50"
+              : "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-sky-300 shadow-[0_0_12px_-3px_rgba(56,189,248,0.25)] hover:from-sky-500/30 hover:to-indigo-500/25 hover:shadow-[0_0_16px_-3px_rgba(56,189,248,0.4)] hover:border-sky-400/50",
           )}
         >
           <Plus className="w-3.5 h-3.5" />
@@ -96,7 +104,7 @@ export function TopicsSection() {
       {/* Topics list or empty state */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {hasTopics ? (
-          <div className="flex flex-wrap gap-3">
+          <ul className="flex flex-wrap gap-3" aria-label="Topics list">
             {topics.map((topic) => (
               <TopicPill
                 key={topic.id}
@@ -104,7 +112,7 @@ export function TopicsSection() {
                 onDelete={() => handleDeleteClick(topic)}
               />
             ))}
-          </div>
+          </ul>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <p className="text-white/40 text-sm">

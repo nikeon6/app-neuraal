@@ -9,6 +9,7 @@ import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { setAuthCookies } from "@/infrastructure/auth/AuthCookies";
 import { loginRateLimiter } from "@/infrastructure/auth/LoginRateLimiter";
+import { withApiContext } from "@/infrastructure/http/withApiContext";
 import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
 
 function errorCodeToStatus(code: UseCaseErrorCode): number {
@@ -19,6 +20,9 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,
+    RATE_LIMITED: 429,
+    CONCURRENCY_LIMIT: 429,
+    INPUT_TOO_LARGE: 413,
     INTERNAL_ERROR: 500,
   };
   return map[code] ?? 500;
@@ -42,14 +46,14 @@ function getClientIp(request: NextRequest): string {
  * Authenticates a user and returns auth cookies.
  * Rate-limited: 5 failed attempts per IP → 5 minute lockout.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withApiContext(async (request: NextRequest) => {
   const clientIp = getClientIp(request);
 
   // --- Rate limit check ---
   const rateLimitCheck = loginRateLimiter.check(clientIp);
   if (!rateLimitCheck.allowed) {
     const retryAfterSeconds = Math.ceil(
-      (rateLimitCheck.retryAfterMs ?? 300_000) / 1000
+      (rateLimitCheck.retryAfterMs ?? 300_000) / 1000,
     );
     return NextResponse.json(
       {
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         headers: {
           "Retry-After": String(retryAfterSeconds),
         },
-      }
+      },
     );
   }
 
@@ -73,14 +77,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.email || !body.password) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "email and password are required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "email and password are required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -93,10 +102,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new CryptoRefreshTokenService(),
     new SystemClock(),
     config.accessTtlSeconds,
-    config.refreshTtlDays
+    config.refreshTtlDays,
   );
 
-  const result = await useCase.execute({ email: body.email, password: body.password });
+  const result = await useCase.execute({
+    email: body.email,
+    password: body.password,
+  });
 
   if (result.isErr()) {
     const { code, message } = result.error;
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // If this failure triggered a lockout, return 429 with info
       if (!rateLimitResult.allowed) {
         const retryAfterSeconds = Math.ceil(
-          (rateLimitResult.retryAfterMs ?? 300_000) / 1000
+          (rateLimitResult.retryAfterMs ?? 300_000) / 1000,
         );
         return NextResponse.json(
           {
@@ -123,7 +135,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             headers: {
               "Retry-After": String(retryAfterSeconds),
             },
-          }
+          },
         );
       }
 
@@ -134,10 +146,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           status,
           headers: {
             "X-RateLimit-Remaining": String(
-              rateLimitResult.remainingAttempts ?? 0
+              rateLimitResult.remainingAttempts ?? 0,
             ),
           },
-        }
+        },
       );
     }
 
@@ -152,4 +164,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.json({ user }, { status: 200 });
   setAuthCookies(response, tokens.accessToken, tokens.refreshToken, config);
   return response;
-}
+});

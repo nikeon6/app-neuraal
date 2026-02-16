@@ -1,5 +1,6 @@
 import { EntrySummaryRequest } from "@/domain/entities/EntrySummaryRequest";
 import type { SummaryRequestRepository } from "@/application/ports/SummaryRequestRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 /**
@@ -14,7 +15,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
         userId: request.userId,
         entryId: request.entryId,
         status: request.status.toString(),
-        meta: request.meta ?? undefined,
+        meta: (request.meta ?? undefined) as Prisma.InputJsonValue | undefined,
         createdAt: request.createdAt,
       },
     });
@@ -34,7 +35,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
 
   async findByIdForUser(
     id: string,
-    userId: string
+    userId: string,
   ): Promise<EntrySummaryRequest | null> {
     const record = await prisma.entrySummaryRequest.findFirst({
       where: { id, userId },
@@ -52,13 +53,13 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
       where: { id: request.id },
       data: {
         status: request.status.toString(),
-        meta: request.meta ?? undefined,
+        meta: (request.meta ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
   }
 
   async findActiveByEntryId(
-    entryId: string
+    entryId: string,
   ): Promise<EntrySummaryRequest | null> {
     const record = await prisma.entrySummaryRequest.findFirst({
       where: {

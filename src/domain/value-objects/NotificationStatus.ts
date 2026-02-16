@@ -26,8 +26,14 @@ export class NotificationStatus {
 
     const normalized = value.trim().toLowerCase();
 
-    if (!NotificationStatus.VALID_STATUSES.includes(normalized as typeof NotificationStatus.VALID_STATUSES[number])) {
-      return err(`Invalid status. Allowed: ${NotificationStatus.VALID_STATUSES.join(", ")}`);
+    if (
+      !NotificationStatus.VALID_STATUSES.includes(
+        normalized as (typeof NotificationStatus.VALID_STATUSES)[number],
+      )
+    ) {
+      return err(
+        `Invalid status. Allowed: ${NotificationStatus.VALID_STATUSES.join(", ")}`,
+      );
     }
 
     return ok(new NotificationStatus(normalized as "unread" | "read"));

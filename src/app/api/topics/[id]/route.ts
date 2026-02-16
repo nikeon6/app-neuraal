@@ -5,9 +5,7 @@ import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTop
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
-import {
-  DEFAULT_EMBEDDING_DIM,
-} from "@/shared/constants/embedding";
+import { DEFAULT_EMBEDDING_DIM } from "@/shared/constants/embedding";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -19,7 +17,7 @@ interface RouteContext {
  */
 export async function PATCH(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -34,7 +32,7 @@ export async function PATCH(
   if (!topicId || topicId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "topicId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -45,7 +43,7 @@ export async function PATCH(
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -72,7 +70,10 @@ export async function PATCH(
         statusCode = 400;
     }
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   // If the name changed, regenerate the topic embedding (fire-and-forget).
@@ -84,12 +85,20 @@ export async function PATCH(
     const embeddingDim = process.env.EMBEDDING_DIM
       ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
       : DEFAULT_EMBEDDING_DIM;
-    const rebuildUseCase = new RebuildTopicEmbedding(repository, embeddingProvider, {
-      embeddingDim,
-      embeddingModel: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
-    });
+    const rebuildUseCase = new RebuildTopicEmbedding(
+      repository,
+      embeddingProvider,
+      {
+        embeddingDim,
+        embeddingModel:
+          process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
+      },
+    );
     rebuildUseCase.execute({ userId, topicId }).catch((err) => {
-      console.error(`[PATCH /api/topics/${topicId}] Failed to regenerate embedding:`, err);
+      console.error(
+        `[PATCH /api/topics/${topicId}] Failed to regenerate embedding:`,
+        err,
+      );
     });
   }
 
@@ -102,7 +111,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
   const authResult = await getAuthUserId(request);
@@ -117,7 +126,7 @@ export async function DELETE(
   if (!topicId || topicId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "topicId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -132,7 +141,10 @@ export async function DELETE(
     // Map error codes to HTTP status codes
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   // 204 No Content for successful deletion

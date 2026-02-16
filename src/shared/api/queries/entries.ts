@@ -8,7 +8,8 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import * as sdk from "../sdk/entries";
 import type { ApiEntry } from "../sdk/types";
 
-export const entriesQueryKey = (dateKey: string) => ["entries", dateKey] as const;
+export const entriesQueryKey = (dateKey: string) =>
+  ["entries", dateKey] as const;
 
 const STALE_TIME_MS = 10 * 1000; // 10s
 

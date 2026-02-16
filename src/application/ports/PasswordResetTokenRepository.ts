@@ -8,7 +8,9 @@ export interface PasswordResetTokenData {
 }
 
 export interface PasswordResetTokenRepository {
-  create(data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">): Promise<PasswordResetTokenData>;
+  create(
+    data: Omit<PasswordResetTokenData, "id" | "createdAt" | "usedAt">,
+  ): Promise<PasswordResetTokenData>;
   findByTokenHash(tokenHash: string): Promise<PasswordResetTokenData | null>;
   markUsed(tokenHash: string, now: Date): Promise<void>;
 }

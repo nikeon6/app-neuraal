@@ -101,7 +101,7 @@ describe("RebuildTopicEmbedding", () => {
 
     expect(second).toBeDefined();
     expect(second!.updatedAt.getTime()).toBeGreaterThanOrEqual(
-      first!.updatedAt.getTime()
+      first!.updatedAt.getTime(),
     );
   });
 });

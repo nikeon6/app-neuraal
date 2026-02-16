@@ -66,7 +66,10 @@ describe("Reminder Entity", () => {
     });
 
     it("should reject invalid scheduledAt", () => {
-      const result = Reminder.create({ ...validProps, scheduledAt: "not-a-date" });
+      const result = Reminder.create({
+        ...validProps,
+        scheduledAt: "not-a-date",
+      });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -75,7 +78,10 @@ describe("Reminder Entity", () => {
     });
 
     it("should reject invalid channel", () => {
-      const result = Reminder.create({ ...validProps, channel: "carrier-pigeon" });
+      const result = Reminder.create({
+        ...validProps,
+        channel: "carrier-pigeon",
+      });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -198,7 +204,10 @@ describe("Reminder Entity", () => {
     });
 
     it("should reject updates for canceled reminder", () => {
-      const reminder = Reminder.create({ ...validProps, status: "canceled" }).value;
+      const reminder = Reminder.create({
+        ...validProps,
+        status: "canceled",
+      }).value;
 
       const result = reminder.withUpdates({ message: "New message" });
 

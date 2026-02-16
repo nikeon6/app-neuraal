@@ -9,7 +9,7 @@
  * @returns Plain text string
  */
 export function extractPlainText(
-  content: Record<string, unknown> | null | undefined
+  content: Record<string, unknown> | null | undefined,
 ): string {
   if (!content || typeof content !== "object") {
     return "";
@@ -23,75 +23,50 @@ export function extractPlainText(
 /**
  * Recursively collects text from TipTap/ProseMirror nodes.
  */
-function collectText(
-  node: Record<string, unknown>,
-  texts: string[]
-): void {
-  // If this is a text node, extract the text
-  if (node.type === "text" && typeof node.text === "string") {
-    const trimmed = node.text.trim();
-    if (trimmed.length > 0) {
-      texts.push(trimmed);
+function pushTrimmedText(texts: string[], value: unknown): void {
+  if (typeof value !== "string") return;
+  const trimmed = value.trim();
+  if (trimmed.length > 0) {
+    texts.push(trimmed);
+  }
+}
+
+function readAttrString(node: Record<string, unknown>, key: string): unknown {
+  const attrs = node.attrs as Record<string, unknown> | undefined;
+  return attrs?.[key];
+}
+
+function collectChildren(content: unknown, texts: string[]): void {
+  if (!Array.isArray(content)) return;
+  for (const child of content) {
+    if (child && typeof child === "object") {
+      collectText(child as Record<string, unknown>, texts);
     }
-    return;
   }
+}
 
-  // If this is a hardBreak, add a space separator (handled by join)
-  if (node.type === "hardBreak") {
-    return;
-  }
+function collectText(node: Record<string, unknown>, texts: string[]): void {
+  const nodeType = typeof node.type === "string" ? node.type : "";
 
-  // Heading nodes — their content is recursed normally, but tag them for context
-  // (the child text nodes will be collected by the recursion below)
-
-  // Code block — extract text content from code
-  if (node.type === "codeBlock") {
-    // Code blocks have text children — recurse normally
-    if (Array.isArray(node.content)) {
-      for (const child of node.content) {
-        if (child && typeof child === "object") {
-          collectText(child as Record<string, unknown>, texts);
-        }
-      }
-    }
-    return;
-  }
-
-  // Image node — extract alt text if present
-  if (node.type === "image" || node.type === "imageAttachment") {
-    const attrs = node.attrs as Record<string, unknown> | undefined;
-    if (attrs?.alt && typeof attrs.alt === "string") {
-      const trimmed = attrs.alt.trim();
-      if (trimmed.length > 0) {
-        texts.push(trimmed);
-      }
-    }
-    return;
-  }
-
-  // File attachment node — extract filename
-  if (node.type === "fileAttachment") {
-    const attrs = node.attrs as Record<string, unknown> | undefined;
-    if (attrs?.filename && typeof attrs.filename === "string") {
-      const trimmed = attrs.filename.trim();
-      if (trimmed.length > 0) {
-        texts.push(trimmed);
-      }
-    }
-    return;
-  }
-
-  // YouTube node — skip (no meaningful text)
-  if (node.type === "youtube") {
-    return;
-  }
-
-  // Recursively process child nodes
-  if (Array.isArray(node.content)) {
-    for (const child of node.content) {
-      if (child && typeof child === "object") {
-        collectText(child as Record<string, unknown>, texts);
-      }
-    }
+  switch (nodeType) {
+    case "text":
+      pushTrimmedText(texts, node.text);
+      return;
+    case "hardBreak":
+      return;
+    case "codeBlock":
+      collectChildren(node.content, texts);
+      return;
+    case "image":
+    case "imageAttachment":
+      pushTrimmedText(texts, readAttrString(node, "alt"));
+      return;
+    case "fileAttachment":
+      pushTrimmedText(texts, readAttrString(node, "filename"));
+      return;
+    case "youtube":
+      return;
+    default:
+      collectChildren(node.content, texts);
   }
 }

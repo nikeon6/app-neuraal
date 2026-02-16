@@ -38,7 +38,7 @@ export class Notification {
     message: string,
     status: NotificationStatus,
     payload: Record<string, unknown> | null,
-    createdAt: Date
+    createdAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -95,8 +95,8 @@ export class Notification {
         props.message.trim(),
         statusResult.value,
         props.payload,
-        props.createdAt
-      )
+        props.createdAt,
+      ),
     );
   }
 
@@ -112,7 +112,7 @@ export class Notification {
       this.message,
       NotificationStatus.read(),
       this.payload,
-      this.createdAt
+      this.createdAt,
     );
   }
 

@@ -1,5 +1,5 @@
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { findChildren } from "@tiptap/core";
 
@@ -112,10 +112,10 @@ export const CodeBlockWithLineNumbers = CodeBlockLowlight.extend({
 
         const codeBlocks = findChildren(
           newState.doc,
-          (n) => n.type.name === extensionName
+          (n) => n.type.name === extensionName,
         );
 
-        let tr: ReturnType<typeof newState.tr> | null = null;
+        let tr: Transaction | null = null;
 
         for (const block of codeBlocks) {
           // Skip blocks that already have an explicit language
@@ -126,9 +126,8 @@ export const CodeBlockWithLineNumbers = CodeBlockLowlight.extend({
 
           try {
             const result = lowlightInstance.highlightAuto(text);
-            const detected = (
-              result as { data?: { language?: string } }
-            ).data?.language;
+            const detected = (result as { data?: { language?: string } }).data
+              ?.language;
 
             if (detected) {
               if (!tr) tr = newState.tr;
@@ -147,11 +146,10 @@ export const CodeBlockWithLineNumbers = CodeBlockLowlight.extend({
     });
 
     // ---- Line numbers plugin ----
-    const lineNumbersPlugin = new Plugin({
+    const lineNumbersPlugin = new Plugin<DecorationSet>({
       key: lineNumbersKey,
       state: {
-        init: (_, { doc }) =>
-          buildLineNumberDecorations(doc, extensionName),
+        init: (_, { doc }) => buildLineNumberDecorations(doc, extensionName),
         apply: (tr, decorationSet, _oldState, newState) => {
           if (!tr.docChanged) {
             return decorationSet.map(tr.mapping, newState.doc);
@@ -160,8 +158,8 @@ export const CodeBlockWithLineNumbers = CodeBlockLowlight.extend({
         },
       },
       props: {
-        decorations(state) {
-          return lineNumbersPlugin.getState(state);
+        decorations(state): DecorationSet {
+          return lineNumbersPlugin.getState(state)!;
         },
       },
     });
@@ -176,7 +174,7 @@ export const CodeBlockWithLineNumbers = CodeBlockLowlight.extend({
  */
 function buildLineNumberDecorations(
   doc: import("@tiptap/pm/model").Node,
-  name: string
+  name: string,
 ): DecorationSet {
   const decorations: Decoration[] = [];
 
@@ -192,7 +190,7 @@ function buildLineNumberDecorations(
       Decoration.widget(contentStart, createLineNumWidget(lineNum++), {
         side: -1,
         ignoreSelection: true,
-      })
+      }),
     );
 
     // Each subsequent line (after each \n)
@@ -202,8 +200,8 @@ function buildLineNumberDecorations(
           Decoration.widget(
             contentStart + i + 1,
             createLineNumWidget(lineNum++),
-            { side: -1, ignoreSelection: true }
-          )
+            { side: -1, ignoreSelection: true },
+          ),
         );
       }
     }

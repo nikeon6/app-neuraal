@@ -71,6 +71,6 @@ export interface AutomationPort {
    * Handles HMAC signing and optional basic auth.
    */
   requestEntryTranscription(
-    payload: EntryTranscriptionPayload
+    payload: EntryTranscriptionPayload,
   ): Promise<AutomationResult>;
 }

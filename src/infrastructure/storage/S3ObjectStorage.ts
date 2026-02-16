@@ -36,7 +36,7 @@ export class S3ObjectStorage implements ObjectStoragePort {
   async getPresignedPutUrl(
     storageKey: string,
     mimeType: string,
-    sizeBytes: number
+    sizeBytes: number,
   ): Promise<string> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           message: "Missing X-Timestamp or X-Signature headers",
         },
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             "Missing required fields: requestId, userId, entryId, summary, format",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -70,8 +70,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!webhookSecret) {
     console.error("N8N_WEBHOOK_SECRET not configured");
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Server configuration error" } },
-      { status: 500 }
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Server configuration error",
+        },
+      },
+      { status: 500 },
     );
   }
 
@@ -81,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const aiUsageRepository = new PrismaAiUsageRepository();
   const recordAiUsage = new RecordAiUsageFromCallback(
     aiUsageRepository,
-    new SystemClock()
+    new SystemClock(),
   );
 
   const handleCallback = new HandleEntrySummaryCallback(
@@ -89,7 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     summaryRequestRepository,
     notificationRepository,
     webhookSecret,
-    recordAiUsage
+    recordAiUsage,
   );
 
   const result = await handleCallback.execute({
@@ -118,7 +123,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         statusCode = 500;
     }
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   // Return success
@@ -127,6 +135,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       success: true,
       alreadyProcessed: result.value.alreadyProcessed ?? false,
     },
-    { status: 200 }
+    { status: 200 },
   );
 }

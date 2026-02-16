@@ -29,7 +29,9 @@ export class RegisterUser {
     private readonly refreshTtlDays: number,
   ) {}
 
-  async execute(input: RegisterUserInput): Promise<Result<AuthResultDTO, UseCaseError>> {
+  async execute(
+    input: RegisterUserInput,
+  ): Promise<Result<AuthResultDTO, UseCaseError>> {
     // Validate email
     const emailResult = Email.create(input.email);
     if (emailResult.isErr()) {
@@ -43,13 +45,17 @@ export class RegisterUser {
     }
 
     // Check uniqueness
-    const existing = await this.userRepository.findByEmail(emailResult.value.toString());
+    const existing = await this.userRepository.findByEmail(
+      emailResult.value.toString(),
+    );
     if (existing) {
       return err(duplicateError("A user with this email already exists"));
     }
 
     // Hash password
-    const hash = await this.passwordHasher.hash(passwordResult.value.toString());
+    const hash = await this.passwordHasher.hash(
+      passwordResult.value.toString(),
+    );
 
     // Create user
     const now = this.clock.now();
@@ -71,14 +77,15 @@ export class RegisterUser {
     // Generate tokens
     const accessToken = await this.jwtService.sign(
       { sub: userId, email: emailResult.value.toString() },
-      this.accessTtlSeconds
+      this.accessTtlSeconds,
     );
 
     const rawRefreshToken = this.refreshTokenService.generate();
-    const refreshTokenHash = this.refreshTokenService.hashToken(rawRefreshToken);
+    const refreshTokenHash =
+      this.refreshTokenService.hashToken(rawRefreshToken);
 
     const refreshExpiresAt = new Date(
-      now.getTime() + this.refreshTtlDays * 24 * 60 * 60 * 1000
+      now.getTime() + this.refreshTtlDays * 24 * 60 * 60 * 1000,
     );
     await this.refreshTokenRepository.create({
       userId,

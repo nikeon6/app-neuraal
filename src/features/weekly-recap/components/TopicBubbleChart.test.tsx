@@ -42,18 +42,20 @@ describe("TopicBubbleChart", () => {
     });
 
     it("renders an SVG element", () => {
-      const { container } = render(<TopicBubbleChart data={mockData} />);
-
-      const svg = container.querySelector("svg");
-      expect(svg).toBeInTheDocument();
+      render(<TopicBubbleChart data={mockData} />);
+      expect(screen.getByLabelText(/topic bubbles chart/i)).toBeInTheDocument();
     });
 
-    it("renders circles for each topic", async () => {
-      const { container } = render(<TopicBubbleChart data={mockData} />);
+    it("renders chart graphic together with topic labels", async () => {
+      render(<TopicBubbleChart data={mockData} />);
 
       await waitFor(() => {
-        const circles = container.querySelectorAll("circle");
-        expect(circles.length).toBeGreaterThanOrEqual(3);
+        expect(
+          screen.getByLabelText(/topic bubbles chart/i),
+        ).toBeInTheDocument();
+        expect(screen.getByText("Work")).toBeInTheDocument();
+        expect(screen.getByText("Health")).toBeInTheDocument();
+        expect(screen.getByText("Fun")).toBeInTheDocument();
       });
     });
   });
@@ -68,7 +70,13 @@ describe("TopicBubbleChart", () => {
 
     it("handles single topic", async () => {
       const single: TopicBubbleData[] = [
-        { topicId: "t1", name: "Work", color: "#e11d48", count: 10, percentage: 100 },
+        {
+          topicId: "t1",
+          name: "Work",
+          color: "#e11d48",
+          count: 10,
+          percentage: 100,
+        },
       ];
       render(<TopicBubbleChart data={single} />);
 

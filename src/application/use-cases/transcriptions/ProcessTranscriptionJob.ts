@@ -45,11 +45,11 @@ export class ProcessTranscriptionJob {
     private readonly notificationRepository: NotificationRepository,
     private readonly automationPort: AutomationPort,
     private readonly callbackUrl: string,
-    private readonly generateId: () => string = () => crypto.randomUUID()
+    private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: ProcessTranscriptionJobInput
+    input: ProcessTranscriptionJobInput,
   ): Promise<Result<ProcessTranscriptionJobResult, UseCaseError>> {
     const { requestId, userId, entryId, youtubeUrl } = input;
 

@@ -36,7 +36,7 @@ describe("RefreshSession", () => {
       refreshTokenService,
       clock,
       900,
-      7
+      7,
     );
     refreshSession = new RefreshSession(
       userRepository,
@@ -45,7 +45,7 @@ describe("RefreshSession", () => {
       refreshTokenService,
       clock,
       900,
-      7
+      7,
     );
   });
 
@@ -67,7 +67,9 @@ describe("RefreshSession", () => {
     if (result.isOk()) {
       expect(result.value.user.email).toBe("user@example.com");
       expect(result.value.user.id).toBeDefined();
-      expect(result.value.tokens.accessToken).toMatch(/^fake-header\..*\.fake-signature$/);
+      expect(result.value.tokens.accessToken).toMatch(
+        /^fake-header\..*\.fake-signature$/,
+      );
       expect(result.value.tokens.refreshToken).toBeDefined();
     }
   });
@@ -75,7 +77,9 @@ describe("RefreshSession", () => {
   it("should return new tokens on refresh", async () => {
     const oldRefreshToken = await registerAndGetRefreshToken();
 
-    const result = await refreshSession.execute({ refreshToken: oldRefreshToken });
+    const result = await refreshSession.execute({
+      refreshToken: oldRefreshToken,
+    });
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {

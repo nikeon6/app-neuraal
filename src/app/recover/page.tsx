@@ -25,7 +25,9 @@ export default function RecoverPage() {
     } catch {
       // Only show error for network failures (timeout, no connection, etc.)
       // API errors are intentionally ignored to prevent email enumeration.
-      setNetworkError("Unable to connect. Please check your connection and try again.");
+      setNetworkError(
+        "Unable to connect. Please check your connection and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -63,8 +65,8 @@ export default function RecoverPage() {
             <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-4 flex items-start gap-3">
               <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <p className="text-sm">
-                If an account exists with that email, you&apos;ll receive password
-                reset instructions.
+                If an account exists with that email, you&apos;ll receive
+                password reset instructions.
               </p>
             </div>
 

@@ -69,7 +69,7 @@ describe("TokenExpiry", () => {
       if (result.isOk()) {
         expect(result.value.isExpired(now)).toBe(false);
         expect(result.value.isExpired(new Date("2025-01-01T18:00:00Z"))).toBe(
-          false
+          false,
         );
       }
     });
@@ -82,10 +82,10 @@ describe("TokenExpiry", () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.isExpired(new Date("2025-01-02T12:00:00Z"))).toBe(
-          true
+          true,
         );
         expect(result.value.isExpired(new Date("2025-01-03T00:00:00Z"))).toBe(
-          true
+          true,
         );
       }
     });

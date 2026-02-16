@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import type { ApiNotification } from "@/shared/api/sdk";
 // ============================================================================
 
 function createNotification(
-  overrides: Partial<ApiNotification> = {}
+  overrides: Partial<ApiNotification> = {},
 ): ApiNotification {
   return {
     id: "notif-1",
@@ -66,7 +66,8 @@ const mockMarkReadMutate = vi.fn();
 const mockMarkReadMutation = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
-  useNotificationsQuery: (...args: unknown[]) => mockNotificationsQuery(...args),
+  useNotificationsQuery: (...args: unknown[]) =>
+    mockNotificationsQuery(...args),
   useMarkNotificationReadMutation: (...args: unknown[]) =>
     mockMarkReadMutation(...args),
   getUnreadCount: (notifications: ApiNotification[] | undefined) => {
@@ -81,12 +82,12 @@ vi.mock("framer-motion", () => ({
     div: React.forwardRef(
       (
         { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
-        ref: React.Ref<HTMLDivElement>
+        ref: React.Ref<HTMLDivElement>,
       ) => (
         <div ref={ref} {...props}>
           {children}
         </div>
-      )
+      ),
     ),
   },
   AnimatePresence: ({ children }: { children: React.ReactNode }) => (
@@ -110,13 +111,13 @@ function createQueryClient() {
 }
 
 function renderNotificationCenter(
-  props: Partial<React.ComponentProps<typeof NotificationCenter>> = {}
+  props: Partial<React.ComponentProps<typeof NotificationCenter>> = {},
 ) {
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
       <NotificationCenter {...props} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -139,7 +140,7 @@ describe("NotificationCenter", () => {
     // Pin Date.now so mock notification dates (2026-01-29) are always "recent"
     // relative to the auto-dismiss 24h filter, regardless of when tests run.
     vi.spyOn(Date, "now").mockReturnValue(
-      new Date("2026-01-29T13:00:00Z").getTime()
+      new Date("2026-01-29T13:00:00Z").getTime(),
     );
 
     // Default: return 3 notifications (2 unread, 1 read)
@@ -198,7 +199,7 @@ describe("NotificationCenter", () => {
       // 2 unread (notif-1 and notif-3)
       expect(getBellButton()).toHaveAttribute(
         "aria-label",
-        "Notifications (2 unread)"
+        "Notifications (2 unread)",
       );
     });
 
@@ -221,19 +222,17 @@ describe("NotificationCenter", () => {
 
       renderNotificationCenter();
 
-      // The badge is a <span> with the bg-sky-500 class inside the button
       const btn = getBellButton();
-      const badge = btn.querySelector("span.bg-sky-500");
-      expect(badge).not.toBeInTheDocument();
+      expect(
+        within(btn).queryByText(/^0$|^1$|^2$|^99\+$/),
+      ).not.toBeInTheDocument();
     });
 
     it("shows badge text with count", () => {
       renderNotificationCenter();
 
       const btn = getBellButton();
-      const badge = btn.querySelector("span.bg-sky-500");
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent("2");
+      expect(within(btn).getByText("2")).toBeInTheDocument();
     });
   });
 
@@ -245,8 +244,12 @@ describe("NotificationCenter", () => {
     it("does not show the panel by default", () => {
       renderNotificationCenter();
 
-      expect(screen.queryByText("No notifications yet.")).not.toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: /notifications/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("No notifications yet."),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /notifications/i }),
+      ).not.toBeInTheDocument();
     });
 
     it("opens the panel when bell button is clicked", async () => {
@@ -267,7 +270,9 @@ describe("NotificationCenter", () => {
 
       // Click again to close
       await user.click(getBellButton());
-      expect(screen.queryByText("No notifications yet.")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("No notifications yet."),
+      ).not.toBeInTheDocument();
     });
 
     it("closes the panel when Escape key is pressed", async () => {
@@ -339,9 +344,15 @@ describe("NotificationCenter", () => {
       // notif-3 title is "Summary failed" (also matches type label)
       // Each appears twice: once as type label (<span>) and once as title (<p>)
       // Just verify they appear at least once
-      expect(screen.getAllByText("Summary ready").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText("Reminder sent").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText("Summary failed").length).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText("Summary ready").length,
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText("Reminder sent").length,
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText("Summary failed").length,
+      ).toBeGreaterThanOrEqual(1);
     });
 
     it("shows notification messages when they differ from title", async () => {
@@ -351,13 +362,13 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       expect(
-        screen.getByText("Your entry summary is complete.")
+        screen.getByText("Your entry summary is complete."),
       ).toBeInTheDocument();
       expect(
-        screen.getByText("Your reminder was delivered.")
+        screen.getByText("Your reminder was delivered."),
       ).toBeInTheDocument();
       expect(
-        screen.getByText("Could not generate summary.")
+        screen.getByText("Could not generate summary."),
       ).toBeInTheDocument();
     });
 
@@ -367,13 +378,19 @@ describe("NotificationCenter", () => {
 
       await openPanel(user);
 
-      // Type labels are rendered as <span class="text-xs font-medium ...">
-      const typeLabels = document.querySelectorAll("span.text-xs.font-medium");
-      const labelTexts = Array.from(typeLabels).map((el) => el.textContent);
+      const summaryReadyLabels = screen
+        .getAllByText("Summary ready")
+        .filter((el) => el.tagName === "SPAN");
+      const summaryFailedLabels = screen
+        .getAllByText("Summary failed")
+        .filter((el) => el.tagName === "SPAN");
+      const reminderSentLabels = screen
+        .getAllByText("Reminder sent")
+        .filter((el) => el.tagName === "SPAN");
 
-      expect(labelTexts).toContain("Summary ready");
-      expect(labelTexts).toContain("Summary failed");
-      expect(labelTexts).toContain("Reminder sent");
+      expect(summaryReadyLabels.length).toBeGreaterThan(0);
+      expect(summaryFailedLabels.length).toBeGreaterThan(0);
+      expect(reminderSentLabels.length).toBeGreaterThan(0);
     });
 
     it("shows relative timestamps", async () => {
@@ -410,9 +427,10 @@ describe("NotificationCenter", () => {
       renderNotificationCenter();
       await openPanel(user);
 
-      // Spinner is a div with animate-spin class
-      const spinner = document.querySelector(".animate-spin");
-      expect(spinner).toBeInTheDocument();
+      expect(screen.getByLabelText(/notifications list/i)).toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
     });
 
     it("sorts notifications descending by createdAt (newest first)", async () => {
@@ -480,7 +498,7 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       expect(
-        screen.getByRole("button", { name: /mark all read/i })
+        screen.getByRole("button", { name: /mark all read/i }),
       ).toBeInTheDocument();
     });
 
@@ -495,7 +513,7 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       expect(
-        screen.queryByRole("button", { name: /mark all read/i })
+        screen.queryByRole("button", { name: /mark all read/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -510,7 +528,7 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       expect(
-        screen.queryByRole("button", { name: /mark all read/i })
+        screen.queryByRole("button", { name: /mark all read/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -567,7 +585,7 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       expect(
-        screen.queryByRole("button", { name: /go to entry/i })
+        screen.queryByRole("button", { name: /go to entry/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -650,7 +668,9 @@ describe("NotificationCenter", () => {
       await openPanel(user);
 
       // Old read notification should be hidden
-      expect(screen.queryByText("Old read notification")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Old read notification"),
+      ).not.toBeInTheDocument();
 
       // Recent read should be visible
       expect(screen.getByText("Recent read notification")).toBeInTheDocument();
@@ -709,7 +729,7 @@ describe("NotificationCenter", () => {
       // Only 1 unread — badge should show 1
       expect(getBellButton()).toHaveAttribute(
         "aria-label",
-        "Notifications (1 unread)"
+        "Notifications (1 unread)",
       );
     });
   });
@@ -725,9 +745,7 @@ describe("NotificationCenter", () => {
 
       await openPanel(user);
 
-      // The scrollable list container should have the custom-scrollbar class
-      const scrollContainer = document.querySelector(".custom-scrollbar");
-      expect(scrollContainer).toBeInTheDocument();
+      expect(screen.getByLabelText(/notifications list/i)).toBeInTheDocument();
     });
   });
 

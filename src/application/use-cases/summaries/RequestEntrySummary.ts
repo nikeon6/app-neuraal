@@ -53,13 +53,14 @@ export class RequestEntrySummary {
     private readonly queuePort: QueuePort,
     private readonly aiUsageRepository: AiUsageRepository,
     private readonly clock: ClockPort,
-    private readonly generateRequestId: () => string = () => crypto.randomUUID(),
+    private readonly generateRequestId: () => string = () =>
+      crypto.randomUUID(),
     private readonly generateNotificationId: () => string = () =>
-      crypto.randomUUID()
+      crypto.randomUUID(),
   ) {}
 
   async execute(
-    input: RequestEntrySummaryInput
+    input: RequestEntrySummaryInput,
   ): Promise<Result<RequestEntrySummaryOutput, UseCaseError>> {
     const { userId, entryId, plainTextForSummary } = input;
 
@@ -74,7 +75,9 @@ export class RequestEntrySummary {
       await this.summaryRequestRepository.findActiveByEntryId(entryId);
     if (activeRequest) {
       return err(
-        conflictError("A summary request is already in progress for this entry")
+        conflictError(
+          "A summary request is already in progress for this entry",
+        ),
       );
     }
 
@@ -91,7 +94,7 @@ export class RequestEntrySummary {
       requestId,
       userId,
       entryId,
-      meta
+      meta,
     );
     await this.summaryRequestRepository.save(summaryRequest);
 
@@ -101,7 +104,7 @@ export class RequestEntrySummary {
       userId,
       "SUMMARY",
       monthKey,
-      1
+      1,
     );
 
     try {
@@ -139,7 +142,7 @@ export class RequestEntrySummary {
         userId,
         "SUMMARY",
         monthKey,
-        -1
+        -1,
       );
       throw new Error("Failed to enqueue summary job");
     }

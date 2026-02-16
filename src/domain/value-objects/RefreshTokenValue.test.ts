@@ -14,8 +14,7 @@ describe("RefreshTokenValue", () => {
     });
 
     it("should create from a longer token", () => {
-      const token =
-        "dGhpcyBpcyBhIGJhc2U2NHVybCBlbmNvZGVkIHRva2VuIHN0cmluZw";
+      const token = "dGhpcyBpcyBhIGJhc2U2NHVybCBlbmNvZGVkIHRva2VuIHN0cmluZw";
       const result = RefreshTokenValue.create(token);
 
       expect(result.isOk()).toBe(true);

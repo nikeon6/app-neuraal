@@ -94,7 +94,11 @@ describe("DeleteTopic", () => {
     });
 
     it("should not leak topic existence to unauthorized users", async () => {
-      const topic = await createTestTopic("user-123", "Secret Topic", "#3b82f6");
+      const topic = await createTestTopic(
+        "user-123",
+        "Secret Topic",
+        "#3b82f6",
+      );
 
       // Attacker tries to probe for topic existence
       const result = await deleteTopic.execute({

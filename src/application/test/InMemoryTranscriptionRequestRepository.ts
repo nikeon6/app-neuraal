@@ -4,9 +4,7 @@ import type { TranscriptionRequestRepository } from "../ports/TranscriptionReque
 /**
  * In-memory implementation of TranscriptionRequestRepository for testing.
  */
-export class InMemoryTranscriptionRequestRepository
-  implements TranscriptionRequestRepository
-{
+export class InMemoryTranscriptionRequestRepository implements TranscriptionRequestRepository {
   private requests: TranscriptionRequest[] = [];
 
   async save(request: TranscriptionRequest): Promise<void> {
@@ -26,19 +24,17 @@ export class InMemoryTranscriptionRequestRepository
 
   async findActiveByEntryAndUrl(
     entryId: string,
-    youtubeUrl: string
+    youtubeUrl: string,
   ): Promise<TranscriptionRequest | null> {
     const activeRequests = this.requests.filter(
       (r) =>
-        r.entryId === entryId &&
-        r.youtubeUrl === youtubeUrl &&
-        !r.isTerminal()
+        r.entryId === entryId && r.youtubeUrl === youtubeUrl && !r.isTerminal(),
     );
     if (activeRequests.length === 0) {
       return null;
     }
     return activeRequests.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     )[0];
   }
 

@@ -79,17 +79,20 @@ describe("WeeklyTaskList", () => {
     it("renders filter tabs", () => {
       render(<WeeklyTaskList tasks={mockTasks} />);
 
-      expect(screen.getByRole("button", { name: /by day/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /by topic/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /by status/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /by day/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /by topic/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /by status/i }),
+      ).toBeInTheDocument();
     });
 
     it("shows topic color dot for each task", () => {
-      const { container } = render(<WeeklyTaskList tasks={mockTasks} />);
-
-      // Each task card should have a color dot element
-      const dots = container.querySelectorAll("[data-testid='topic-dot']");
-      expect(dots.length).toBe(4);
+      render(<WeeklyTaskList tasks={mockTasks} />);
+      expect(screen.getAllByLabelText(/task topic color/i)).toHaveLength(4);
     });
   });
 

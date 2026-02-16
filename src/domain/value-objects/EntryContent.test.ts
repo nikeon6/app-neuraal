@@ -40,7 +40,9 @@ describe("EntryContent", () => {
     });
 
     it("should reject null", () => {
-      const result = EntryContent.create(null as unknown as Record<string, unknown>);
+      const result = EntryContent.create(
+        null as unknown as Record<string, unknown>,
+      );
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toContain("object");
@@ -48,27 +50,38 @@ describe("EntryContent", () => {
     });
 
     it("should reject undefined", () => {
-      const result = EntryContent.create(undefined as unknown as Record<string, unknown>);
+      const result = EntryContent.create(
+        undefined as unknown as Record<string, unknown>,
+      );
       expect(result.isErr()).toBe(true);
     });
 
     it("should reject string", () => {
-      const result = EntryContent.create("hello" as unknown as Record<string, unknown>);
+      const result = EntryContent.create(
+        "hello" as unknown as Record<string, unknown>,
+      );
       expect(result.isErr()).toBe(true);
     });
 
     it("should reject number", () => {
-      const result = EntryContent.create(123 as unknown as Record<string, unknown>);
+      const result = EntryContent.create(
+        123 as unknown as Record<string, unknown>,
+      );
       expect(result.isErr()).toBe(true);
     });
 
     it("should reject array (not object)", () => {
-      const result = EntryContent.create([1, 2, 3] as unknown as Record<string, unknown>);
+      const result = EntryContent.create([1, 2, 3] as unknown as Record<
+        string,
+        unknown
+      >);
       expect(result.isErr()).toBe(true);
     });
 
     it("should reject boolean", () => {
-      const result = EntryContent.create(true as unknown as Record<string, unknown>);
+      const result = EntryContent.create(
+        true as unknown as Record<string, unknown>,
+      );
       expect(result.isErr()).toBe(true);
     });
   });

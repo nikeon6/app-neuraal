@@ -15,7 +15,10 @@ export class InMemoryNotificationRepository implements NotificationRepository {
     return this.notifications.get(id) ?? null;
   }
 
-  async findByIdForUser(id: string, userId: string): Promise<Notification | null> {
+  async findByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<Notification | null> {
     const notification = this.notifications.get(id);
     if (!notification || notification.userId !== userId) {
       return null;
@@ -27,7 +30,10 @@ export class InMemoryNotificationRepository implements NotificationRepository {
     this.notifications.set(notification.id, notification);
   }
 
-  async listByUserSince(userId: string, since: Date | null): Promise<Notification[]> {
+  async listByUserSince(
+    userId: string,
+    since: Date | null,
+  ): Promise<Notification[]> {
     return Array.from(this.notifications.values())
       .filter((notification) => {
         if (notification.userId !== userId) return false;

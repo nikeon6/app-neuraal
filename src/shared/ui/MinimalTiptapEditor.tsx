@@ -21,7 +21,9 @@ export interface MinimalTiptapEditorProps {
 }
 
 function isValidContent(content: Record<string, unknown>): boolean {
-  return content && typeof content === "object" && Object.keys(content).length > 0;
+  return (
+    content && typeof content === "object" && Object.keys(content).length > 0
+  );
 }
 
 /**
@@ -52,7 +54,7 @@ export const MinimalTiptapEditor = React.memo(function MinimalTiptapEditor({
         HTMLAttributes: { class: "minimal-tiptap-code" },
       }),
     ],
-    [placeholder]
+    [placeholder],
   );
 
   const editor = useEditor({
@@ -100,4 +102,4 @@ export const MinimalTiptapEditor = React.memo(function MinimalTiptapEditor({
       <EditorContent editor={editor} />
     </div>
   );
-})
+});

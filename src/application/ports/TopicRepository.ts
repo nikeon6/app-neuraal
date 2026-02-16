@@ -61,7 +61,7 @@ export interface TopicRepository {
     topicId: string,
     vector: number[],
     model: string,
-    updatedAt: Date
+    updatedAt: Date,
   ): Promise<void>;
 
   /**
@@ -72,6 +72,6 @@ export interface TopicRepository {
    */
   findBestMatchByEmbedding(
     userId: string,
-    vector: number[]
+    vector: number[],
   ): Promise<TopicSimilarityMatch | null>;
 }

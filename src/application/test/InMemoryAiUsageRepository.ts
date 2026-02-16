@@ -25,7 +25,7 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
   async getMonthly(
     userId: string,
     action: string,
-    monthKey: string
+    monthKey: string,
   ): Promise<import("../ports/AiUsageRepository").AiUsageMonthlyRecord | null> {
     const row = this.monthly.get(this.monthlyKey(userId, action, monthKey));
     if (!row) return null;
@@ -36,7 +36,7 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void> {
     const key = this.monthlyKey(userId, action, monthKey);
     const row = this.monthly.get(key);
@@ -58,7 +58,7 @@ export class InMemoryAiUsageRepository implements AiUsageRepository {
     userId: string,
     action: string,
     monthKey: string,
-    delta: number
+    delta: number,
   ): Promise<void> {
     const key = this.monthlyKey(userId, action, monthKey);
     const row = this.monthly.get(key);

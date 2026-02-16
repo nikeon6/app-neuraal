@@ -28,7 +28,7 @@ export interface ReminderDialogProps {
   onCreate: (
     scheduledAt: string,
     channel: ReminderChannel,
-    message?: string
+    message?: string,
   ) => void;
   /** Reschedule an existing reminder (only if activeReminderId is set) */
   onReschedule?: (scheduledAt: string) => void;
@@ -128,7 +128,12 @@ interface ScrollPickerProps {
   label: string;
 }
 
-function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPickerProps>) {
+function ScrollPicker({
+  values,
+  selected,
+  onChange,
+  label,
+}: Readonly<ScrollPickerProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLButtonElement>(null);
@@ -144,7 +149,10 @@ function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPick
   React.useEffect(() => {
     if (!isOpen) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -161,7 +169,7 @@ function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPick
         className={cn(
           "bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white min-w-[3rem] text-center",
           "hover:bg-white/10 transition-colors",
-          isOpen && "ring-1 ring-sky-400/50 border-sky-400/30"
+          isOpen && "ring-1 ring-sky-400/50 border-sky-400/30",
         )}
       >
         {pad2(selected)}
@@ -172,7 +180,7 @@ function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPick
             "absolute bottom-full mb-1 left-1/2 -translate-x-1/2",
             "w-14 max-h-[160px] overflow-y-auto custom-scrollbar",
             "bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
-            "py-1 z-10"
+            "py-1 z-10",
           )}
         >
           {values.map((v) => (
@@ -188,7 +196,7 @@ function ScrollPicker({ values, selected, onChange, label }: Readonly<ScrollPick
                 "w-full py-1.5 text-xs font-medium text-center transition-colors",
                 v === selected
                   ? "bg-sky-500/20 text-sky-300"
-                  : "text-white/50 hover:bg-white/10 hover:text-white/80"
+                  : "text-white/50 hover:bg-white/10 hover:text-white/80",
               )}
             >
               {pad2(v)}
@@ -226,7 +234,7 @@ function DateTimePicker({
 
   const grid = useMemo(
     () => getMonthGrid(viewYear, viewMonth),
-    [viewYear, viewMonth]
+    [viewYear, viewMonth],
   );
 
   const today = useMemo(() => {
@@ -263,7 +271,7 @@ function DateTimePicker({
       const d = new Date(viewYear, viewMonth, day);
       onDateChange(d);
     },
-    [viewYear, viewMonth, onDateChange]
+    [viewYear, viewMonth, onDateChange],
   );
 
   const monthLabel = new Date(viewYear, viewMonth).toLocaleString("en", {
@@ -307,14 +315,17 @@ function DateTimePicker({
       <div className="grid grid-cols-7 gap-0.5">
         {grid.map((day, i) => {
           if (day === null) {
-            return <div key={`blank-w${Math.floor(i / 7)}-d${i % 7}`} className="h-8" />;
+            return (
+              <div
+                key={`blank-w${Math.floor(i / 7)}-d${i % 7}`}
+                className="h-8"
+              />
+            );
           }
 
           const isPast = isDayBeforeToday(viewYear, viewMonth, day);
           const isSelected =
-            day === selDay &&
-            viewMonth === selMonth &&
-            viewYear === selYear;
+            day === selDay && viewMonth === selMonth && viewYear === selYear;
           const isToday =
             day === today.day &&
             viewMonth === today.month &&
@@ -326,8 +337,7 @@ function DateTimePicker({
             dayStyle =
               "text-white/15 border border-transparent cursor-not-allowed";
           } else if (isSelected) {
-            dayStyle =
-              "bg-sky-500/30 text-sky-300 border border-sky-400/30";
+            dayStyle = "bg-sky-500/30 text-sky-300 border border-sky-400/30";
           } else if (isToday) {
             dayStyle = "bg-white/5 text-white border border-white/10";
           }
@@ -341,7 +351,7 @@ function DateTimePicker({
               aria-disabled={isPast}
               className={cn(
                 "h-8 rounded-lg text-xs font-medium transition-all",
-                dayStyle
+                dayStyle,
               )}
             >
               {day}
@@ -376,7 +386,7 @@ function DateTimePicker({
             selectedDate.getMonth(),
             selectedDate.getDate(),
             hour,
-            minute
+            minute,
           ).toLocaleDateString("en", {
             weekday: "short",
             month: "short",
@@ -419,7 +429,9 @@ export function ReminderDialog({
 
   const handleCreate = useCallback(() => {
     if (isInThePast(selectedDate, hour, minute)) {
-      setValidationError("The selected date and time is in the past. Please choose a future time.");
+      setValidationError(
+        "The selected date and time is in the past. Please choose a future time.",
+      );
       return;
     }
     setValidationError(null);
@@ -429,7 +441,9 @@ export function ReminderDialog({
 
   const handleReschedule = useCallback(() => {
     if (isInThePast(selectedDate, hour, minute)) {
-      setValidationError("The selected date and time is in the past. Please choose a future time.");
+      setValidationError(
+        "The selected date and time is in the past. Please choose a future time.",
+      );
       return;
     }
     setValidationError(null);
@@ -450,6 +464,7 @@ export function ReminderDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+            aria-label="Close reminder dialog"
             data-dialog-backdrop=""
             onClick={onClose}
           />
@@ -463,7 +478,7 @@ export function ReminderDialog({
             className={cn(
               "fixed z-[101] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
               "w-[90vw] max-w-sm",
-              "bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5"
+              "bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5",
             )}
             role="dialog"
             aria-modal="true"
@@ -495,9 +510,18 @@ export function ReminderDialog({
                   selectedDate={selectedDate}
                   hour={hour}
                   minute={minute}
-                  onDateChange={(d) => { setSelectedDate(d); setValidationError(null); }}
-                  onHourChange={(h) => { setHour(h); setValidationError(null); }}
-                  onMinuteChange={(m) => { setMinute(m); setValidationError(null); }}
+                  onDateChange={(d) => {
+                    setSelectedDate(d);
+                    setValidationError(null);
+                  }}
+                  onHourChange={(h) => {
+                    setHour(h);
+                    setValidationError(null);
+                  }}
+                  onMinuteChange={(m) => {
+                    setMinute(m);
+                    setValidationError(null);
+                  }}
                 />
               </div>
             </div>
@@ -515,7 +539,7 @@ export function ReminderDialog({
                       "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
                       channel === ch.id
                         ? "bg-sky-500/20 border-sky-400/30 text-sky-300"
-                        : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/70"
+                        : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/70",
                     )}
                   >
                     {ch.label}
@@ -541,7 +565,7 @@ export function ReminderDialog({
                   className={cn(
                     "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all",
                     "bg-sky-500/20 text-sky-300 border border-sky-400/30",
-                    "hover:bg-sky-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    "hover:bg-sky-500/30 disabled:opacity-40 disabled:cursor-not-allowed",
                   )}
                 >
                   {isSaving ? "Scheduling..." : "Schedule"}
@@ -557,7 +581,7 @@ export function ReminderDialog({
                     className={cn(
                       "flex-1 py-2.5 rounded-xl text-sm font-medium transition-all",
                       "bg-amber-500/20 text-amber-300 border border-amber-400/30",
-                      "hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                      "hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed",
                     )}
                   >
                     {isSaving ? "Saving..." : "Reschedule"}
@@ -569,7 +593,7 @@ export function ReminderDialog({
                     className={cn(
                       "py-2.5 px-4 rounded-xl text-sm font-medium transition-all",
                       "bg-red-500/10 text-red-400 border border-red-500/20",
-                      "hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                      "hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed",
                     )}
                     title="Cancel reminder"
                   >

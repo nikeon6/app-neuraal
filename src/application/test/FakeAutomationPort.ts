@@ -32,7 +32,7 @@ export class FakeAutomationPort implements AutomationPort {
   }
 
   async requestEntrySummary(
-    payload: EntrySummaryPayload
+    payload: EntrySummaryPayload,
   ): Promise<AutomationResult> {
     this.sentSummaryPayloads.push(payload);
 
@@ -48,7 +48,7 @@ export class FakeAutomationPort implements AutomationPort {
   }
 
   async requestEntryTranscription(
-    payload: EntryTranscriptionPayload
+    payload: EntryTranscriptionPayload,
   ): Promise<AutomationResult> {
     this.sentTranscriptionPayloads.push(payload);
 
@@ -99,9 +99,7 @@ export class FakeAutomationPort implements AutomationPort {
     return [...this.sentTranscriptionPayloads];
   }
 
-  getLastSentTranscriptionPayload():
-    | EntryTranscriptionPayload
-    | undefined {
+  getLastSentTranscriptionPayload(): EntryTranscriptionPayload | undefined {
     return this.sentTranscriptionPayloads[
       this.sentTranscriptionPayloads.length - 1
     ];

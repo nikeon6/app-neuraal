@@ -3,7 +3,7 @@ import { jwtVerify } from "jose";
 
 /**
  * Public paths that do NOT require authentication.
- * Includes auth routes, static assets, and public pages.
+ * Includes auth routes, static assets, public pages, and operational endpoints.
  */
 const PUBLIC_PATHS = [
   "/login",
@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/api/auth/",
   "/api/automations/",
   "/api/openapi.json",
+  "/api/health",
+  "/api/metrics",
 ];
 
 /**
@@ -51,7 +53,7 @@ function shouldSkipAuth(pathname: string, request: NextRequest): boolean {
 function denyApiAccess(): NextResponse {
   return NextResponse.json(
     { error: "UNAUTHORIZED", message: "Authentication required" },
-    { status: 401 }
+    { status: 401 },
   );
 }
 
@@ -66,13 +68,13 @@ function denyPageAccess(request: NextRequest): NextResponse {
 }
 
 /**
- * Next.js middleware for route protection.
+ * Next.js proxy for route protection (renamed from middleware in Next.js 16).
  *
  * - Protects all routes except public ones
  * - Reads `access_token` cookie and verifies JWT signature (no DB call)
  * - API routes receive 401 JSON; page routes get redirected to /login
  */
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   if (shouldSkipAuth(pathname, request)) {
@@ -92,9 +94,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const jwtSecret = process.env.AUTH_JWT_SECRET;
   if (!jwtSecret) {
     // No secret configured — allow in development, deny in production
-    return process.env.NODE_ENV === "production"
-      ? deny()
-      : NextResponse.next();
+    return process.env.NODE_ENV === "production" ? deny() : NextResponse.next();
   }
 
   try {
@@ -107,7 +107,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Matcher configuration — excludes paths that should never go through middleware.
+ * Matcher configuration — excludes paths that should never go through the proxy.
  */
 export const config = {
   matcher: [

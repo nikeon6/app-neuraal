@@ -19,11 +19,24 @@ export interface TranscriptRequestData {
  * Port for TranscriptRequest persistence.
  */
 export interface TranscriptRequestRepository {
-  create(data: Omit<TranscriptRequestData, "updatedAt" | "submittedAt" | "doneAt" | "failedAt">): Promise<TranscriptRequestData>;
+  create(
+    data: Omit<
+      TranscriptRequestData,
+      "updatedAt" | "submittedAt" | "doneAt" | "failedAt"
+    >,
+  ): Promise<TranscriptRequestData>;
   findById(id: string): Promise<TranscriptRequestData | null>;
   findActiveByEntryId(entryId: string): Promise<TranscriptRequestData | null>;
   countActiveByUserId(userId: string): Promise<number>;
   markSubmitted(id: string, now: Date): Promise<void>;
-  markDone(id: string, now: Date, meta?: Record<string, unknown>): Promise<void>;
-  markFailed(id: string, now: Date, meta?: Record<string, unknown>): Promise<void>;
+  markDone(
+    id: string,
+    now: Date,
+    meta?: Record<string, unknown>,
+  ): Promise<void>;
+  markFailed(
+    id: string,
+    now: Date,
+    meta?: Record<string, unknown>,
+  ): Promise<void>;
 }

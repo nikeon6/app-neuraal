@@ -19,6 +19,6 @@ export interface TranscriptionRequestRepository {
    */
   findActiveByEntryAndUrl(
     entryId: string,
-    youtubeUrl: string
+    youtubeUrl: string,
   ): Promise<TranscriptionRequest | null>;
 }

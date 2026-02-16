@@ -1,6 +1,6 @@
 /**
  * Business rules and constants
- * 
+ *
  * This file contains application-wide constants and business rules
  * that are used across multiple features.
  */

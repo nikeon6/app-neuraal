@@ -13,7 +13,10 @@ const PASSWORD_REQUIREMENTS = [
   { label: "1 uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
   { label: "1 lowercase letter", test: (p: string) => /[a-z]/.test(p) },
   { label: "1 number", test: (p: string) => /\d/.test(p) },
-  { label: "1 special character", test: (p: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
+  {
+    label: "1 special character",
+    test: (p: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p),
+  },
 ] as const;
 
 function getPasswordRequirements(password: string) {
@@ -35,7 +38,8 @@ export default function RegisterPage() {
   const isAuthenticated = user !== null;
   const requirements = getPasswordRequirements(password);
   const allRequirementsMet = requirements.every((r) => r.met);
-  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+  const passwordsMatch =
+    password === confirmPassword && confirmPassword.length > 0;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -66,7 +70,7 @@ export default function RegisterPage() {
     try {
       const data = await post<{ user: { id: string; email: string } }>(
         "/api/auth/register",
-        { email: email.trim(), password }
+        { email: email.trim(), password },
       );
 
       if (data?.user) {

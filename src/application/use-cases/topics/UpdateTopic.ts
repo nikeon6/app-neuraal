@@ -5,7 +5,11 @@ import { TopicName } from "@/domain/value-objects/TopicName";
 import type { TopicRepository } from "../../ports/TopicRepository";
 import type { TopicDTO } from "../../dto/TopicDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, duplicateError, notFoundError } from "../../core/UseCaseError";
+import {
+  validationError,
+  duplicateError,
+  notFoundError,
+} from "../../core/UseCaseError";
 
 /**
  * Input for UpdateTopic use case.
@@ -18,6 +22,47 @@ export interface UpdateTopicInput {
   color?: string;
 }
 
+async function resolveNewNameAndColor(
+  topicRepository: TopicRepository,
+  existingTopic: Topic,
+  userId: string,
+  nameInput: string | undefined,
+  colorInput: string | undefined,
+): Promise<Result<{ name: TopicName; color: HexColor }, UseCaseError>> {
+  const hasNameUpdate = nameInput !== undefined;
+  const hasColorUpdate = colorInput !== undefined;
+  let newName = existingTopic.name;
+  let newColor = existingTopic.color;
+
+  if (hasNameUpdate) {
+    const trimmedName = nameInput.trim();
+    const nameResult = TopicName.create(trimmedName);
+    if (nameResult.isErr()) {
+      return err(validationError(nameResult.error));
+    }
+    if (!existingTopic.name.equalsIgnoreCase(nameResult.value)) {
+      const duplicate = await topicRepository.findByUserIdAndName(
+        userId,
+        trimmedName,
+      );
+      if (duplicate) {
+        return err(duplicateError(`Topic "${trimmedName}" already exists`));
+      }
+    }
+    newName = nameResult.value;
+  }
+
+  if (hasColorUpdate && colorInput !== undefined) {
+    const colorResult = HexColor.create(colorInput);
+    if (colorResult.isErr()) {
+      return err(validationError(colorResult.error));
+    }
+    newColor = colorResult.value;
+  }
+
+  return ok({ name: newName, color: newColor });
+}
+
 /**
  * UpdateTopic use case.
  * Updates an existing topic's name and/or color.
@@ -26,72 +71,43 @@ export interface UpdateTopicInput {
 export class UpdateTopic {
   constructor(private readonly topicRepository: TopicRepository) {}
 
-  async execute(input: UpdateTopicInput): Promise<Result<TopicDTO, UseCaseError>> {
-    // Validate userId
-    if (!input.userId || input.userId.trim().length === 0) {
+  async execute(
+    input: UpdateTopicInput,
+  ): Promise<Result<TopicDTO, UseCaseError>> {
+    if (!input.userId?.trim()) {
       return err(validationError("userId cannot be empty"));
     }
-
-    // Validate topicId
-    if (!input.topicId || input.topicId.trim().length === 0) {
+    if (!input.topicId?.trim()) {
       return err(validationError("topicId cannot be empty"));
     }
-
-    // Check that at least one field is being updated
     const hasNameUpdate = input.name !== undefined;
     const hasColorUpdate = input.color !== undefined;
-
     if (!hasNameUpdate && !hasColorUpdate) {
-      return err(validationError("Must provide at least one field to update (name or color)"));
+      return err(
+        validationError(
+          "Must provide at least one field to update (name or color)",
+        ),
+      );
     }
 
     const userId = input.userId.trim();
     const topicId = input.topicId.trim();
-
-    // Find existing topic
     const existingTopic = await this.topicRepository.findById(topicId);
-
-    // Check existence and ownership (return NOT_FOUND for both to not leak info)
-    if (!existingTopic || existingTopic.userId !== userId) {
+    if (!existingTopic?.userId || existingTopic.userId !== userId) {
       return err(notFoundError("Topic not found"));
     }
 
-    // Validate and prepare new values
-    let newName = existingTopic.name;
-    let newColor = existingTopic.color;
-
-    // Validate name if updating
-    if (hasNameUpdate) {
-      const trimmedName = input.name!.trim();
-
-      // Check if name is valid
-      const nameResult = TopicName.create(trimmedName);
-      if (nameResult.isErr()) {
-        return err(validationError(nameResult.error));
-      }
-
-      // Check for duplicates (if name is changing)
-      if (!existingTopic.name.equalsIgnoreCase(nameResult.value)) {
-        const duplicate = await this.topicRepository.findByUserIdAndName(
-          userId,
-          trimmedName
-        );
-        if (duplicate) {
-          return err(duplicateError(`Topic "${trimmedName}" already exists`));
-        }
-      }
-
-      newName = nameResult.value;
+    const payloadResult = await resolveNewNameAndColor(
+      this.topicRepository,
+      existingTopic,
+      userId,
+      input.name,
+      input.color,
+    );
+    if (payloadResult.isErr()) {
+      return err(payloadResult.error);
     }
-
-    // Validate color if updating
-    if (hasColorUpdate) {
-      const colorResult = HexColor.create(input.color!);
-      if (colorResult.isErr()) {
-        return err(validationError(colorResult.error));
-      }
-      newColor = colorResult.value;
-    }
+    const { name: newName, color: newColor } = payloadResult.value;
 
     // Create updated topic entity
     const updatedTopicResult = Topic.create({

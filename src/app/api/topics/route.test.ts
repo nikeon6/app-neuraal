@@ -6,6 +6,7 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
   prisma: {
     topic: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
     },
@@ -19,7 +20,7 @@ import { GET, POST } from "./route";
 function createRequest(
   method: string,
   body?: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   const url = "http://localhost:3000/api/topics";
   const init: RequestInit = {
@@ -88,7 +89,9 @@ describe("GET /api/topics", () => {
 
     vi.mocked(prisma.topic.findMany).mockResolvedValue(mockTopics);
 
-    const request = createRequest("GET", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("GET", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -101,7 +104,9 @@ describe("GET /api/topics", () => {
   it("should return empty array when user has no topics", async () => {
     vi.mocked(prisma.topic.findMany).mockResolvedValue([]);
 
-    const request = createRequest("GET", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("GET", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -137,7 +142,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "Work", color: "#3b82f6" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -152,7 +157,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { color: "#3b82f6" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -165,7 +170,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "Work" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -179,7 +184,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "Work", color: "invalid" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -195,7 +200,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "Work", color: "#fff" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -218,7 +223,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "WORK", color: "#ef4444" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -233,7 +238,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "", color: "#3b82f6" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -246,7 +251,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "   ", color: "#3b82f6" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -267,7 +272,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "Work", color: "#AABBCC" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -290,7 +295,7 @@ describe("POST /api/topics", () => {
     const request = createRequest(
       "POST",
       { name: "  Work  ", color: "#3b82f6" },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 

@@ -16,7 +16,7 @@ export function setAuthCookies(
   response: NextResponse,
   accessToken: string,
   refreshToken: string,
-  config: AuthConfig
+  config: AuthConfig,
 ): void {
   response.cookies.set("access_token", accessToken, {
     httpOnly: true,
@@ -38,7 +38,10 @@ export function setAuthCookies(
 /**
  * Clears auth cookies from a NextResponse.
  */
-export function clearAuthCookies(response: NextResponse, config: AuthConfig): void {
+export function clearAuthCookies(
+  response: NextResponse,
+  config: AuthConfig,
+): void {
   response.cookies.set("access_token", "", {
     httpOnly: true,
     secure: config.cookieSecure,

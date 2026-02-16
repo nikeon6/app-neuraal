@@ -30,7 +30,9 @@ export class LogoutUser {
 
     if (input.refreshTokenRaw) {
       // Revoke specific token
-      const tokenHash = this.refreshTokenService.hashToken(input.refreshTokenRaw);
+      const tokenHash = this.refreshTokenService.hashToken(
+        input.refreshTokenRaw,
+      );
       await this.refreshTokenRepository.revokeByTokenHash(tokenHash, now);
     } else {
       // Revoke all tokens for user
@@ -45,7 +47,7 @@ export class LogoutUser {
    * Used when the access token has expired but the refresh token cookie is still present.
    */
   async executeByRefreshToken(
-    input: LogoutByRefreshTokenInput
+    input: LogoutByRefreshTokenInput,
   ): Promise<Result<void, UseCaseError>> {
     if (!input.refreshTokenRaw || input.refreshTokenRaw.trim().length === 0) {
       return err(validationError("refreshTokenRaw cannot be empty"));

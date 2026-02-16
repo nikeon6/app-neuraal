@@ -28,10 +28,7 @@ function getBarColor(pct: number): string {
   return "bg-emerald-500";
 }
 
-function UsageBar({
-  used,
-  limit,
-}: Readonly<{ used: number; limit: number }>) {
+function UsageBar({ used, limit }: Readonly<{ used: number; limit: number }>) {
   const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
 
   return (

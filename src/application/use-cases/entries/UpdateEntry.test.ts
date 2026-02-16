@@ -19,7 +19,7 @@ describe("UpdateEntry", () => {
     options: {
       type?: "task" | "note";
       title?: string;
-    } = {}
+    } = {},
   ) {
     const { type = "task", title = "Test Entry" } = options;
     const result = await createEntry.execute({

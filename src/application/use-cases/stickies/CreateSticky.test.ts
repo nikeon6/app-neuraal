@@ -55,8 +55,16 @@ describe("CreateSticky", () => {
   });
 
   it("generates unique ids", async () => {
-    const r1 = await useCase.execute({ userId: "u-1", title: "A", content: {} });
-    const r2 = await useCase.execute({ userId: "u-1", title: "B", content: {} });
+    const r1 = await useCase.execute({
+      userId: "u-1",
+      title: "A",
+      content: {},
+    });
+    const r2 = await useCase.execute({
+      userId: "u-1",
+      title: "B",
+      content: {},
+    });
 
     expect(r1.isOk() && r2.isOk()).toBe(true);
     if (r1.isOk() && r2.isOk()) {
@@ -65,7 +73,11 @@ describe("CreateSticky", () => {
   });
 
   it("rejects empty userId", async () => {
-    const result = await useCase.execute({ userId: "", title: "X", content: {} });
+    const result = await useCase.execute({
+      userId: "",
+      title: "X",
+      content: {},
+    });
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe("VALIDATION_ERROR");
   });

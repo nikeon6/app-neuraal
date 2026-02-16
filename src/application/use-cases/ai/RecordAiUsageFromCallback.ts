@@ -30,11 +30,11 @@ export interface RecordAiUsageFromCallbackInput {
 export class RecordAiUsageFromCallback {
   constructor(
     private readonly aiUsageRepository: AiUsageRepository,
-    private readonly clock: ClockPort
+    private readonly clock: ClockPort,
   ) {}
 
   async execute(
-    input: RecordAiUsageFromCallbackInput
+    input: RecordAiUsageFromCallbackInput,
   ): Promise<Result<void, UseCaseError>> {
     const { userId, action, requestId, usage } = input;
 
@@ -51,7 +51,7 @@ export class RecordAiUsageFromCallback {
         userId,
         actionStr,
         monthKey,
-        usage.totalTokens
+        usage.totalTokens,
       );
     }
 

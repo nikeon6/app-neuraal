@@ -25,7 +25,7 @@ export class InMemoryEntryRepository implements EntryRepository {
 
   async findByUserAndDate(userId: string, date: string): Promise<Entry[]> {
     return this.entries.filter(
-      (e) => e.userId === userId && e.date.toString() === date
+      (e) => e.userId === userId && e.date.toString() === date,
     );
   }
 
@@ -48,7 +48,7 @@ export class InMemoryEntryRepository implements EntryRepository {
   async updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void> {
     this.summaries.set(entryId, {
       summary,
@@ -63,7 +63,7 @@ export class InMemoryEntryRepository implements EntryRepository {
 
   async updateContent(
     entryId: string,
-    content: Record<string, unknown>
+    content: Record<string, unknown>,
   ): Promise<void> {
     const entry = this.entries.find((e) => e.id === entryId);
     if (entry) {
@@ -72,6 +72,16 @@ export class InMemoryEntryRepository implements EntryRepository {
         const index = this.entries.findIndex((e) => e.id === entryId);
         this.entries[index] = updated.value;
       }
+    }
+  }
+
+  async updateTranscript(
+    entryId: string,
+    _transcriptText: string,
+  ): Promise<void> {
+    const entry = this.entries.find((e) => e.id === entryId);
+    if (entry) {
+      // In-memory: transcript is typically stored in content; tests can assert via updateContent or entry state
     }
   }
 
@@ -90,12 +100,15 @@ export class InMemoryEntryRepository implements EntryRepository {
   async reorderEntries(
     userId: string,
     date: string,
-    orderedIds: string[]
+    orderedIds: string[],
   ): Promise<void> {
     // Simulate updating sortOrder for each entry
     for (let i = 0; i < orderedIds.length; i++) {
       const entry = this.entries.find(
-        (e) => e.id === orderedIds[i] && e.userId === userId && e.date.toString() === date
+        (e) =>
+          e.id === orderedIds[i] &&
+          e.userId === userId &&
+          e.date.toString() === date,
       );
       if (entry) {
         // Re-create with updated sortOrder via Entry.create

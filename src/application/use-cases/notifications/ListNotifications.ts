@@ -17,14 +17,18 @@ export interface ListNotificationsInput {
  * Optionally filters by date since.
  */
 export class ListNotifications {
-  constructor(private readonly notificationRepository: NotificationRepository) {}
+  constructor(
+    private readonly notificationRepository: NotificationRepository,
+  ) {}
 
-  async execute(input: ListNotificationsInput): Promise<Result<NotificationDTO[], UseCaseError>> {
+  async execute(
+    input: ListNotificationsInput,
+  ): Promise<Result<NotificationDTO[], UseCaseError>> {
     const sinceDate = input.since ? new Date(input.since) : null;
 
     const notifications = await this.notificationRepository.listByUserSince(
       input.userId,
-      sinceDate
+      sinceDate,
     );
 
     return ok(notifications.map(this.toDTO));

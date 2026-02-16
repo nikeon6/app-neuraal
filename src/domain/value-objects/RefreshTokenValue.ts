@@ -29,7 +29,7 @@ export class RefreshTokenValue {
 
     if (trimmed.length < 32) {
       return err(
-        "Refresh token must be at least 32 characters (base64url-encoded 32-byte value)"
+        "Refresh token must be at least 32 characters (base64url-encoded 32-byte value)",
       );
     }
 

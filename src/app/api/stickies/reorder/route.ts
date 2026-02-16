@@ -14,13 +14,15 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
 
-  let body: { items?: { id: string; sortOrder: number; columnIndex: number }[] };
+  let body: {
+    items?: { id: string; sortOrder: number; columnIndex: number }[];
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -28,8 +30,10 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
   if (!items || !Array.isArray(items)) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "items array is required" } },
-      { status: 400 }
+      {
+        error: { code: "VALIDATION_ERROR", message: "items array is required" },
+      },
+      { status: 400 },
     );
   }
 

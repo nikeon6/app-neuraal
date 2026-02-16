@@ -14,13 +14,17 @@ export interface MarkNotificationReadInput {
  * Use case: Mark a notification as read.
  */
 export class MarkNotificationRead {
-  constructor(private readonly notificationRepository: NotificationRepository) {}
+  constructor(
+    private readonly notificationRepository: NotificationRepository,
+  ) {}
 
-  async execute(input: MarkNotificationReadInput): Promise<Result<void, UseCaseError>> {
+  async execute(
+    input: MarkNotificationReadInput,
+  ): Promise<Result<void, UseCaseError>> {
     // Find notification with ownership check
     const notification = await this.notificationRepository.findByIdForUser(
       input.notificationId,
-      input.userId
+      input.userId,
     );
 
     if (!notification) {

@@ -14,23 +14,35 @@ const MAX_TOPIC_NAME_LENGTH = 18;
 // Color Options for Topic Creation
 // ============================================================================
 const COLOR_OPTIONS = [
-  "#3b82f6", // blue
-  "#22c55e", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#ec4899", // pink
-  "#14b8a6", // teal
-  "#f97316", // orange
-  "#6366f1", // indigo
-  "#84cc16", // lime
-  "#06b6d4", // cyan
-  "#d946ef", // fuchsia
-  "#e11d48", // rose
-  "#0891b2", // dark cyan
-  "#a855f7", // purple
-  "#ea580c", // burnt orange
+  "#d5eff2", //  1
+  "#22c55e", // green 2
+  "#f59e0b", // amber 3
+  "#ef4444", // red 4
+  "#3b82f6", // blue original 5
+  "#ec4899", // pink 6
+  "#14b8a6", // teal 7
+  "#f97316", // orange 8
+  "#6366f1", // indigo 9
+  "#84cc16", // lime 10
+  "#f20519", //11
+  "#d946ef", // fuchsia 12
+  "#f2e963", // yellow 13
+  "#0891b2", // dark cyan 14
+  "#a855f7", // purple 15
+  "#302b27", // burnt orange 16
 ] as const;
+
+function getCharCountClassName(remaining: number): string {
+  if (remaining < 0) return "text-red-400";
+  if (remaining <= 5) return "text-amber-400";
+  return "text-white/40";
+}
+
+function getColorButtonClassName(isUsed: boolean, isSelected: boolean): string {
+  if (isUsed) return "opacity-25 cursor-not-allowed";
+  if (isSelected) return "ring-2 ring-white scale-110";
+  return "hover:scale-105 opacity-70 hover:opacity-100";
+}
 
 // ============================================================================
 // CreateTopicDialog Component
@@ -70,7 +82,7 @@ export function CreateTopicDialog({
   const isDuplicate = useMemo(() => {
     const normalizedInput = trimmedName.toLowerCase();
     return existingTopics.some(
-      (t) => t.name.trim().toLowerCase() === normalizedInput
+      (t) => t.name.trim().toLowerCase() === normalizedInput,
     );
   }, [trimmedName, existingTopics]);
 
@@ -84,7 +96,13 @@ export function CreateTopicDialog({
   }, [existingTopics]);
 
   const isColorUsed = color !== null && usedColors.has(color.toLowerCase());
-  const isValid = !isNameEmpty && !isDuplicate && !isTooLong && isColorSelected && !isColorUsed && !isSubmitting;
+  const isValid =
+    !isNameEmpty &&
+    !isDuplicate &&
+    !isTooLong &&
+    isColorSelected &&
+    !isColorUsed &&
+    !isSubmitting;
   const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
 
   const closeAndReturnFocus = useCallback(() => {
@@ -102,7 +120,10 @@ export function CreateTopicDialog({
 
       setIsSubmitting(true);
       try {
-        await createTopicAndInvalidate(queryClient, { name: trimmedName, color });
+        await createTopicAndInvalidate(queryClient, {
+          name: trimmedName,
+          color,
+        });
         // Reset form and close
         setName("");
         setColor(null);
@@ -113,7 +134,7 @@ export function CreateTopicDialog({
         setIsSubmitting(false);
       }
     },
-    [isValid, queryClient, trimmedName, color, closeAndReturnFocus]
+    [isValid, queryClient, trimmedName, color, closeAndReturnFocus],
   );
 
   const handleCancel = useCallback(() => {
@@ -128,7 +149,7 @@ export function CreateTopicDialog({
         handleCancel();
       }
     },
-    [handleCancel]
+    [handleCancel],
   );
 
   if (!isOpen) return null;
@@ -142,6 +163,7 @@ export function CreateTopicDialog({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        aria-label="Close create topic dialog"
         data-testid="dialog-backdrop"
         onClick={handleCancel}
       />
@@ -171,14 +193,7 @@ export function CreateTopicDialog({
                 Topic name
               </label>
               <span
-                className={cn(
-                  "text-xs",
-                  charsRemaining < 0
-                    ? "text-red-400"
-                    : charsRemaining <= 5
-                      ? "text-amber-400"
-                      : "text-white/40"
-                )}
+                className={cn("text-xs", getCharCountClassName(charsRemaining))}
               >
                 {name.length}/{MAX_TOPIC_NAME_LENGTH}
               </span>
@@ -196,13 +211,11 @@ export function CreateTopicDialog({
                 "focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all",
                 isDuplicate || isTooLong
                   ? "border-red-500/50"
-                  : "border-white/10 focus:border-sky-500/50"
+                  : "border-white/10 focus:border-sky-500/50",
               )}
             />
             {isDuplicate && (
-              <p className="text-sm text-red-400">
-                Topic already exists
-              </p>
+              <p className="text-sm text-red-400">Topic already exists</p>
             )}
           </div>
 
@@ -227,16 +240,18 @@ export function CreateTopicDialog({
                     role="radio"
                     aria-checked={color === c}
                     aria-disabled={isUsed}
-                    aria-label={isUsed ? `Color ${c} (already in use)` : `Select color ${c}`}
-                    onClick={() => { if (!isUsed) setColor(c); }}
+                    aria-label={
+                      isUsed
+                        ? `Color ${c} (already in use)`
+                        : `Select color ${c}`
+                    }
+                    onClick={() => {
+                      if (!isUsed) setColor(c);
+                    }}
                     className={cn(
                       "relative w-8 h-8 rounded-full transition-all",
                       "ring-offset-2 ring-offset-slate-900",
-                      isUsed
-                        ? "opacity-25 cursor-not-allowed"
-                        : color === c
-                          ? "ring-2 ring-white scale-110"
-                          : "hover:scale-105 opacity-70 hover:opacity-100"
+                      getColorButtonClassName(isUsed, color === c),
                     )}
                     style={{ backgroundColor: c }}
                   >
@@ -267,7 +282,7 @@ export function CreateTopicDialog({
                 "flex-1 px-4 py-2.5 rounded-xl font-medium transition-all",
                 isValid
                   ? "bg-sky-500 text-white hover:bg-sky-400"
-                  : "bg-white/5 text-white/30 cursor-not-allowed"
+                  : "bg-white/5 text-white/30 cursor-not-allowed",
               )}
             >
               {isSubmitting ? "Creating..." : "Create"}

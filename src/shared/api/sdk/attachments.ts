@@ -47,10 +47,10 @@ export interface InitUploadInput {
  * Returns all non-deleted attachments for the entry, plus usage/quota data.
  */
 export async function listByEntry(
-  entryId: string
+  entryId: string,
 ): Promise<ListAttachmentsResponse> {
   return await get<ListAttachmentsResponse>(
-    `/api/entries/${encodeURIComponent(entryId)}/attachments`
+    `/api/entries/${encodeURIComponent(entryId)}/attachments`,
   );
 }
 
@@ -64,7 +64,7 @@ export async function listByEntry(
  * and returns a presigned PUT URL for direct-to-S3 upload.
  */
 export async function initUpload(
-  input: InitUploadInput
+  input: InitUploadInput,
 ): Promise<InitUploadResponse> {
   return await post<InitUploadResponse>("/api/attachments/init", input);
 }
@@ -78,11 +78,14 @@ export async function initUpload(
  * Marks an attachment as ready after the file has been uploaded to S3.
  */
 export async function completeUpload(
-  attachmentId: string
+  attachmentId: string,
 ): Promise<{ attachment: ApiAttachment }> {
-  return await post<{ attachment: ApiAttachment }>("/api/attachments/complete", {
-    attachmentId,
-  });
+  return await post<{ attachment: ApiAttachment }>(
+    "/api/attachments/complete",
+    {
+      attachmentId,
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -106,9 +109,9 @@ export async function deleteAttachment(id: string): Promise<void> {
  * Returns a presigned GET URL for downloading the attachment.
  */
 export async function getDownloadUrl(
-  id: string
+  id: string,
 ): Promise<{ presignedGetUrl: string }> {
   return await get<{ presignedGetUrl: string }>(
-    `/api/attachments/${encodeURIComponent(id)}/download`
+    `/api/attachments/${encodeURIComponent(id)}/download`,
   );
 }

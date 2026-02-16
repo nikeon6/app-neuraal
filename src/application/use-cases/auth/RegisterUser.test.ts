@@ -34,7 +34,7 @@ describe("RegisterUser", () => {
       refreshTokenService,
       clock,
       900,
-      7
+      7,
     );
   });
 
@@ -47,9 +47,13 @@ describe("RegisterUser", () => {
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value.user.id).toBeDefined();
-      expect(result.value.user.email).toBe("user@example.com");
-      expect(result.value.tokens.accessToken).toMatch(/^fake-header\..*\.fake-signature$/);
-      expect(result.value.tokens.refreshToken).toMatch(/^fake-refresh-token-.*-\d+$/);
+      expect(result.value.user.email).toBe(VALID_EMAIL);
+      expect(result.value.tokens.accessToken).toMatch(
+        /^fake-header\..*\.fake-signature$/,
+      );
+      expect(result.value.tokens.refreshToken).toMatch(
+        /^fake-refresh-token-.*-\d+$/,
+      );
     }
   });
 
@@ -62,7 +66,7 @@ describe("RegisterUser", () => {
     expect(result.isOk()).toBe(true);
     const users = userRepository.getAll();
     expect(users).toHaveLength(1);
-    expect(users[0].email.toString()).toBe("user@example.com");
+    expect(users[0].email.toString()).toBe(VALID_EMAIL);
   });
 
   it("should persist refresh token in repository", async () => {

@@ -82,16 +82,10 @@ export {
 } from "./entries";
 
 // Notifications
-export {
-  listNotifications,
-  markNotificationRead,
-} from "./notifications";
+export { listNotifications, markNotificationRead } from "./notifications";
 
 // Reminders
-export {
-  createReminder,
-  updateReminder,
-} from "./reminders";
+export { createReminder, updateReminder } from "./reminders";
 
 // Attachments
 export {

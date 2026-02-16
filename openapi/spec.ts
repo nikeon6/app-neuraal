@@ -31,16 +31,30 @@ const spec = {
   servers: [{ url: "http://localhost:3000", description: "Local development" }],
 
   tags: [
-    { name: "Auth", description: "Authentication endpoints (register, login, refresh, logout, me, recover)" },
+    {
+      name: "Auth",
+      description:
+        "Authentication endpoints (register, login, refresh, logout, me, recover)",
+    },
     { name: "Topics", description: "User topic/category management" },
     { name: "Entries", description: "Task and note entries" },
     { name: "Reminders", description: "Scheduled reminders for entries" },
     { name: "Notifications", description: "In-app notifications" },
-    { name: "Automations", description: "Webhook callbacks (HMAC-authenticated)" },
-    { name: "Embeddings", description: "Vector embeddings and auto-topic classification" },
+    { name: "Stickies", description: "Sticky notes (kanban-style)" },
+    {
+      name: "Automations",
+      description: "Webhook callbacks (HMAC-authenticated)",
+    },
+    {
+      name: "Embeddings",
+      description: "Vector embeddings and auto-topic classification",
+    },
     { name: "Attachments", description: "File attachments for entries" },
     { name: "AI", description: "AI usage, guardrails, and action tracking" },
-    { name: "Storage", description: "User storage usage and attachment limits" },
+    {
+      name: "Storage",
+      description: "User storage usage and attachment limits",
+    },
   ],
 
   // ---------------------------------------------------------------------------
@@ -65,7 +79,8 @@ const spec = {
         type: "http" as const,
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "JWT access token via Authorization header (alternative to cookie auth).",
+        description:
+          "JWT access token via Authorization header (alternative to cookie auth).",
       },
     },
 
@@ -88,8 +103,15 @@ const spec = {
             required: ["code", "message"],
             properties: {
               code: { type: "string" as const, example: "NOT_FOUND" },
-              message: { type: "string" as const, example: "Resource not found" },
-              details: { type: "object" as const, description: "Optional extra data (e.g. RATE_LIMITED: remaining, resetAt)" },
+              message: {
+                type: "string" as const,
+                example: "Resource not found",
+              },
+              details: {
+                type: "object" as const,
+                description:
+                  "Optional extra data (e.g. RATE_LIMITED: remaining, resetAt)",
+              },
             },
           },
         },
@@ -103,7 +125,11 @@ const spec = {
           id: { type: "string" as const, format: "uuid" },
           userId: { type: "string" as const },
           name: { type: "string" as const, minLength: 2, maxLength: 50 },
-          color: { type: "string" as const, pattern: "^#[0-9a-fA-F]{6}$", example: "#e11d48" },
+          color: {
+            type: "string" as const,
+            pattern: "^#[0-9a-fA-F]{6}$",
+            example: "#e11d48",
+          },
           createdAt: { type: "string" as const, format: "date-time" },
         },
       },
@@ -111,38 +137,85 @@ const spec = {
       // ----- Entries --------------------------------------------------------
       Entry: {
         type: "object" as const,
-        required: ["id", "userId", "date", "type", "title", "content", "version", "createdAt", "updatedAt"],
+        required: [
+          "id",
+          "userId",
+          "date",
+          "type",
+          "title",
+          "content",
+          "version",
+          "createdAt",
+          "updatedAt",
+        ],
         properties: {
           id: { type: "string" as const, format: "uuid" },
           userId: { type: "string" as const },
-          date: { type: "string" as const, pattern: String.raw`^\d{4}-\d{2}-\d{2}$`, example: "2025-06-15" },
+          date: {
+            type: "string" as const,
+            pattern: String.raw`^\d{4}-\d{2}-\d{2}$`,
+            example: "2025-06-15",
+          },
           type: { type: "string" as const, enum: ["task", "note"] },
           title: { type: "string" as const, maxLength: 120 },
-          content: { type: "object" as const, additionalProperties: true, description: "TipTap/ProseMirror JSON content" },
+          content: {
+            type: "object" as const,
+            additionalProperties: true,
+            description: "TipTap/ProseMirror JSON content",
+          },
           topicId: { type: ["string", "null"] as const },
-          completed: { type: ["boolean", "null"] as const, description: "null for notes" },
+          completed: {
+            type: ["boolean", "null"] as const,
+            description: "null for notes",
+          },
           version: { type: "integer" as const, minimum: 1 },
-          sortOrder: { type: "integer" as const, minimum: 0, description: "Display order within a day. Lower values appear first." },
+          sortOrder: {
+            type: "integer" as const,
+            minimum: 0,
+            description:
+              "Display order within a day. Lower values appear first.",
+          },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
           summary: { type: ["string", "null"] as const },
-          summaryFormat: { type: ["string", "null"] as const, enum: ["markdown", "plain", null] },
-          summaryUpdatedAt: { type: ["string", "null"] as const, format: "date-time" },
+          summaryFormat: {
+            type: ["string", "null"] as const,
+            enum: ["markdown", "plain", null],
+          },
+          summaryUpdatedAt: {
+            type: ["string", "null"] as const,
+            format: "date-time",
+          },
         },
       },
 
       // ----- Reminders ------------------------------------------------------
       Reminder: {
         type: "object" as const,
-        required: ["id", "userId", "entryId", "scheduledAt", "channel", "status", "createdAt", "updatedAt"],
+        required: [
+          "id",
+          "userId",
+          "entryId",
+          "scheduledAt",
+          "channel",
+          "status",
+          "createdAt",
+          "updatedAt",
+        ],
         properties: {
           id: { type: "string" as const, format: "uuid" },
           userId: { type: "string" as const },
           entryId: { type: "string" as const, format: "uuid" },
           scheduledAt: { type: "string" as const, format: "date-time" },
-          channel: { type: "string" as const, enum: ["whatsapp", "email", "push", "sms"] },
+          channel: {
+            type: "string" as const,
+            enum: ["whatsapp", "email", "push", "sms"],
+          },
           message: { type: ["string", "null"] as const, maxLength: 500 },
-          status: { type: "string" as const, enum: ["pending", "sent", "canceled", "failed"] },
+          status: {
+            type: "string" as const,
+            enum: ["pending", "sent", "canceled", "failed"],
+          },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
         },
@@ -151,7 +224,15 @@ const spec = {
       // ----- Notifications --------------------------------------------------
       Notification: {
         type: "object" as const,
-        required: ["id", "userId", "type", "title", "message", "status", "createdAt"],
+        required: [
+          "id",
+          "userId",
+          "type",
+          "title",
+          "message",
+          "status",
+          "createdAt",
+        ],
         properties: {
           id: { type: "string" as const, format: "uuid" },
           userId: { type: "string" as const },
@@ -164,6 +245,9 @@ const spec = {
               "SUMMARY_IN_PROGRESS",
               "SUMMARY_DONE",
               "SUMMARY_FAILED",
+              "TRANSCRIPTION_IN_PROGRESS",
+              "TRANSCRIPTION_DONE",
+              "TRANSCRIPTION_FAILED",
             ],
           },
           title: { type: "string" as const, maxLength: 100 },
@@ -182,7 +266,19 @@ const spec = {
       // ----- Attachments ----------------------------------------------------
       Attachment: {
         type: "object" as const,
-        required: ["id", "userId", "entryId", "storageKey", "filename", "mimeType", "sizeBytes", "kind", "status", "createdAt", "updatedAt"],
+        required: [
+          "id",
+          "userId",
+          "entryId",
+          "storageKey",
+          "filename",
+          "mimeType",
+          "sizeBytes",
+          "kind",
+          "status",
+          "createdAt",
+          "updatedAt",
+        ],
         properties: {
           id: { type: "string" as const, format: "uuid" },
           userId: { type: "string" as const },
@@ -192,7 +288,37 @@ const spec = {
           mimeType: { type: "string" as const, maxLength: 100 },
           sizeBytes: { type: "integer" as const },
           kind: { type: "string" as const, enum: ["inline", "file"] },
-          status: { type: "string" as const, enum: ["pending", "ready", "deleted"] },
+          status: {
+            type: "string" as const,
+            enum: ["pending", "ready", "deleted"],
+          },
+          createdAt: { type: "string" as const, format: "date-time" },
+          updatedAt: { type: "string" as const, format: "date-time" },
+        },
+      },
+
+      // ----- Stickies ---------------------------------------------------------
+      Sticky: {
+        type: "object" as const,
+        required: [
+          "id",
+          "userId",
+          "title",
+          "content",
+          "version",
+          "sortOrder",
+          "columnIndex",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          id: { type: "string" as const, format: "uuid" },
+          userId: { type: "string" as const },
+          title: { type: "string" as const },
+          content: { type: "object" as const, additionalProperties: true },
+          version: { type: "integer" as const },
+          sortOrder: { type: "integer" as const },
+          columnIndex: { type: "integer" as const },
           createdAt: { type: "string" as const, format: "date-time" },
           updatedAt: { type: "string" as const, format: "date-time" },
         },
@@ -201,17 +327,38 @@ const spec = {
       // ----- AI ---------------------------------------------------------------
       AiActionType: {
         type: "string" as const,
-        enum: ["SUMMARY", "TRANSCRIPT_YOUTUBE", "OCR_IMAGE", "REMINDER_WHATSAPP"],
-        description: "Available AI action types for usage tracking and guardrails",
+        enum: [
+          "SUMMARY",
+          "TRANSCRIPT_YOUTUBE",
+          "OCR_IMAGE",
+          "REMINDER_WHATSAPP",
+        ],
+        description:
+          "Available AI action types for usage tracking and guardrails",
       },
 
       AiUsageItem: {
         type: "object" as const,
-        required: ["action", "month", "requestsUsed", "requestsLimit", "tokensUsed", "tokensLimit", "maxActivePerUser", "rateLimitPerMinute", "maxInputChars", "maxInputBytes"],
+        required: [
+          "action",
+          "month",
+          "requestsUsed",
+          "requestsLimit",
+          "tokensUsed",
+          "tokensLimit",
+          "maxActivePerUser",
+          "rateLimitPerMinute",
+          "maxInputChars",
+          "maxInputBytes",
+        ],
         description: "Usage and limits for a single AI action in a given month",
         properties: {
           action: { $ref: "#/components/schemas/AiActionType" },
-          month: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02" },
+          month: {
+            type: "string" as const,
+            pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`,
+            example: "2026-02",
+          },
           requestsUsed: { type: "integer" as const, minimum: 0 },
           requestsLimit: { type: "integer" as const, minimum: 0 },
           tokensUsed: { type: "integer" as const, minimum: 0 },
@@ -252,7 +399,11 @@ const spec = {
                 required: ["email", "password"],
                 properties: {
                   email: { type: "string" as const, format: "email" },
-                  password: { type: "string" as const, minLength: 8, maxLength: 128 },
+                  password: {
+                    type: "string" as const,
+                    minLength: 8,
+                    maxLength: 128,
+                  },
                 },
               },
             },
@@ -266,7 +417,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["user"],
-                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                  properties: {
+                    user: { $ref: "#/components/schemas/UserResponse" },
+                  },
                 },
               },
             },
@@ -306,7 +459,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["user"],
-                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                  properties: {
+                    user: { $ref: "#/components/schemas/UserResponse" },
+                  },
                 },
               },
             },
@@ -322,7 +477,8 @@ const spec = {
         tags: ["Auth"],
         summary: "Refresh access token",
         operationId: "refreshSession",
-        description: "Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.",
+        description:
+          "Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.",
         security: [],
         responses: {
           "200": {
@@ -367,7 +523,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["user"],
-                  properties: { user: { $ref: "#/components/schemas/UserResponse" } },
+                  properties: {
+                    user: { $ref: "#/components/schemas/UserResponse" },
+                  },
                 },
               },
             },
@@ -382,7 +540,8 @@ const spec = {
         tags: ["Auth"],
         summary: "Request password reset",
         operationId: "requestPasswordReset",
-        description: "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
+        description:
+          "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
         security: [],
         requestBody: {
           required: true,
@@ -433,7 +592,10 @@ const spec = {
                   type: "object" as const,
                   required: ["topics"],
                   properties: {
-                    topics: { type: "array" as const, items: { $ref: "#/components/schemas/Topic" } },
+                    topics: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Topic" },
+                    },
                   },
                 },
               },
@@ -454,8 +616,15 @@ const spec = {
                 type: "object" as const,
                 required: ["name", "color"],
                 properties: {
-                  name: { type: "string" as const, minLength: 2, maxLength: 50 },
-                  color: { type: "string" as const, pattern: "^#[0-9a-fA-F]{6}$" },
+                  name: {
+                    type: "string" as const,
+                    minLength: 2,
+                    maxLength: 50,
+                  },
+                  color: {
+                    type: "string" as const,
+                    pattern: "^#[0-9a-fA-F]{6}$",
+                  },
                 },
               },
             },
@@ -494,8 +663,15 @@ const spec = {
               schema: {
                 type: "object" as const,
                 properties: {
-                  name: { type: "string" as const, minLength: 2, maxLength: 50 },
-                  color: { type: "string" as const, pattern: "^#[0-9a-fA-F]{6}$" },
+                  name: {
+                    type: "string" as const,
+                    minLength: 2,
+                    maxLength: 50,
+                  },
+                  color: {
+                    type: "string" as const,
+                    pattern: "^#[0-9a-fA-F]{6}$",
+                  },
                 },
               },
             },
@@ -539,7 +715,8 @@ const spec = {
         tags: ["Embeddings"],
         summary: "Rebuild topic embedding",
         operationId: "rebuildTopicEmbedding",
-        description: "Recalculates the embedding vector for a topic using Ollama. Useful after renaming.",
+        description:
+          "Recalculates the embedding vector for a topic using Ollama. Useful after renaming.",
         parameters: [{ $ref: "#/components/parameters/ResourceId" }],
         responses: {
           "200": {
@@ -551,7 +728,10 @@ const spec = {
                   required: ["topicId", "embeddingUpdatedAt"],
                   properties: {
                     topicId: { type: "string" as const, format: "uuid" },
-                    embeddingUpdatedAt: { type: "string" as const, format: "date-time" },
+                    embeddingUpdatedAt: {
+                      type: "string" as const,
+                      format: "date-time",
+                    },
                   },
                 },
               },
@@ -577,7 +757,10 @@ const spec = {
             name: "date",
             in: "query" as const,
             required: true,
-            schema: { type: "string" as const, pattern: String.raw`^\d{4}-\d{2}-\d{2}$` },
+            schema: {
+              type: "string" as const,
+              pattern: String.raw`^\d{4}-\d{2}-\d{2}$`,
+            },
             description: "Date in YYYY-MM-DD format",
           },
         ],
@@ -590,7 +773,10 @@ const spec = {
                   type: "object" as const,
                   required: ["entries"],
                   properties: {
-                    entries: { type: "array" as const, items: { $ref: "#/components/schemas/Entry" } },
+                    entries: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Entry" },
+                    },
                   },
                 },
               },
@@ -612,10 +798,16 @@ const spec = {
                 type: "object" as const,
                 required: ["date", "type", "title", "content"],
                 properties: {
-                  date: { type: "string" as const, pattern: String.raw`^\d{4}-\d{2}-\d{2}$` },
+                  date: {
+                    type: "string" as const,
+                    pattern: String.raw`^\d{4}-\d{2}-\d{2}$`,
+                  },
                   type: { type: "string" as const, enum: ["task", "note"] },
                   title: { type: "string" as const, maxLength: 120 },
-                  content: { type: "object" as const, additionalProperties: true },
+                  content: {
+                    type: "object" as const,
+                    additionalProperties: true,
+                  },
                   topicId: { type: ["string", "null"] as const },
                   completed: { type: "boolean" as const },
                 },
@@ -647,7 +839,8 @@ const spec = {
         tags: ["Entries"],
         summary: "Update an entry",
         operationId: "updateEntry",
-        description: "Updates entry fields with optimistic concurrency (version check).",
+        description:
+          "Updates entry fields with optimistic concurrency (version check).",
         parameters: [{ $ref: "#/components/parameters/ResourceId" }],
         requestBody: {
           required: true,
@@ -656,12 +849,22 @@ const spec = {
               schema: {
                 type: "object" as const,
                 properties: {
-                  version: { type: "integer" as const, description: "Current version for optimistic concurrency" },
+                  version: {
+                    type: "integer" as const,
+                    description: "Current version for optimistic concurrency",
+                  },
                   title: { type: "string" as const, maxLength: 120 },
-                  content: { type: "object" as const, additionalProperties: true },
+                  content: {
+                    type: "object" as const,
+                    additionalProperties: true,
+                  },
                   topicId: { type: ["string", "null"] as const },
                   completed: { type: "boolean" as const },
-                  type: { type: "string" as const, enum: ["task", "note"], description: "Change entry type" },
+                  type: {
+                    type: "string" as const,
+                    enum: ["task", "note"],
+                    description: "Change entry type",
+                  },
                 },
               },
             },
@@ -765,22 +968,41 @@ const spec = {
             },
           },
           "400": {
-            description: "Validation or INPUT_TOO_LARGE (max input chars exceeded)",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "Validation or INPUT_TOO_LARGE (max input chars exceeded)",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": {
             description: "QUOTA_EXCEEDED — monthly summary limit reached",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "404": { $ref: "#/components/responses/NotFound" },
           "409": {
-            description: "CONCURRENCY_LIMIT — another summary already in progress for this entry or user",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "CONCURRENCY_LIMIT — another summary already in progress for this entry or user",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "429": {
-            description: "RATE_LIMITED — too many requests (details may include remaining, resetAt)",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "RATE_LIMITED — too many requests (details may include remaining, resetAt)",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -802,7 +1024,11 @@ const spec = {
                 type: "object" as const,
                 required: ["url"],
                 properties: {
-                  url: { type: "string" as const, format: "uri", description: "YouTube video URL to transcribe" },
+                  url: {
+                    type: "string" as const,
+                    format: "uri",
+                    description: "YouTube video URL to transcribe",
+                  },
                 },
               },
             },
@@ -827,20 +1053,37 @@ const spec = {
           },
           "400": {
             description: "Validation error",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": {
             description: "QUOTA_EXCEEDED — monthly transcript limit reached",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "409": {
-            description: "CONCURRENCY_LIMIT — another transcript already in progress for this user",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "CONCURRENCY_LIMIT — another transcript already in progress for this user",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "429": {
             description: "RATE_LIMITED — too many requests per minute",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -862,8 +1105,17 @@ const spec = {
                 type: "object" as const,
                 required: ["attachmentId"],
                 properties: {
-                  attachmentId: { type: "string" as const, format: "uuid", description: "Attachment ID of the image to analyze" },
-                  mode: { type: "string" as const, enum: ["scan", "describe"], default: "scan", description: "Vision analysis mode (default: scan)" },
+                  attachmentId: {
+                    type: "string" as const,
+                    format: "uuid",
+                    description: "Attachment ID of the image to analyze",
+                  },
+                  mode: {
+                    type: "string" as const,
+                    enum: ["scan", "describe"],
+                    default: "scan",
+                    description: "Vision analysis mode (default: scan)",
+                  },
                 },
               },
             },
@@ -879,34 +1131,62 @@ const spec = {
                   required: ["attachmentId", "extractedText", "mode"],
                   properties: {
                     attachmentId: { type: "string" as const, format: "uuid" },
-                    extractedText: { type: "string" as const, description: "Extracted text or image description" },
-                    mode: { type: "string" as const, enum: ["scan", "describe"] },
+                    extractedText: {
+                      type: "string" as const,
+                      description: "Extracted text or image description",
+                    },
+                    mode: {
+                      type: "string" as const,
+                      enum: ["scan", "describe"],
+                    },
                   },
                 },
               },
             },
           },
           "400": {
-            description: "Validation error or INPUT_TOO_LARGE (image too large)",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "Validation error or INPUT_TOO_LARGE (image too large)",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": {
             description: "QUOTA_EXCEEDED — monthly OCR limit reached",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "404": { $ref: "#/components/responses/NotFound" },
           "409": {
-            description: "CONCURRENCY_LIMIT — another OCR request already in progress",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "CONCURRENCY_LIMIT — another OCR request already in progress",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "429": {
             description: "RATE_LIMITED — too many OCR requests per minute",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "502": {
             description: "Ollama Vision backend error",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -925,13 +1205,18 @@ const spec = {
             in: "query" as const,
             required: false,
             schema: { $ref: "#/components/schemas/AiActionType" },
-            description: "Filter by a single AI action type. Omit to get all actions.",
+            description:
+              "Filter by a single AI action type. Omit to get all actions.",
           },
           {
             name: "month",
             in: "query" as const,
             required: false,
-            schema: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02" },
+            schema: {
+              type: "string" as const,
+              pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`,
+              example: "2026-02",
+            },
             description: "Month key YYYY-MM (default: current month)",
           },
         ],
@@ -944,7 +1229,12 @@ const spec = {
                   type: "object" as const,
                   required: ["month", "items"],
                   properties: {
-                    month: { type: "string" as const, pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`, example: "2026-02", description: "The month the usage data applies to" },
+                    month: {
+                      type: "string" as const,
+                      pattern: String.raw`^\d{4}-(0[1-9]|1[0-2])$`,
+                      example: "2026-02",
+                      description: "The month the usage data applies to",
+                    },
                     items: {
                       type: "array" as const,
                       items: { $ref: "#/components/schemas/AiUsageItem" },
@@ -982,17 +1272,20 @@ const spec = {
                   properties: {
                     usedBytes: {
                       type: "integer" as const,
-                      description: "Total bytes currently used by the user's active attachments",
+                      description:
+                        "Total bytes currently used by the user's active attachments",
                       example: 52428800,
                     },
                     maxUserStorageBytes: {
                       type: "integer" as const,
-                      description: "Maximum total storage allowed per user (in bytes)",
+                      description:
+                        "Maximum total storage allowed per user (in bytes)",
                       example: 1073741824,
                     },
                     maxEntryAttachmentBytes: {
                       type: "integer" as const,
-                      description: "Maximum total attachment size allowed per entry (in bytes)",
+                      description:
+                        "Maximum total attachment size allowed per entry (in bytes)",
                       example: 20971520,
                     },
                   },
@@ -1024,7 +1317,8 @@ const spec = {
                     type: "number" as const,
                     minimum: 0,
                     maximum: 1,
-                    description: "Similarity threshold (default 0.35). Higher = stricter.",
+                    description:
+                      "Similarity threshold (default 0.35). Higher = stricter.",
                   },
                 },
               },
@@ -1041,8 +1335,14 @@ const spec = {
                   required: ["entryId", "selectedTopicId", "score"],
                   properties: {
                     entryId: { type: "string" as const, format: "uuid" },
-                    selectedTopicId: { type: ["string", "null"] as const, format: "uuid" },
-                    score: { type: ["number", "null"] as const, description: "Similarity score 0..1" },
+                    selectedTopicId: {
+                      type: ["string", "null"] as const,
+                      format: "uuid",
+                    },
+                    score: {
+                      type: ["number", "null"] as const,
+                      description: "Similarity score 0..1",
+                    },
                   },
                 },
               },
@@ -1121,8 +1421,14 @@ const spec = {
                 properties: {
                   entryId: { type: "string" as const, format: "uuid" },
                   scheduledAt: { type: "string" as const, format: "date-time" },
-                  channel: { type: "string" as const, enum: ["whatsapp", "email", "push", "sms"] },
-                  message: { type: ["string", "null"] as const, maxLength: 500 },
+                  channel: {
+                    type: "string" as const,
+                    enum: ["whatsapp", "email", "push", "sms"],
+                  },
+                  message: {
+                    type: ["string", "null"] as const,
+                    maxLength: 500,
+                  },
                 },
               },
             },
@@ -1136,7 +1442,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["reminder"],
-                  properties: { reminder: { $ref: "#/components/schemas/Reminder" } },
+                  properties: {
+                    reminder: { $ref: "#/components/schemas/Reminder" },
+                  },
                 },
               },
             },
@@ -1144,17 +1452,32 @@ const spec = {
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": {
-            description: "QUOTA_EXCEEDED — monthly WhatsApp reminder limit reached",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "QUOTA_EXCEEDED — monthly WhatsApp reminder limit reached",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "404": { $ref: "#/components/responses/NotFound" },
           "409": {
-            description: "Conflict — duplicate reminder or CONCURRENCY_LIMIT for WhatsApp channel",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "Conflict — duplicate reminder or CONCURRENCY_LIMIT for WhatsApp channel",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "429": {
-            description: "RATE_LIMITED — too many WhatsApp reminder requests per minute",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            description:
+              "RATE_LIMITED — too many WhatsApp reminder requests per minute",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -1174,8 +1497,14 @@ const spec = {
                 type: "object" as const,
                 properties: {
                   scheduledAt: { type: "string" as const, format: "date-time" },
-                  channel: { type: "string" as const, enum: ["whatsapp", "email", "push", "sms"] },
-                  message: { type: ["string", "null"] as const, maxLength: 500 },
+                  channel: {
+                    type: "string" as const,
+                    enum: ["whatsapp", "email", "push", "sms"],
+                  },
+                  message: {
+                    type: ["string", "null"] as const,
+                    maxLength: 500,
+                  },
                   status: { type: "string" as const, enum: ["canceled"] },
                 },
               },
@@ -1190,7 +1519,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["reminder"],
-                  properties: { reminder: { $ref: "#/components/schemas/Reminder" } },
+                  properties: {
+                    reminder: { $ref: "#/components/schemas/Reminder" },
+                  },
                 },
               },
             },
@@ -1271,6 +1602,151 @@ const spec = {
     },
 
     // =====================================================================
+    // Stickies
+    // =====================================================================
+    "/api/stickies": {
+      get: {
+        tags: ["Stickies"],
+        summary: "List stickies",
+        operationId: "listStickies",
+        responses: {
+          "200": {
+            description: "List of stickies",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["stickies"],
+                  properties: {
+                    stickies: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Sticky" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+      post: {
+        tags: ["Stickies"],
+        summary: "Create sticky",
+        operationId: "createSticky",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                properties: {
+                  title: { type: "string" as const },
+                  content: {
+                    type: "object" as const,
+                    additionalProperties: true,
+                  },
+                  columnIndex: { type: "integer" as const },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Sticky created",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["sticky"],
+                  properties: {
+                    sticky: { $ref: "#/components/schemas/Sticky" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+    "/api/stickies/{id}": {
+      patch: {
+        tags: ["Stickies"],
+        summary: "Update sticky",
+        operationId: "updateSticky",
+        parameters: [
+          {
+            name: "id",
+            in: "path" as const,
+            required: true,
+            schema: { type: "string" as const, format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["version"],
+                properties: {
+                  version: { type: "integer" as const },
+                  title: { type: "string" as const },
+                  content: {
+                    type: "object" as const,
+                    additionalProperties: true,
+                  },
+                  columnIndex: { type: "integer" as const },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Sticky updated",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["sticky"],
+                  properties: {
+                    sticky: { $ref: "#/components/schemas/Sticky" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "409": { $ref: "#/components/responses/Conflict" },
+        },
+      },
+      delete: {
+        tags: ["Stickies"],
+        summary: "Delete sticky",
+        operationId: "deleteSticky",
+        parameters: [
+          {
+            name: "id",
+            in: "path" as const,
+            required: true,
+            schema: { type: "string" as const, format: "uuid" },
+          },
+        ],
+        responses: {
+          "204": { description: "Sticky deleted" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
+        },
+      },
+    },
+
+    // =====================================================================
     // Automations (HMAC callbacks — no x-user-id)
     // =====================================================================
     "/api/automations/entry-summary/callback": {
@@ -1294,7 +1770,8 @@ const spec = {
             in: "header" as const,
             required: true,
             schema: { type: "string" as const },
-            description: "HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody)",
+            description:
+              "HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody)",
           },
         ],
         requestBody: {
@@ -1303,13 +1780,22 @@ const spec = {
             "application/json": {
               schema: {
                 type: "object" as const,
-                required: ["requestId", "userId", "entryId", "summary", "format"],
+                required: [
+                  "requestId",
+                  "userId",
+                  "entryId",
+                  "summary",
+                  "format",
+                ],
                 properties: {
                   requestId: { type: "string" as const, format: "uuid" },
                   userId: { type: "string" as const },
                   entryId: { type: "string" as const, format: "uuid" },
                   summary: { type: "string" as const },
-                  format: { type: "string" as const, enum: ["markdown", "plain"] },
+                  format: {
+                    type: "string" as const,
+                    enum: ["markdown", "plain"],
+                  },
                 },
               },
             },
@@ -1360,7 +1846,8 @@ const spec = {
             in: "header" as const,
             required: true,
             schema: { type: "string" as const },
-            description: "HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody)",
+            description:
+              "HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody)",
           },
         ],
         requestBody: {
@@ -1374,14 +1861,25 @@ const spec = {
                   requestId: { type: "string" as const, format: "uuid" },
                   userId: { type: "string" as const },
                   entryId: { type: "string" as const, format: "uuid" },
-                  transcriptText: { type: "string" as const, description: "The transcribed text from the YouTube video" },
-                  format: { type: "string" as const, enum: ["markdown", "plain"], description: "Format of the transcript text (optional)" },
+                  transcriptText: {
+                    type: "string" as const,
+                    description: "The transcribed text from the YouTube video",
+                  },
+                  format: {
+                    type: "string" as const,
+                    enum: ["markdown", "plain"],
+                    description: "Format of the transcript text (optional)",
+                  },
                   usage: {
                     type: "object" as const,
-                    description: "Token usage reported by the transcription model (optional)",
+                    description:
+                      "Token usage reported by the transcription model (optional)",
                     properties: {
                       promptTokens: { type: "integer" as const, minimum: 0 },
-                      completionTokens: { type: "integer" as const, minimum: 0 },
+                      completionTokens: {
+                        type: "integer" as const,
+                        minimum: 0,
+                      },
                       totalTokens: { type: "integer" as const, minimum: 0 },
                       model: { type: "string" as const },
                     },
@@ -1409,7 +1907,11 @@ const spec = {
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": {
             description: "Missing or invalid HMAC signature",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -1423,14 +1925,21 @@ const spec = {
         tags: ["Attachments"],
         summary: "Initialize attachment upload",
         operationId: "initAttachmentUpload",
-        description: "Creates an attachment record and returns a presigned PUT URL for uploading.",
+        description:
+          "Creates an attachment record and returns a presigned PUT URL for uploading.",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
                 type: "object" as const,
-                required: ["entryId", "filename", "mimeType", "sizeBytes", "kind"],
+                required: [
+                  "entryId",
+                  "filename",
+                  "mimeType",
+                  "sizeBytes",
+                  "kind",
+                ],
                 properties: {
                   entryId: { type: "string" as const, format: "uuid" },
                   filename: { type: "string" as const, maxLength: 255 },
@@ -1463,7 +1972,11 @@ const spec = {
           "404": { $ref: "#/components/responses/NotFound" },
           "413": {
             description: "Quota exceeded",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -1474,7 +1987,8 @@ const spec = {
         tags: ["Attachments"],
         summary: "Complete attachment upload",
         operationId: "completeAttachmentUpload",
-        description: "Marks an attachment as ready after successful upload to S3.",
+        description:
+          "Marks an attachment as ready after successful upload to S3.",
         requestBody: {
           required: true,
           content: {
@@ -1497,7 +2011,9 @@ const spec = {
                 schema: {
                   type: "object" as const,
                   required: ["attachment"],
-                  properties: { attachment: { $ref: "#/components/schemas/Attachment" } },
+                  properties: {
+                    attachment: { $ref: "#/components/schemas/Attachment" },
+                  },
                 },
               },
             },
@@ -1566,31 +2082,59 @@ const withRefs = {
     responses: {
       BadRequest: {
         description: "Validation error",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       Unauthorized: {
         description: "Authentication required",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       NotFound: {
         description: "Resource not found",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       Conflict: {
         description: "Conflict (duplicate or version mismatch)",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       Forbidden: {
         description: "Forbidden (e.g. quota exceeded)",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       RateLimited: {
         description: "Too many requests (rate limit)",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
       InternalError: {
         description: "Internal server error",
-        content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ErrorResponse" },
+          },
+        },
       },
     },
     parameters: {

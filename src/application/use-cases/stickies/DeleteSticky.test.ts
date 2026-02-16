@@ -15,7 +15,9 @@ describe("DeleteSticky", () => {
   });
 
   it("deletes an existing sticky", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "S", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "S", content: {} })
+    ).unwrap();
 
     const result = await deleteSticky.execute(created.id, "u-1");
     expect(result.isOk()).toBe(true);
@@ -31,7 +33,9 @@ describe("DeleteSticky", () => {
   });
 
   it("returns not found when userId does not match", async () => {
-    const created = (await createSticky.execute({ userId: "u-1", title: "S", content: {} })).unwrap();
+    const created = (
+      await createSticky.execute({ userId: "u-1", title: "S", content: {} })
+    ).unwrap();
 
     const result = await deleteSticky.execute(created.id, "u-other");
     expect(result.isErr()).toBe(true);

@@ -45,7 +45,7 @@ interface RouteContext {
  */
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // 1. Auth
   const authResult = await getAuthUserId(request);
@@ -63,21 +63,29 @@ export async function POST(
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const { attachmentId, mode: rawMode } = body;
-  if (!attachmentId || typeof attachmentId !== "string" || !attachmentId.trim()) {
+  if (
+    !attachmentId ||
+    typeof attachmentId !== "string" ||
+    !attachmentId.trim()
+  ) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "attachmentId is required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "attachmentId is required",
+        },
+      },
+      { status: 400 },
     );
   }
 
   // Default to "scan" mode; validate if provided
-  const mode: VisionMode =
-    rawMode === "describe" ? "describe" : "scan";
+  const mode: VisionMode = rawMode === "describe" ? "describe" : "scan";
 
   // 2b. AI Guardrails for OCR
   const guardrailsConfig = getAiGuardrailsConfig();
@@ -88,7 +96,11 @@ export async function POST(
 
   const ocrConcurrencyChecker = {
     countActiveByUserId: async () => {
-      const result = await concurrencyLimiter.acquire(concurrencyKey, ocrConfig.maxActivePerUser, 120);
+      const result = await concurrencyLimiter.acquire(
+        concurrencyKey,
+        ocrConfig.maxActivePerUser,
+        120,
+      );
       if (!result.acquired) return ocrConfig.maxActivePerUser; // Will trigger concurrency error
       return result.current - 1; // current already includes this request
     },
@@ -108,7 +120,7 @@ export async function POST(
       rateLimitPerHour: 0,
       monthlyQuotaRequests: ocrConfig.monthlyQuotaRequests,
       rateLimitPrefix: guardrailsConfig.rateLimitPrefix,
-    }
+    },
   );
 
   // Note: we don't know image bytes yet, so we pass 0 here. The actual byte check
@@ -124,15 +136,24 @@ export async function POST(
     const { code, message, details } = guardResult.error;
     let statusCode: number;
     switch (code) {
-      case "RATE_LIMITED": statusCode = 429; break;
-      case "QUOTA_EXCEEDED": statusCode = 403; break;
-      case "CONCURRENCY_LIMIT": statusCode = 409; break;
-      case "INPUT_TOO_LARGE": statusCode = 400; break;
-      default: statusCode = 400;
+      case "RATE_LIMITED":
+        statusCode = 429;
+        break;
+      case "QUOTA_EXCEEDED":
+        statusCode = 403;
+        break;
+      case "CONCURRENCY_LIMIT":
+        statusCode = 409;
+        break;
+      case "INPUT_TOO_LARGE":
+        statusCode = 400;
+        break;
+      default:
+        statusCode = 400;
     }
     return NextResponse.json(
       { error: { code, message, ...(details !== undefined && { details }) } },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 
@@ -151,7 +172,7 @@ export async function POST(
     entryRepository,
     attachmentRepository,
     objectStorage,
-    ocrProvider
+    ocrProvider,
   );
 
   try {
@@ -175,7 +196,10 @@ export async function POST(
         default:
           statusCode = 400;
       }
-      return NextResponse.json({ error: { code, message } }, { status: statusCode });
+      return NextResponse.json(
+        { error: { code, message } },
+        { status: statusCode },
+      );
     }
 
     // 5. Persist vision result server-side into entry content JSON.
@@ -189,7 +213,7 @@ export async function POST(
           content,
           attachmentId.trim(),
           result.value.extractedText,
-          mode
+          mode,
         );
         if (updated) {
           await entryRepository.updateContent(entryId, updated);
@@ -198,11 +222,17 @@ export async function POST(
     } catch (error) {
       // Non-fatal: the OCR result is still returned to the client.
       // If the client is still mounted it will persist via ProseMirror transaction.
-      console.error("[OCR] Failed to persist vision result server-side:", error);
+      console.error(
+        "[OCR] Failed to persist vision result server-side:",
+        error,
+      );
     }
 
     // 6. Record AI usage for OCR
-    const consumeAiRequest = new ConsumeAiRequest(new PrismaAiUsageRepository(), new SystemClock());
+    const consumeAiRequest = new ConsumeAiRequest(
+      new PrismaAiUsageRepository(),
+      new SystemClock(),
+    );
     await consumeAiRequest.execute({ userId, action: "OCR_IMAGE" });
 
     const aiUsageRepo = new PrismaAiUsageRepository();
@@ -232,7 +262,7 @@ function injectVisionResult(
   doc: Record<string, unknown>,
   attachmentId: string,
   text: string,
-  mode: string
+  mode: string,
 ): Record<string, unknown> | null {
   const clone = structuredClone(doc);
   const found = injectInNode(clone, attachmentId, text, mode);
@@ -243,7 +273,7 @@ function injectInNode(
   node: Record<string, unknown>,
   attachmentId: string,
   text: string,
-  mode: string
+  mode: string,
 ): boolean {
   if (node.type === "image" && node.attrs) {
     const attrs = node.attrs as Record<string, unknown>;
@@ -257,7 +287,9 @@ function injectInNode(
   const content = node.content;
   if (Array.isArray(content)) {
     for (const child of content) {
-      if (injectInNode(child as Record<string, unknown>, attachmentId, text, mode)) {
+      if (
+        injectInNode(child as Record<string, unknown>, attachmentId, text, mode)
+      ) {
         return true;
       }
     }

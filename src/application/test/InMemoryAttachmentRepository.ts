@@ -13,7 +13,7 @@ export class InMemoryAttachmentRepository implements AttachmentRepository {
 
   async findByEntryId(entryId: string): Promise<Attachment[]> {
     return this.attachments.filter(
-      (a) => a.entryId === entryId && !a.status.isDeleted()
+      (a) => a.entryId === entryId && !a.status.isDeleted(),
     );
   }
 

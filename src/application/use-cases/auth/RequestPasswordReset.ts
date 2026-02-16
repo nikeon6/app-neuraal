@@ -20,7 +20,9 @@ export class RequestPasswordReset {
     private readonly resetTtlMinutes: number,
   ) {}
 
-  async execute(input: RequestPasswordResetInput): Promise<Result<{ ok: true }, UseCaseError>> {
+  async execute(
+    input: RequestPasswordResetInput,
+  ): Promise<Result<{ ok: true }, UseCaseError>> {
     // Validate email format
     const emailResult = Email.create(input.email);
     if (emailResult.isErr()) {
@@ -28,14 +30,18 @@ export class RequestPasswordReset {
     }
 
     // Always return ok, even if user doesn't exist (prevent email enumeration)
-    const user = await this.userRepository.findByEmail(emailResult.value.toString());
+    const user = await this.userRepository.findByEmail(
+      emailResult.value.toString(),
+    );
 
     if (user) {
       // Generate token
       const rawToken = this.refreshTokenService.generate();
       const tokenHash = this.refreshTokenService.hashToken(rawToken);
       const now = this.clock.now();
-      const expiresAt = new Date(now.getTime() + this.resetTtlMinutes * 60 * 1000);
+      const expiresAt = new Date(
+        now.getTime() + this.resetTtlMinutes * 60 * 1000,
+      );
 
       await this.passwordResetTokenRepository.create({
         userId: user.id,

@@ -64,7 +64,7 @@ export class Sticky {
     sortOrder: number,
     columnIndex: number,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -118,8 +118,8 @@ export class Sticky {
         props.sortOrder ?? 0,
         col,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
@@ -163,7 +163,7 @@ export class Sticky {
       this.sortOrder,
       this.columnIndex,
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -204,8 +204,8 @@ export class Sticky {
         this.sortOrder,
         newCol,
         this.createdAt,
-        new Date()
-      )
+        new Date(),
+      ),
     );
   }
 }

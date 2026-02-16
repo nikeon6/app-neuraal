@@ -22,7 +22,7 @@ describe("RequestEntrySummary", () => {
 
   const createTestEntry = async (
     ownerId: string = userId,
-    id: string = entryId
+    id: string = entryId,
   ) => {
     const entryResult = Entry.create({
       id,
@@ -56,7 +56,7 @@ describe("RequestEntrySummary", () => {
       aiUsageRepository,
       clock,
       () => "test-request-id",
-      () => "test-notif-id"
+      () => "test-notif-id",
     );
   });
 
@@ -119,7 +119,7 @@ describe("RequestEntrySummary", () => {
       const monthly = await aiUsageRepository.getMonthly(
         userId,
         "SUMMARY",
-        "2026-02"
+        "2026-02",
       );
       expect(monthly).not.toBeNull();
       expect(monthly!.requestsUsed).toBe(1);
@@ -183,7 +183,8 @@ describe("RequestEntrySummary", () => {
       await useCase.execute({ userId, entryId });
 
       // Mark the first request as done
-      const request = (await summaryRequestRepository.findById("test-request-id"))!;
+      const request =
+        (await summaryRequestRepository.findById("test-request-id"))!;
       await summaryRequestRepository.update(request.markDone());
 
       // Create a new use case with a different ID generator
@@ -196,7 +197,7 @@ describe("RequestEntrySummary", () => {
         aiUsageRepository,
         clock,
         () => `request-${++callCount}`,
-        () => `notif-${callCount}`
+        () => `notif-${callCount}`,
       );
 
       // New request should succeed
@@ -209,7 +210,8 @@ describe("RequestEntrySummary", () => {
       await useCase.execute({ userId, entryId });
 
       // Mark the first request as failed
-      const request = (await summaryRequestRepository.findById("test-request-id"))!;
+      const request =
+        (await summaryRequestRepository.findById("test-request-id"))!;
       await summaryRequestRepository.update(request.markFailed());
 
       // Create a new use case with a different ID generator
@@ -222,7 +224,7 @@ describe("RequestEntrySummary", () => {
         aiUsageRepository,
         clock,
         () => `request-${++callCount}`,
-        () => `notif-${callCount}`
+        () => `notif-${callCount}`,
       );
 
       const result = await useCaseWithNewId.execute({ userId, entryId });

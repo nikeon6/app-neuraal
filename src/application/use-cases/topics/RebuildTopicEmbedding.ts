@@ -37,11 +37,11 @@ export class RebuildTopicEmbedding {
   constructor(
     private readonly topicRepo: TopicRepository,
     private readonly embeddingProvider: EmbeddingProviderPort,
-    private readonly config: EmbeddingConfig
+    private readonly config: EmbeddingConfig,
   ) {}
 
   async execute(
-    input: RebuildTopicEmbeddingInput
+    input: RebuildTopicEmbeddingInput,
   ): Promise<Result<RebuildTopicEmbeddingOutput, UseCaseError>> {
     // 1. Find topic and verify ownership
     const topic = await this.topicRepo.findById(input.topicId);
@@ -64,8 +64,8 @@ export class RebuildTopicEmbedding {
     if (vector.length !== this.config.embeddingDim) {
       return err(
         internalError(
-          `Embedding dimension mismatch: expected ${this.config.embeddingDim}, got ${vector.length}`
-        )
+          `Embedding dimension mismatch: expected ${this.config.embeddingDim}, got ${vector.length}`,
+        ),
       );
     }
 
@@ -75,7 +75,7 @@ export class RebuildTopicEmbedding {
       input.topicId,
       vector,
       this.config.embeddingModel,
-      now
+      now,
     );
 
     return ok({

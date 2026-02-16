@@ -20,6 +20,6 @@ export interface RateLimiterPort {
   hit(
     key: string,
     limit: number,
-    windowSeconds: number
+    windowSeconds: number,
   ): Promise<RateLimitHitResult>;
 }

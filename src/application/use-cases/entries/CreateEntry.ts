@@ -4,11 +4,12 @@ import type { EntryRepository } from "../../ports/EntryRepository";
 import type { CreateEntryDTO, EntryDTO } from "../../dto/EntryDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
 import { validationError } from "../../core/UseCaseError";
+import crypto from "node:crypto";
 
 /**
  * Input for CreateEntry use case.
  */
-export interface CreateEntryInput extends CreateEntryDTO {}
+export type CreateEntryInput = CreateEntryDTO;
 
 /**
  * Generates a unique ID for an entry.
@@ -17,7 +18,7 @@ function generateId(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
   }
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  return crypto.randomBytes(16).toString("hex");
 }
 
 /**
@@ -27,7 +28,9 @@ function generateId(): string {
 export class CreateEntry {
   constructor(private readonly entryRepository: EntryRepository) {}
 
-  async execute(input: CreateEntryInput): Promise<Result<EntryDTO, UseCaseError>> {
+  async execute(
+    input: CreateEntryInput,
+  ): Promise<Result<EntryDTO, UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {
       return err(validationError("userId cannot be empty"));

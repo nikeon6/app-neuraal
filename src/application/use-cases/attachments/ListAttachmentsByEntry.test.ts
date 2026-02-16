@@ -36,16 +36,19 @@ describe("ListAttachmentsByEntry", () => {
     listAttachments = new ListAttachmentsByEntry(
       entryRepository,
       attachmentRepository,
-      limits
+      limits,
     );
     initUpload = new InitAttachmentUpload(
       entryRepository,
       attachmentRepository,
       objectStorage,
-      quotaConfig
+      quotaConfig,
     );
     completeUpload = new CompleteAttachmentUpload(attachmentRepository);
-    deleteAttachment = new DeleteAttachment(attachmentRepository, objectStorage);
+    deleteAttachment = new DeleteAttachment(
+      attachmentRepository,
+      objectStorage,
+    );
     createEntry = new CreateEntry(entryRepository);
   });
 
@@ -62,7 +65,12 @@ describe("ListAttachmentsByEntry", () => {
     return result.value;
   }
 
-  async function addAttachment(userId: string, entryId: string, filename: string, sizeBytes = 1024) {
+  async function addAttachment(
+    userId: string,
+    entryId: string,
+    filename: string,
+    sizeBytes = 1024,
+  ) {
     const initResult = await initUpload.execute({
       userId,
       entryId,
@@ -94,7 +102,10 @@ describe("ListAttachmentsByEntry", () => {
       const entry = await createTestEntry("user-123");
       await addAttachment("user-123", entry.id, "pending.pdf");
       const readyAtt = await addAttachment("user-123", entry.id, "ready.pdf");
-      await completeUpload.execute({ userId: "user-123", attachmentId: readyAtt.id });
+      await completeUpload.execute({
+        userId: "user-123",
+        attachmentId: readyAtt.id,
+      });
 
       const result = await listAttachments.execute({
         userId: "user-123",
@@ -110,8 +121,14 @@ describe("ListAttachmentsByEntry", () => {
     it("should exclude deleted attachments", async () => {
       const entry = await createTestEntry("user-123");
       const att = await addAttachment("user-123", entry.id, "to-delete.pdf");
-      await completeUpload.execute({ userId: "user-123", attachmentId: att.id });
-      await deleteAttachment.execute({ userId: "user-123", attachmentId: att.id });
+      await completeUpload.execute({
+        userId: "user-123",
+        attachmentId: att.id,
+      });
+      await deleteAttachment.execute({
+        userId: "user-123",
+        attachmentId: att.id,
+      });
 
       const result = await listAttachments.execute({
         userId: "user-123",

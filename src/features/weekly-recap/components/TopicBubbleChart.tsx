@@ -7,6 +7,7 @@ import {
   forceY,
   forceCollide,
   type SimulationNodeDatum,
+  type Simulation,
 } from "d3-force";
 
 // ---------------------------------------------------------------------------
@@ -68,12 +69,12 @@ const MAX_RADIUS = 60;
 export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
   const [bubbles, setBubbles] = useState<RenderedBubble[]>([]);
   const [opacity, setOpacity] = useState(0);
-  const simulationRef = useRef<ReturnType<typeof forceSimulation> | null>(null);
+  const simulationRef = useRef<Simulation<BubbleNode, undefined> | null>(null);
 
   // Calculate radii based on counts
   const maxCount = useMemo(
     () => Math.max(...data.map((d) => d.count), 1),
-    [data]
+    [data],
   );
 
   useEffect(() => {
@@ -102,7 +103,7 @@ export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
       .force("y", forceY(CENTER).strength(0.05))
       .force(
         "collide",
-        forceCollide<BubbleNode>((d) => d.radius + 3).strength(0.8)
+        forceCollide<BubbleNode>((d) => d.radius + 3).strength(0.8),
       )
       .alpha(0.8)
       .alphaDecay(0.02);
@@ -120,7 +121,7 @@ export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
           radius: n.radius,
           x: n.x ?? CENTER,
           y: n.y ?? CENTER,
-        }))
+        })),
       );
     });
 
@@ -147,6 +148,7 @@ export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
           width={CHART_SIZE}
           height={CHART_SIZE}
           viewBox={`0 0 ${CHART_SIZE} ${CHART_SIZE}`}
+          aria-label="Topic bubbles chart"
           className="overflow-visible"
           style={{
             opacity,
@@ -165,11 +167,7 @@ export function TopicBubbleChart({ data }: TopicBubbleChartProps) {
                 strokeOpacity={0.5}
               />
               {/* Glow */}
-              <circle
-                r={b.radius * 0.85}
-                fill={b.color}
-                opacity={0.1}
-              />
+              <circle r={b.radius * 0.85} fill={b.color} opacity={0.1} />
               {/* Topic name */}
               <text
                 textAnchor="middle"

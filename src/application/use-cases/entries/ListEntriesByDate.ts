@@ -21,7 +21,7 @@ export class ListEntriesByDate {
   constructor(private readonly entryRepository: EntryRepository) {}
 
   async execute(
-    input: ListEntriesByDateInput
+    input: ListEntriesByDateInput,
   ): Promise<Result<EntryDTO[], UseCaseError>> {
     // Validate userId
     if (!input.userId || input.userId.trim().length === 0) {

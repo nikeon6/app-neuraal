@@ -6,11 +6,7 @@
  */
 
 import { get, post, patch, del } from "../apiClient";
-import type {
-  ApiEntry,
-  CreateEntryBody,
-  UpdateEntryBody,
-} from "./types";
+import type { ApiEntry, CreateEntryBody, UpdateEntryBody } from "./types";
 
 // ---------------------------------------------------------------------------
 // List
@@ -22,7 +18,7 @@ import type {
  */
 export async function listEntriesByDate(date: string): Promise<ApiEntry[]> {
   const data = await get<{ entries: ApiEntry[] }>(
-    `/api/entries?date=${encodeURIComponent(date)}`
+    `/api/entries?date=${encodeURIComponent(date)}`,
   );
   return data.entries;
 }
@@ -32,9 +28,7 @@ export async function listEntriesByDate(date: string): Promise<ApiEntry[]> {
 // ---------------------------------------------------------------------------
 
 /** POST /api/entries — creates a new entry. */
-export async function createEntry(
-  input: CreateEntryBody
-): Promise<ApiEntry> {
+export async function createEntry(input: CreateEntryBody): Promise<ApiEntry> {
   const data = await post<{ entry: ApiEntry }>("/api/entries", input);
   return data.entry;
 }
@@ -49,7 +43,7 @@ export async function createEntry(
  */
 export async function updateEntry(
   id: string,
-  input: UpdateEntryBody
+  input: UpdateEntryBody,
 ): Promise<ApiEntry> {
   const data = await patch<{ entry: ApiEntry }>(`/api/entries/${id}`, input);
   return data.entry;
@@ -73,7 +67,7 @@ export async function deleteEntry(id: string): Promise<void> {
  * The summary arrives via notification when ready.
  */
 export async function summarizeEntry(
-  id: string
+  id: string,
 ): Promise<{ requestId: string; notificationId: string; message: string }> {
   return await post<{
     requestId: string;
@@ -109,12 +103,16 @@ export type VisionMode = "scan" | "describe";
 export async function analyzeImage(
   entryId: string,
   attachmentId: string,
-  mode: VisionMode = "scan"
+  mode: VisionMode = "scan",
 ): Promise<{ attachmentId: string; extractedText: string; mode: VisionMode }> {
-  return await post<{ attachmentId: string; extractedText: string; mode: VisionMode }>(
+  return await post<{
+    attachmentId: string;
+    extractedText: string;
+    mode: VisionMode;
+  }>(
     `/api/entries/${entryId}/ocr`,
     { attachmentId, mode },
-    { timeoutMs: 120_000 } // Vision can take 15-60s on CPU; generous timeout for cold starts
+    { timeoutMs: 120_000 }, // Vision can take 15-60s on CPU; generous timeout for cold starts
   );
 }
 
@@ -129,7 +127,7 @@ export async function analyzeImage(
  */
 export async function requestTranscription(
   entryId: string,
-  youtubeUrl: string
+  youtubeUrl: string,
 ): Promise<{ requestId: string; notificationId: string; message: string }> {
   return await post<{
     requestId: string;
@@ -148,7 +146,7 @@ export async function requestTranscription(
  */
 export async function reorderEntries(
   date: string,
-  orderedIds: string[]
+  orderedIds: string[],
 ): Promise<void> {
   await patch("/api/entries/reorder", { date, orderedIds });
 }
@@ -163,7 +161,7 @@ export async function reorderEntries(
  */
 export async function autoTopicEntry(
   id: string,
-  threshold?: number
+  threshold?: number,
 ): Promise<{
   entryId: string;
   selectedTopicId: string | null;
