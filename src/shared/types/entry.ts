@@ -1,19 +1,19 @@
 /**
  * Entry types for the Neuraal application
- * 
+ *
  * An Entry is the core content entity. It can be a task, note, or project.
  * All entries share the same base structure with type-specific behaviors.
  */
 
-import type { 
-  EntryId, 
-  TopicId, 
-  UserId, 
-  ReminderId, 
+import type {
+  EntryId,
+  TopicId,
+  UserId,
+  ReminderId,
   AttachmentId,
-  ISODate, 
-  ISODateTime, 
-  EntityMeta 
+  ISODate,
+  ISODateTime,
+  EntityMeta,
 } from "./base";
 
 // Re-export EntryId for convenience
@@ -25,7 +25,7 @@ export type { EntryId } from "./base";
 
 /**
  * Discriminator for entry types.
- * 
+ *
  * - task: Default type. Action items with completion status.
  * - note: Free-form text content without completion tracking.
  * - project: (Future) Container for related tasks/notes.
@@ -38,12 +38,12 @@ export type EntryType = "task" | "note" | "project";
 
 /**
  * Lifecycle status of an entry.
- * 
+ *
  * - active: Default state, visible and editable
  * - done: Completed (for tasks)
  * - archived: Hidden from main view but preserved
  * - deleted: Soft deleted, pending permanent removal
- * 
+ *
  * Future extensions: 'in_progress', 'blocked', 'deferred'
  */
 export type EntryStatus = "active" | "done" | "archived" | "deleted";
@@ -54,7 +54,7 @@ export type EntryStatus = "active" | "done" | "archived" | "deleted";
 
 /**
  * How the topic was assigned to an entry.
- * 
+ *
  * - manual: User explicitly selected the topic
  * - auto: AI/system suggested and applied the topic
  */
@@ -78,7 +78,7 @@ export interface TopicSuggestion {
 
 /**
  * Supported content formats for entry body.
- * 
+ *
  * - plain: Simple text with no formatting
  * - markdown: Markdown syntax
  * - html: Sanitized HTML
@@ -88,7 +88,7 @@ export type ContentFormat = "plain" | "markdown" | "html" | "rich-json";
 
 /**
  * Entry content with format information (discriminated union).
- * 
+ *
  * TypeScript will narrow the `value` type based on `format`:
  * - plain/markdown/html → value is string
  * - rich-json → value is unknown (editor-specific schema)
@@ -199,19 +199,17 @@ export type Attachment =
   | YouTubeAttachment
   | CodeAttachment;
 
-// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants/attachments.ts
-
 // ============================================================================
 // Entry Entity
 // ============================================================================
 
 /**
  * Core Entry entity.
- * 
+ *
  * Entries are the main content units in Neuraal. They can be tasks,
  * notes, or projects. All entries are assigned to a specific date
  * (no time component - that's for reminders).
- * 
+ *
  * Design decisions:
  * - `reminderIds` is an array of ReminderId. The full Reminder entities
  *   are fetched separately when needed. This keeps Entry lightweight while

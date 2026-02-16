@@ -9,6 +9,7 @@ import { useEntriesByDateQuery } from "@/shared/api/queries";
 
 export function useEntries() {
   const dateKey = useStore(selectDateKey);
-  const { data: entries = [], isPending: isLoading } = useEntriesByDateQuery(dateKey);
+  const { data: entries = [], isPending: isLoading } =
+    useEntriesByDateQuery(dateKey);
   return { entries, isLoading, dateKey };
 }

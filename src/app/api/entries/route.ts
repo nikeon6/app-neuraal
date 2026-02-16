@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateEntry } from "@/application/use-cases/CreateEntry";
-import { ListEntriesByDate } from "@/application/use-cases/ListEntriesByDate";
+import { CreateEntry } from "@/application/use-cases/entries/CreateEntry";
+import { ListEntriesByDate } from "@/application/use-cases/entries/ListEntriesByDate";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 
@@ -10,7 +10,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -23,8 +23,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   if (!date) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "date query parameter is required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "date query parameter is required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -68,7 +73,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -77,28 +82,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Validate required fields
   if (!date || !type || title === undefined || !content) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "date, type, title, and content are required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "date, type, title, and content are required",
+        },
+      },
+      { status: 400 },
     );
   }
 
-  // Execute use case
-  const repository = new PrismaEntryRepository();
-  const createEntry = new CreateEntry(repository);
-  const result = await createEntry.execute({
-    userId,
-    date,
-    type,
-    title,
-    content,
-    topicId,
-    completed,
-  });
+  try {
+    // Execute use case
+    const repository = new PrismaEntryRepository();
+    const createEntry = new CreateEntry(repository);
+    const result = await createEntry.execute({
+      userId,
+      date,
+      type,
+      title,
+      content,
+      topicId,
+      completed,
+    });
 
-  if (result.isErr()) {
-    const { code, message } = result.error;
-    return NextResponse.json({ error: { code, message } }, { status: 400 });
+    if (result.isErr()) {
+      const { code, message } = result.error;
+      return NextResponse.json({ error: { code, message } }, { status: 400 });
+    }
+
+    return NextResponse.json({ entry: result.value }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isDev = process.env.NODE_ENV !== "production";
+    console.error("[POST /api/entries] Error:", error);
+    return NextResponse.json(
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: isDev ? message : "Failed to create entry. Try again later.",
+        },
+      },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({ entry: result.value }, { status: 201 });
 }

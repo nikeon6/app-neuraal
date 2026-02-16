@@ -19,7 +19,7 @@ function createRequest(
   method: string,
   url: string,
   body?: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   const init: RequestInit = {
     method,
@@ -44,7 +44,7 @@ describe("GET /api/entries", () => {
   it("should return 401 when x-user-id header is missing", async () => {
     const request = createRequest(
       "GET",
-      "http://localhost:3000/api/entries?date=2026-01-29"
+      "http://localhost:3000/api/entries?date=2026-01-29",
     );
     const response = await GET(request);
 
@@ -56,7 +56,7 @@ describe("GET /api/entries", () => {
       "GET",
       "http://localhost:3000/api/entries",
       undefined,
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await GET(request);
 
@@ -68,7 +68,7 @@ describe("GET /api/entries", () => {
       "GET",
       "http://localhost:3000/api/entries?date=29-01-2026",
       undefined,
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await GET(request);
 
@@ -96,7 +96,7 @@ describe("GET /api/entries", () => {
       "GET",
       "http://localhost:3000/api/entries?date=2026-01-29",
       undefined,
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await GET(request);
 
@@ -113,7 +113,7 @@ describe("GET /api/entries", () => {
       "GET",
       "http://localhost:3000/api/entries?date=2026-01-29",
       undefined,
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await GET(request);
 
@@ -129,14 +129,14 @@ describe("GET /api/entries", () => {
       "GET",
       "http://localhost:3000/api/entries?date=2026-01-29",
       undefined,
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     await GET(request);
 
     expect(prisma.entry.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: "user-123", date: "2026-01-29" },
-      })
+      }),
     );
   });
 });
@@ -184,7 +184,7 @@ describe("POST /api/entries", () => {
         content: { text: "content" },
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -218,7 +218,7 @@ describe("POST /api/entries", () => {
         title: "My Note",
         content: {},
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -239,7 +239,7 @@ describe("POST /api/entries", () => {
         content: {},
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -257,7 +257,7 @@ describe("POST /api/entries", () => {
         content: {},
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -275,7 +275,7 @@ describe("POST /api/entries", () => {
         content: {},
         completed: true,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -295,7 +295,7 @@ describe("POST /api/entries", () => {
         content: "string content",
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -313,7 +313,7 @@ describe("POST /api/entries", () => {
         content: {},
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 
@@ -346,7 +346,7 @@ describe("POST /api/entries", () => {
         topicId: "topic-456",
         completed: false,
       },
-      { "x-user-id": "user-123" }
+      { "x-user-id": "user-123" },
     );
     const response = await POST(request);
 

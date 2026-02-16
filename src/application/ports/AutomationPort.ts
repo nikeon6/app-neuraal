@@ -12,7 +12,7 @@ export interface ReminderPayload {
 
 /**
  * Payload sent to the automation service (n8n) for entry summaries.
- * Includes entry content so n8n can generate the summary without DB access.
+ * When plainTextForSummary is set (e.g. truncated input), n8n uses it instead of entry content.
  */
 export interface EntrySummaryPayload {
   requestId: string;
@@ -22,6 +22,8 @@ export interface EntrySummaryPayload {
   entryTitle: string;
   entryType: string;
   entryContent: Record<string, unknown>;
+  /** When set, use this text for summary instead of extracting from entryContent. */
+  plainTextForSummary?: string;
 }
 
 /**
@@ -31,6 +33,19 @@ export interface AutomationResult {
   success: boolean;
   statusCode?: number;
   error?: string;
+}
+
+/**
+ * Payload sent to the automation service (n8n) for entry transcriptions.
+ * Includes the YouTube URL so n8n can call the external transcription API.
+ */
+export interface EntryTranscriptionPayload {
+  requestId: string;
+  userId: string;
+  entryId: string;
+  youtubeUrl: string;
+  callbackUrl: string;
+  entryTitle: string;
 }
 
 /**
@@ -49,4 +64,13 @@ export interface AutomationPort {
    * Handles HMAC signing and optional basic auth.
    */
   requestEntrySummary(payload: EntrySummaryPayload): Promise<AutomationResult>;
+
+  /**
+   * Sends a transcription request to the automation service.
+   * n8n will call an external API and POST the result to the callbackUrl.
+   * Handles HMAC signing and optional basic auth.
+   */
+  requestEntryTranscription(
+    payload: EntryTranscriptionPayload,
+  ): Promise<AutomationResult>;
 }

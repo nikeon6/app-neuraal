@@ -6,11 +6,12 @@ import type { ObjectStoragePort } from "../ports/ObjectStoragePort";
  */
 export class FakeObjectStorage implements ObjectStoragePort {
   private deletedKeys: string[] = [];
+  private storedObjects = new Map<string, Buffer>();
 
   async getPresignedPutUrl(
     storageKey: string,
     mimeType: string,
-    _sizeBytes: number
+    _sizeBytes: number,
   ): Promise<string> {
     return `https://fake-s3.example.com/put/${storageKey}?contentType=${encodeURIComponent(mimeType)}`;
   }
@@ -21,6 +22,22 @@ export class FakeObjectStorage implements ObjectStoragePort {
 
   async deleteObject(storageKey: string): Promise<void> {
     this.deletedKeys.push(storageKey);
+    this.storedObjects.delete(storageKey);
+  }
+
+  async getObjectBuffer(storageKey: string): Promise<Buffer> {
+    const buf = this.storedObjects.get(storageKey);
+    if (!buf) {
+      throw new Error(`Object not found: ${storageKey}`);
+    }
+    return buf;
+  }
+
+  /**
+   * Helper for tests: store an object.
+   */
+  putObject(storageKey: string, data: Buffer): void {
+    this.storedObjects.set(storageKey, data);
   }
 
   /**
@@ -42,5 +59,6 @@ export class FakeObjectStorage implements ObjectStoragePort {
    */
   clear(): void {
     this.deletedKeys = [];
+    this.storedObjects.clear();
   }
 }

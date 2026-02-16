@@ -71,7 +71,10 @@ export class PrismaReminderRepository implements ReminderRepository {
     return reminders;
   }
 
-  async listPendingByEntry(userId: string, entryId: string): Promise<Reminder[]> {
+  async listPendingByEntry(
+    userId: string,
+    entryId: string,
+  ): Promise<Reminder[]> {
     const records = await prisma.reminder.findMany({
       where: { userId, entryId, status: "pending" },
       orderBy: { scheduledAt: "asc" },
@@ -109,5 +112,16 @@ export class PrismaReminderRepository implements ReminderRepository {
     });
 
     return result.isOk() ? result.value : null;
+  }
+
+  async countPendingWhatsappByUserId(userId: string): Promise<number> {
+    const count = await prisma.reminder.count({
+      where: {
+        userId,
+        channel: "whatsapp",
+        status: "pending",
+      },
+    });
+    return count;
   }
 }

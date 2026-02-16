@@ -29,17 +29,29 @@ export class InMemoryReminderRepository implements ReminderRepository {
 
   async listByUser(userId: string): Promise<Reminder[]> {
     return Array.from(this.reminders.values()).filter(
-      (reminder) => reminder.userId === userId
+      (reminder) => reminder.userId === userId,
     );
   }
 
-  async listPendingByEntry(userId: string, entryId: string): Promise<Reminder[]> {
+  async listPendingByEntry(
+    userId: string,
+    entryId: string,
+  ): Promise<Reminder[]> {
     return Array.from(this.reminders.values()).filter(
       (reminder) =>
         reminder.userId === userId &&
         reminder.entryId === entryId &&
-        reminder.status.isPending()
+        reminder.status.isPending(),
     );
+  }
+
+  async countPendingWhatsappByUserId(userId: string): Promise<number> {
+    return Array.from(this.reminders.values()).filter(
+      (reminder) =>
+        reminder.userId === userId &&
+        reminder.status.isPending() &&
+        reminder.channel.toString() === "whatsapp",
+    ).length;
   }
 
   // Test helpers

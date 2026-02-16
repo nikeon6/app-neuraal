@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ListNotifications } from "@/application/use-cases/ListNotifications";
+import { ListNotifications } from "@/application/use-cases/notifications/ListNotifications";
 import { PrismaNotificationRepository } from "@/infrastructure/persistence/PrismaNotificationRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 
@@ -12,7 +12,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }

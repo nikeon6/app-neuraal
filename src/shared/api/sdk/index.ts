@@ -49,12 +49,17 @@ export type {
   ApiReminder,
   ApiNotification,
   ApiAttachment,
+  ApiSticky,
   ApiErrorResponse,
   CreateTopicBody,
   UpdateTopicBody,
   CreateEntryBody,
   UpdateEntryBody,
   AutoTopicBody,
+  CreateReminderBody,
+  UpdateReminderBody,
+  CreateStickyBody,
+  UpdateStickyBody,
 } from "./types";
 
 // Topics
@@ -75,3 +80,33 @@ export {
   summarizeEntry,
   autoTopicEntry,
 } from "./entries";
+
+// Notifications
+export { listNotifications, markNotificationRead } from "./notifications";
+
+// Reminders
+export { createReminder, updateReminder } from "./reminders";
+
+// Attachments
+export {
+  listByEntry as listAttachmentsByEntry,
+  initUpload as initAttachmentUpload,
+  completeUpload as completeAttachmentUpload,
+  deleteAttachment,
+  getDownloadUrl as getAttachmentDownloadUrl,
+} from "./attachments";
+
+export type {
+  ListAttachmentsResponse,
+  InitUploadResponse,
+  InitUploadInput,
+} from "./attachments";
+
+// Stickies
+export {
+  listStickies,
+  createSticky,
+  updateSticky,
+  deleteSticky,
+  reorderStickies,
+} from "./stickies";

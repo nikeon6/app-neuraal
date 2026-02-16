@@ -34,4 +34,10 @@ export interface ReminderRepository {
    * Lists pending reminders for a user and entry.
    */
   listPendingByEntry(userId: string, entryId: string): Promise<Reminder[]>;
+
+  /**
+   * Counts pending reminders with channel 'whatsapp' for a user.
+   * Used for concurrency/quota limit on WhatsApp reminders.
+   */
+  countPendingWhatsappByUserId(userId: string): Promise<number>;
 }

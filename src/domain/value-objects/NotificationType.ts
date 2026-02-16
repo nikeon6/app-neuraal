@@ -9,7 +9,10 @@ type NotificationTypeValue =
   | "REMINDER_CANCELED"
   | "SUMMARY_IN_PROGRESS"
   | "SUMMARY_DONE"
-  | "SUMMARY_FAILED";
+  | "SUMMARY_FAILED"
+  | "TRANSCRIPTION_IN_PROGRESS"
+  | "TRANSCRIPTION_DONE"
+  | "TRANSCRIPTION_FAILED";
 
 /**
  * NotificationType value object.
@@ -28,6 +31,12 @@ export class NotificationType {
   static readonly SUMMARY_DONE = "SUMMARY_DONE" as const;
   static readonly SUMMARY_FAILED = "SUMMARY_FAILED" as const;
 
+  // Transcription types
+  static readonly TRANSCRIPTION_IN_PROGRESS =
+    "TRANSCRIPTION_IN_PROGRESS" as const;
+  static readonly TRANSCRIPTION_DONE = "TRANSCRIPTION_DONE" as const;
+  static readonly TRANSCRIPTION_FAILED = "TRANSCRIPTION_FAILED" as const;
+
   private static readonly VALID_TYPES: NotificationTypeValue[] = [
     NotificationType.REMINDER_SENT,
     NotificationType.REMINDER_FAILED,
@@ -35,6 +44,9 @@ export class NotificationType {
     NotificationType.SUMMARY_IN_PROGRESS,
     NotificationType.SUMMARY_DONE,
     NotificationType.SUMMARY_FAILED,
+    NotificationType.TRANSCRIPTION_IN_PROGRESS,
+    NotificationType.TRANSCRIPTION_DONE,
+    NotificationType.TRANSCRIPTION_FAILED,
   ];
 
   private constructor(value: NotificationTypeValue) {
@@ -48,8 +60,14 @@ export class NotificationType {
 
     const normalized = value.trim().toUpperCase();
 
-    if (!NotificationType.VALID_TYPES.includes(normalized as NotificationTypeValue)) {
-      return err(`Invalid type. Allowed: ${NotificationType.VALID_TYPES.join(", ")}`);
+    if (
+      !NotificationType.VALID_TYPES.includes(
+        normalized as NotificationTypeValue,
+      )
+    ) {
+      return err(
+        `Invalid type. Allowed: ${NotificationType.VALID_TYPES.join(", ")}`,
+      );
     }
 
     return ok(new NotificationType(normalized as NotificationTypeValue));
@@ -105,6 +123,32 @@ export class NotificationType {
 
   isSummaryFailed(): boolean {
     return this.value === NotificationType.SUMMARY_FAILED;
+  }
+
+  // Transcription factory methods
+  static transcriptionInProgress(): NotificationType {
+    return new NotificationType(NotificationType.TRANSCRIPTION_IN_PROGRESS);
+  }
+
+  static transcriptionDone(): NotificationType {
+    return new NotificationType(NotificationType.TRANSCRIPTION_DONE);
+  }
+
+  static transcriptionFailed(): NotificationType {
+    return new NotificationType(NotificationType.TRANSCRIPTION_FAILED);
+  }
+
+  // Transcription type checks
+  isTranscriptionInProgress(): boolean {
+    return this.value === NotificationType.TRANSCRIPTION_IN_PROGRESS;
+  }
+
+  isTranscriptionDone(): boolean {
+    return this.value === NotificationType.TRANSCRIPTION_DONE;
+  }
+
+  isTranscriptionFailed(): boolean {
+    return this.value === NotificationType.TRANSCRIPTION_FAILED;
   }
 
   toString(): string {

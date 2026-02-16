@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import sonarjs from "eslint-plugin-sonarjs";
 
 export default [
   {
@@ -21,6 +22,7 @@ export default [
     plugins: {
       react,
       "react-hooks": reactHooks,
+      sonarjs,
     },
     languageOptions: {
       parserOptions: {
@@ -37,6 +39,10 @@ export default [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "sonarjs/cognitive-complexity": ["error", 15],
+      "sonarjs/no-duplicate-string": "off",
+      "sonarjs/no-identical-functions": "error",
+      "sonarjs/no-nested-conditional": "warn",
     },
     settings: {
       react: {

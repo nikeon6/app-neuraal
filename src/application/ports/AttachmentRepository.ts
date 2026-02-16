@@ -10,6 +10,11 @@ export interface AttachmentRepository {
   findById(attachmentId: string): Promise<Attachment | null>;
 
   /**
+   * Finds all non-deleted attachments for an entry.
+   */
+  findByEntryId(entryId: string): Promise<Attachment[]>;
+
+  /**
    * Saves a new attachment (pending status).
    */
   save(attachment: Attachment): Promise<void>;

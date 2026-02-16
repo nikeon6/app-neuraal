@@ -20,7 +20,7 @@ export class SummaryText {
 
   static create(
     value: string,
-    format: SummaryFormat = "markdown"
+    format: SummaryFormat = "markdown",
   ): Result<SummaryText, string> {
     if (!value || value.trim().length === 0) {
       return err("Summary cannot be empty");
@@ -33,7 +33,9 @@ export class SummaryText {
     }
 
     if (!SummaryText.VALID_FORMATS.includes(format)) {
-      return err(`Invalid format. Allowed: ${SummaryText.VALID_FORMATS.join(", ")}`);
+      return err(
+        `Invalid format. Allowed: ${SummaryText.VALID_FORMATS.join(", ")}`,
+      );
     }
 
     return ok(new SummaryText(trimmed, format));

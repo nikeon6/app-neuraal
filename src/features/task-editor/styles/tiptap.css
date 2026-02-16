@@ -1,0 +1,803 @@
+/* ==========================================================================
+   Tiptap Editor — Dark Theme Styles
+   Matches the app's glass-panel / dark UI palette.
+   ========================================================================== */
+
+/* ---- Editor root ---- */
+.tiptap-editor .tiptap {
+  outline: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  line-height: 1.75;
+  min-height: 60px;
+  caret-color: hsl(217, 91%, 60%);
+}
+
+.tiptap-editor .tiptap.is-expanded {
+  min-height: 100px;
+}
+
+/* ---- Placeholder ---- */
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  color: rgba(255, 255, 255, 0.3);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap-editor .tiptap:focus p.is-editor-empty:first-child::before {
+  color: rgba(255, 255, 255, 0.1);
+}
+
+/* ---- Paragraphs ---- */
+.tiptap-editor .tiptap p {
+  margin: 0.25em 0;
+}
+
+/* ---- Headings ---- */
+.tiptap-editor .tiptap h1,
+.tiptap-editor .tiptap h2,
+.tiptap-editor .tiptap h3 {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+  margin: 0.75em 0 0.25em;
+}
+
+.tiptap-editor .tiptap h1 { font-size: 1.5em; }
+.tiptap-editor .tiptap h2 { font-size: 1.25em; }
+.tiptap-editor .tiptap h3 { font-size: 1.1em; }
+
+/* ---- Inline code ---- */
+.tiptap-editor .tiptap code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ==========================================================================
+   Code Blocks (NodeView + lowlight + line numbers via decorations)
+   ========================================================================== */
+
+/* NodeView <pre> element */
+.tiptap-editor .code-block-node {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 2rem 1rem 1rem 1rem;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Code element inside NodeView */
+.tiptap-editor .code-block-node code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: inherit;
+  display: block;
+}
+
+/* Controls bar (language badge + delete button) — top-right */
+.tiptap-editor .code-block-controls {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 2;
+}
+
+.tiptap-editor .code-block-lang {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  user-select: none;
+  font-family: inherit;
+}
+
+.tiptap-editor .code-block-delete {
+  visibility: hidden;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.tiptap-editor .code-block-node:hover .code-block-delete {
+  visibility: visible;
+}
+
+.tiptap-editor .code-block-delete:hover {
+  color: #ff5370;
+  background: rgba(255, 83, 112, 0.15);
+}
+
+/* Line number widgets — inline elements at the start of each line */
+.tiptap-editor .code-line-num {
+  display: inline-block;
+  width: 2.5em;
+  text-align: right;
+  padding-right: 0.75em;
+  color: rgba(255, 255, 255, 0.2);
+  user-select: none;
+  pointer-events: none;
+  font-size: 0.8em;
+}
+
+/* ---- Syntax highlighting — dark theme (Material Palenight) ---- */
+.tiptap-editor .code-block-node .hljs-comment,
+.tiptap-editor .code-block-node .hljs-quote { color: rgba(255, 255, 255, 0.35); font-style: italic; }
+.tiptap-editor .code-block-node .hljs-keyword,
+.tiptap-editor .code-block-node .hljs-selector-tag,
+.tiptap-editor .code-block-node .hljs-addition { color: #c792ea; }
+.tiptap-editor .code-block-node .hljs-string,
+.tiptap-editor .code-block-node .hljs-attr { color: #c3e88d; }
+.tiptap-editor .code-block-node .hljs-number,
+.tiptap-editor .code-block-node .hljs-literal { color: #f78c6c; }
+.tiptap-editor .code-block-node .hljs-built_in,
+.tiptap-editor .code-block-node .hljs-type { color: #ffcb6b; }
+.tiptap-editor .code-block-node .hljs-variable,
+.tiptap-editor .code-block-node .hljs-template-variable { color: #f07178; }
+.tiptap-editor .code-block-node .hljs-title,
+.tiptap-editor .code-block-node .hljs-section { color: #82aaff; }
+.tiptap-editor .code-block-node .hljs-name,
+.tiptap-editor .code-block-node .hljs-tag { color: #f07178; }
+.tiptap-editor .code-block-node .hljs-regexp { color: #89ddff; }
+.tiptap-editor .code-block-node .hljs-meta { color: rgba(255, 255, 255, 0.5); }
+.tiptap-editor .code-block-node .hljs-symbol,
+.tiptap-editor .code-block-node .hljs-bullet { color: #89ddff; }
+.tiptap-editor .code-block-node .hljs-deletion { color: #ff5370; }
+.tiptap-editor .code-block-node .hljs-function { color: #82aaff; }
+.tiptap-editor .code-block-node .hljs-params { color: rgba(255, 255, 255, 0.7); }
+.tiptap-editor .code-block-node .hljs-property { color: #f07178; }
+.tiptap-editor .code-block-node .hljs-operator { color: #89ddff; }
+
+/* ---- Blockquotes ---- */
+.tiptap-editor .tiptap blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  padding-left: 1rem;
+  margin: 0.75em 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+/* ---- Lists ---- */
+.tiptap-editor .tiptap ul,
+.tiptap-editor .tiptap ol {
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+
+.tiptap-editor .tiptap li {
+  margin: 0.15em 0;
+}
+
+.tiptap-editor .tiptap ul li::marker { color: rgba(255, 255, 255, 0.3); }
+.tiptap-editor .tiptap ol li::marker { color: rgba(255, 255, 255, 0.4); }
+
+/* ---- Horizontal rule ---- */
+.tiptap-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1rem 0;
+}
+
+/* ---- Bold / Italic / Strike / Underline ---- */
+.tiptap-editor .tiptap strong { color: rgba(255, 255, 255, 0.95); }
+.tiptap-editor .tiptap em { font-style: italic; }
+.tiptap-editor .tiptap s { color: rgba(255, 255, 255, 0.4); }
+.tiptap-editor .tiptap u { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---- Images (NodeView wrapper) ---- */
+.tiptap-editor .image-attachment-wrapper {
+  margin: 0.5em 0;
+}
+
+.tiptap-editor .image-attachment-wrapper img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+.tiptap-editor .image-attachment-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.tiptap-editor .image-attachment-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+.tiptap-editor .image-attachment-controls {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.tiptap-editor .image-attachment-frame:hover .image-attachment-controls {
+  opacity: 1;
+}
+
+/* Base button style */
+.tiptap-editor .image-attachment-btn {
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+}
+
+.tiptap-editor .image-attachment-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+  transform: none !important;
+}
+
+.tiptap-editor .image-attachment-btn svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex-shrink: 0;
+}
+
+/* Action buttons (Scan / Describe) */
+.tiptap-editor .image-attachment-btn-action {
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.375rem;
+  font-size: 0.675rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(10, 14, 35, 0.78);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.tiptap-editor .image-attachment-btn-action:hover {
+  background: rgba(14, 165, 233, 0.45);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.18);
+}
+
+.tiptap-editor .image-attachment-btn-action:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Delete button (X circle) */
+.tiptap-editor .image-attachment-btn-delete {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(10, 14, 35, 0.78);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.tiptap-editor .image-attachment-btn-delete svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.tiptap-editor .image-attachment-btn-delete:hover {
+  background: rgba(239, 68, 68, 0.7);
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+.tiptap-editor .image-attachment-btn-delete:active {
+  transform: scale(0.95);
+}
+
+.tiptap-editor .image-attachment-processing {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.tiptap-editor .image-attachment-processing-label {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0 0.75rem;
+  text-align: center;
+}
+
+.tiptap-editor .image-attachment-result {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(14, 165, 233, 0.15);
+  background: rgba(14, 165, 233, 0.07);
+  padding: 0.75rem;
+  max-width: 100%;
+}
+
+.tiptap-editor .image-attachment-result[data-error="true"] {
+  border-color: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.tiptap-editor .image-attachment-result[data-error="true"] .image-attachment-result-title {
+  color: rgb(248, 113, 113); /* red-400 */
+}
+
+.tiptap-editor .image-attachment-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+}
+
+.tiptap-editor .image-attachment-result-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.tiptap-editor .image-attachment-result-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: rgb(56, 189, 248); /* sky-400 */
+}
+
+.tiptap-editor .image-attachment-result-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(56, 189, 248); /* sky-400 */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tiptap-editor .image-attachment-result-mode {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.tiptap-editor .image-attachment-result-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+
+.tiptap-editor .image-attachment-result-copy:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tiptap-editor .image-attachment-result-copy svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.tiptap-editor .image-attachment-result-body {
+  margin: 0;
+  max-height: 12rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* ---- File attachment node ---- */
+.tiptap-editor .file-attachment-node {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5em 0;
+  cursor: default;
+  user-select: none;
+  max-width: 100%;
+}
+
+.tiptap-editor .file-attachment-node .file-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tiptap-editor .file-attachment-node .file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tiptap-editor .file-attachment-node .file-name {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tiptap-editor .file-attachment-node .file-size {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.tiptap-editor .file-attachment-node .file-download {
+  flex-shrink: 0;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tiptap-editor .file-attachment-node .file-download:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tiptap-editor .file-attachment-node .file-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(248, 113, 113);
+}
+
+/* ---- YouTube embeds (vanilla NodeView) ---- */
+.tiptap-editor .youtube-embed-wrapper {
+  margin: 0.75em 0;
+}
+
+.tiptap-editor .youtube-embed-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.tiptap-editor .youtube-embed-iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Loading overlay (transcription in progress) */
+.tiptap-editor .youtube-embed-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.tiptap-editor .youtube-embed-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tiptap-editor .youtube-embed-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: rgb(56, 189, 248);
+  animation: yt-spin 1s linear infinite;
+}
+
+@keyframes yt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tiptap-editor .youtube-embed-loading-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+/* ---- Action bar ---- */
+.tiptap-editor .youtube-embed-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.375rem;
+  margin-bottom: 0.25rem;
+}
+
+.tiptap-editor .youtube-embed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+
+.tiptap-editor .youtube-embed-btn-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+/* Transcribe — default */
+.tiptap-editor .youtube-embed-btn-transcribe {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tiptap-editor .youtube-embed-btn-transcribe:hover {
+  color: rgb(56, 189, 248);
+  background: rgba(14, 165, 233, 0.1);
+}
+
+/* Transcribe — loading */
+.tiptap-editor .youtube-embed-btn-loading {
+  background: rgba(14, 165, 233, 0.2);
+  color: rgb(125, 211, 252);
+  cursor: wait;
+}
+
+/* Transcribe — done */
+.tiptap-editor .youtube-embed-btn-done {
+  background: rgba(16, 185, 129, 0.2);
+  color: rgb(110, 231, 183);
+}
+
+.tiptap-editor .youtube-embed-btn-done:hover {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+/* Delete button */
+.tiptap-editor .youtube-embed-btn-delete {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tiptap-editor .youtube-embed-btn-delete:hover {
+  color: rgb(248, 113, 113);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ---- Panels (info / result / error) ---- */
+.tiptap-editor .youtube-embed-panel {
+  display: none;
+  margin-top: 0.25rem;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.tiptap-editor .youtube-embed-panel-info {
+  background: rgba(14, 165, 233, 0.07);
+  border: 1px solid rgba(14, 165, 233, 0.15);
+}
+
+.tiptap-editor .youtube-embed-panel-result {
+  background: rgba(14, 165, 233, 0.07);
+  border: 1px solid rgba(14, 165, 233, 0.15);
+}
+
+.tiptap-editor .youtube-embed-panel-error {
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.tiptap-editor .youtube-embed-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.tiptap-editor .youtube-embed-panel-header-between {
+  justify-content: space-between;
+}
+
+.tiptap-editor .youtube-embed-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.tiptap-editor .youtube-embed-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tiptap-editor .youtube-embed-panel-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: rgb(56, 189, 248);
+  flex-shrink: 0;
+}
+
+.tiptap-editor .youtube-embed-panel-icon-error {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: rgb(248, 113, 113);
+  flex-shrink: 0;
+}
+
+.tiptap-editor .youtube-embed-panel-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(56, 189, 248);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tiptap-editor .youtube-embed-panel-title-error {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(248, 113, 113);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tiptap-editor .youtube-embed-panel-body-muted {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0.25rem 0 0;
+}
+
+.tiptap-editor .youtube-embed-panel-body-error {
+  font-size: 0.75rem;
+  color: rgba(252, 165, 165, 0.7);
+  line-height: 1.5;
+  margin: 0.25rem 0 0;
+}
+
+/* Copy / Toggle buttons */
+.tiptap-editor .youtube-embed-panel-copy,
+.tiptap-editor .youtube-embed-panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+
+.tiptap-editor .youtube-embed-panel-copy:hover,
+.tiptap-editor .youtube-embed-panel-toggle:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tiptap-editor .youtube-embed-panel-btn-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.tiptap-editor .youtube-embed-panel-toggle svg {
+  transition: transform 150ms ease;
+}
+
+/* Retry button */
+.tiptap-editor .youtube-embed-panel-retry {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.6875rem;
+  color: rgb(248, 113, 113);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 120ms;
+}
+
+.tiptap-editor .youtube-embed-panel-retry:hover {
+  color: rgb(252, 165, 165);
+}
+
+/* Transcription content */
+.tiptap-editor .youtube-embed-panel-content {
+  max-height: 10rem;
+  overflow-y: auto;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.375rem;
+}
+
+.tiptap-editor .youtube-embed-panel-content-expanded {
+  max-height: 31.25rem;
+}
+
+/* ---- Scrollbar for long content ---- */
+.tiptap-editor .tiptap::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tiptap-editor .tiptap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tiptap-editor .tiptap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.tiptap-editor .tiptap::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ProseMirror selection */
+.tiptap-editor .tiptap ::selection {
+  background: hsl(217, 91%, 60%, 0.3);
+}
+
+/* Gapcursor */
+.tiptap-editor .tiptap .ProseMirror-gapcursor::after {
+  border-top-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Dropcursor */
+.tiptap-editor .ProseMirror-dropcursor {
+  color: hsl(217, 91%, 60%);
+}

@@ -1,12 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { Topic } from "./Topic";
 
+const TEST_TOPIC_ID = "topic-123";
+const TEST_USER_ID = "user-456";
+
 describe("Topic", () => {
   describe("create", () => {
     it("should create a valid Topic with all required fields", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "Work",
         color: "#3b82f6",
         createdAt: new Date("2026-01-29T10:00:00Z"),
@@ -15,8 +18,8 @@ describe("Topic", () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const topic = result.value;
-        expect(topic.id).toBe("topic-123");
-        expect(topic.userId).toBe("user-456");
+        expect(topic.id).toBe(TEST_TOPIC_ID);
+        expect(topic.userId).toBe(TEST_USER_ID);
         expect(topic.name.toString()).toBe("Work");
         expect(topic.color.toString()).toBe("#3b82f6");
         expect(topic.createdAt).toEqual(new Date("2026-01-29T10:00:00Z"));
@@ -25,8 +28,8 @@ describe("Topic", () => {
 
     it("should reject Topic with invalid color", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "Work",
         color: "invalid-color",
         createdAt: new Date(),
@@ -40,8 +43,8 @@ describe("Topic", () => {
 
     it("should reject Topic with empty name", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "",
         color: "#3b82f6",
         createdAt: new Date(),
@@ -55,8 +58,8 @@ describe("Topic", () => {
 
     it("should reject Topic with whitespace-only name", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "   ",
         color: "#3b82f6",
         createdAt: new Date(),
@@ -67,8 +70,8 @@ describe("Topic", () => {
 
     it("should reject Topic with name too short", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "A",
         color: "#3b82f6",
         createdAt: new Date(),
@@ -80,7 +83,7 @@ describe("Topic", () => {
     it("should reject Topic with empty id", () => {
       const result = Topic.create({
         id: "",
-        userId: "user-456",
+        userId: TEST_USER_ID,
         name: "Work",
         color: "#3b82f6",
         createdAt: new Date(),
@@ -94,7 +97,7 @@ describe("Topic", () => {
 
     it("should reject Topic with empty userId", () => {
       const result = Topic.create({
-        id: "topic-123",
+        id: TEST_TOPIC_ID,
         userId: "",
         name: "Work",
         color: "#3b82f6",
@@ -109,8 +112,8 @@ describe("Topic", () => {
 
     it("should trim name before validation", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "  Work  ",
         color: "#3b82f6",
         createdAt: new Date(),
@@ -124,8 +127,8 @@ describe("Topic", () => {
 
     it("should normalize color to lowercase", () => {
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "Work",
         color: "#AABBCC",
         createdAt: new Date(),
@@ -142,8 +145,8 @@ describe("Topic", () => {
     it("should serialize Topic to plain object", () => {
       const createdAt = new Date("2026-01-29T10:00:00Z");
       const result = Topic.create({
-        id: "topic-123",
-        userId: "user-456",
+        id: TEST_TOPIC_ID,
+        userId: TEST_USER_ID,
         name: "Work",
         color: "#3b82f6",
         createdAt,
@@ -153,8 +156,8 @@ describe("Topic", () => {
       if (result.isOk()) {
         const json = result.value.toJSON();
         expect(json).toEqual({
-          id: "topic-123",
-          userId: "user-456",
+          id: TEST_TOPIC_ID,
+          userId: TEST_USER_ID,
           name: "Work",
           color: "#3b82f6",
           createdAt: createdAt.toISOString(),

@@ -1,9 +1,9 @@
 /**
  * Topic types for the Neuraal application
- * 
+ *
  * Topics are categories that group entries (tasks, notes, projects).
  * Each user can have custom topics with visual properties.
- * 
+ *
  * NOTE: UI-specific types (TopicPosition, TopicAnchor for bubbles)
  * are in src/features/topics/types.ts
  */
@@ -58,7 +58,7 @@ export interface SystemTopic extends TopicBase {
 
 /**
  * Topic entity (discriminated union).
- * 
+ *
  * Use `topic.isSystem` to narrow the type:
  * - `topic.isSystem === true` → SystemTopic
  * - `!topic.isSystem` → UserTopic

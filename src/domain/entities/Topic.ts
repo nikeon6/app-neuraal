@@ -27,7 +27,7 @@ export interface TopicJSON {
 /**
  * Topic entity.
  * Represents a user's topic/category for organizing tasks.
- * 
+ *
  * Invariants:
  * - Must have valid id (non-empty)
  * - Must have valid userId (non-empty)
@@ -47,7 +47,7 @@ export class Topic {
     userId: string,
     name: TopicName,
     color: HexColor,
-    createdAt: Date
+    createdAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -88,8 +88,8 @@ export class Topic {
         input.userId.trim(),
         nameResult.value,
         colorResult.value,
-        input.createdAt
-      )
+        input.createdAt,
+      ),
     );
   }
 

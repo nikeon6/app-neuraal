@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RebuildTopicEmbedding } from "@/application/use-cases/RebuildTopicEmbedding";
+import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTopicEmbedding";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
@@ -16,10 +16,10 @@ interface RouteContext {
  */
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -36,7 +36,7 @@ export async function POST(
           message: "topicId is required",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -44,16 +44,14 @@ export async function POST(
   const topicRepo = new PrismaTopicRepository();
   const embeddingProvider = new OllamaEmbeddingProvider({
     baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    model:
-      process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest",
+    model: process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:latest",
   });
 
   const embeddingDim = process.env.EMBEDDING_DIM
     ? Number.parseInt(process.env.EMBEDDING_DIM, 10)
     : DEFAULT_EMBEDDING_DIM;
 
-  const embeddingModel =
-    process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text-v2-moe:latest";
+  const embeddingModel = process.env.OLLAMA_EMBED_MODEL || "qwen3-embedding:4b";
 
   const useCase = new RebuildTopicEmbedding(topicRepo, embeddingProvider, {
     embeddingDim,
@@ -79,7 +77,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: { code, message } },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 

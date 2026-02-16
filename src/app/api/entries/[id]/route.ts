@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UpdateEntry } from "@/application/use-cases/UpdateEntry";
-import { DeleteEntry } from "@/application/use-cases/DeleteEntry";
+import { UpdateEntry } from "@/application/use-cases/entries/UpdateEntry";
+import { DeleteEntry } from "@/application/use-cases/entries/DeleteEntry";
 import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 
@@ -14,10 +14,10 @@ interface RouteContext {
  */
 export async function PATCH(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -29,7 +29,7 @@ export async function PATCH(
   if (!entryId || entryId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "entryId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -47,7 +47,7 @@ export async function PATCH(
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -83,7 +83,10 @@ export async function PATCH(
         statusCode = 400;
     }
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ entry: result.value }, { status: 200 });
@@ -95,10 +98,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  context: RouteContext,
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -110,7 +113,7 @@ export async function DELETE(
   if (!entryId || entryId.trim().length === 0) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "entryId is required" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -125,7 +128,10 @@ export async function DELETE(
     // Map error codes to HTTP status codes
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   // 204 No Content for successful deletion

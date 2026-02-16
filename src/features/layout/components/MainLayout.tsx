@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { LogOut } from "lucide-react";
 
@@ -10,16 +11,68 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { isAuthenticated, logout } = useStore();
+  const { user, login, logout } = useStore();
   const router = useRouter();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, router]);
+    // Verify auth state with server
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Unauthorized");
+      })
+      .then((data) => {
+        if (data?.user) {
+          Sentry.setUser({ id: data.user.id, email: data.user.email });
+          Sentry.addBreadcrumb({
+            category: "auth",
+            message: "Authenticated user loaded in main layout",
+            level: "info",
+          });
+          login(data.user);
+        } else {
+          throw new Error("No user");
+        }
+      })
+      .catch(() => {
+        Sentry.setUser(null);
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: "Auth check failed, redirecting to login",
+          level: "warning",
+        });
+        logout();
+        router.push("/login");
+      })
+      .finally(() => setChecking(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!isAuthenticated) return null;
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Logout request completed",
+        level: "info",
+      });
+    } catch {
+      Sentry.addBreadcrumb({
+        category: "auth",
+        message: "Logout request failed, continuing client logout",
+        level: "warning",
+      });
+      // Proceed with client-side logout even if API fails
+    }
+    Sentry.setUser(null);
+    logout();
+    router.push("/login");
+  };
+
+  if (checking || !user) return null;
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
@@ -32,7 +85,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Top Bar (Minimal) */}
         <div className="absolute top-6 right-6 z-50">
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-all"
             title="Logout"
             aria-label="Cerrar sesión"

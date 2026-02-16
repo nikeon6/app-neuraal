@@ -6,11 +6,7 @@
  */
 
 import { get, post, patch, del } from "../apiClient";
-import type {
-  ApiEntry,
-  CreateEntryBody,
-  UpdateEntryBody,
-} from "./types";
+import type { ApiEntry, CreateEntryBody, UpdateEntryBody } from "./types";
 
 // ---------------------------------------------------------------------------
 // List
@@ -22,7 +18,7 @@ import type {
  */
 export async function listEntriesByDate(date: string): Promise<ApiEntry[]> {
   const data = await get<{ entries: ApiEntry[] }>(
-    `/api/entries?date=${encodeURIComponent(date)}`
+    `/api/entries?date=${encodeURIComponent(date)}`,
   );
   return data.entries;
 }
@@ -32,9 +28,7 @@ export async function listEntriesByDate(date: string): Promise<ApiEntry[]> {
 // ---------------------------------------------------------------------------
 
 /** POST /api/entries — creates a new entry. */
-export async function createEntry(
-  input: CreateEntryBody
-): Promise<ApiEntry> {
+export async function createEntry(input: CreateEntryBody): Promise<ApiEntry> {
   const data = await post<{ entry: ApiEntry }>("/api/entries", input);
   return data.entry;
 }
@@ -49,7 +43,7 @@ export async function createEntry(
  */
 export async function updateEntry(
   id: string,
-  input: UpdateEntryBody
+  input: UpdateEntryBody,
 ): Promise<ApiEntry> {
   const data = await patch<{ entry: ApiEntry }>(`/api/entries/${id}`, input);
   return data.entry;
@@ -73,13 +67,88 @@ export async function deleteEntry(id: string): Promise<void> {
  * The summary arrives via notification when ready.
  */
 export async function summarizeEntry(
-  id: string
+  id: string,
 ): Promise<{ requestId: string; notificationId: string; message: string }> {
   return await post<{
     requestId: string;
     notificationId: string;
     message: string;
   }>(`/api/entries/${id}/summarize`);
+}
+
+// ---------------------------------------------------------------------------
+// Clear Summary
+// ---------------------------------------------------------------------------
+
+/**
+ * DELETE /api/entries/{id}/summary — clears the AI-generated summary.
+ */
+export async function clearSummary(id: string): Promise<void> {
+  await del(`/api/entries/${id}/summary`);
+}
+
+// ---------------------------------------------------------------------------
+// Vision AI (OCR + Image Description)
+// ---------------------------------------------------------------------------
+
+/** Vision analysis mode: "scan" extracts text, "describe" describes the image. */
+export type VisionMode = "scan" | "describe";
+
+/**
+ * POST /api/entries/{id}/ocr — analyzes an image attachment with Ollama Vision.
+ * Synchronous call — waits for Ollama Vision to process (5-60s typically).
+ *
+ * @param mode - "scan" for OCR text extraction, "describe" for image description.
+ */
+export async function analyzeImage(
+  entryId: string,
+  attachmentId: string,
+  mode: VisionMode = "scan",
+): Promise<{ attachmentId: string; extractedText: string; mode: VisionMode }> {
+  return await post<{
+    attachmentId: string;
+    extractedText: string;
+    mode: VisionMode;
+  }>(
+    `/api/entries/${entryId}/ocr`,
+    { attachmentId, mode },
+    { timeoutMs: 120_000 }, // Vision can take 15-60s on CPU; generous timeout for cold starts
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Transcribe YouTube Video (async)
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/entries/{id}/transcription — requests async YouTube transcription (202).
+ * The transcription arrives via notification when ready, and is injected
+ * into the YouTube node in the entry content.
+ */
+export async function requestTranscription(
+  entryId: string,
+  youtubeUrl: string,
+): Promise<{ requestId: string; notificationId: string; message: string }> {
+  return await post<{
+    requestId: string;
+    notificationId: string;
+    message: string;
+  }>(`/api/entries/${entryId}/transcription`, { youtubeUrl });
+}
+
+// ---------------------------------------------------------------------------
+// Reorder
+// ---------------------------------------------------------------------------
+
+/**
+ * PATCH /api/entries/reorder — bulk-updates display order for a given date.
+ * Returns 204 No Content on success.
+ */
+export async function reorderEntries(
+  date: string,
+  orderedIds: string[],
+): Promise<void> {
+  await patch("/api/entries/reorder", { date, orderedIds });
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +161,7 @@ export async function summarizeEntry(
  */
 export async function autoTopicEntry(
   id: string,
-  threshold?: number
+  threshold?: number,
 ): Promise<{
   entryId: string;
   selectedTopicId: string | null;

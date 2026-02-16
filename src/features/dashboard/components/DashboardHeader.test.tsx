@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DashboardHeader, type DashboardHeaderProps } from "./DashboardHeader";
 
@@ -11,8 +11,43 @@ vi.mock("date-fns", () => ({
     if (formatStr === "MMMM d") return "February 4";
     if (formatStr === "yyyy") return "2026";
     if (formatStr === "EEEE") return "Wednesday";
+    if (formatStr === "MMM d") {
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    }
+    if (formatStr === "d") return String(date.getDate());
     return "mocked-date";
   },
+  startOfWeek: (date: Date, opts?: { weekStartsOn?: number }) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const start = opts?.weekStartsOn ?? 0;
+    const diff = (day - start + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return d;
+  },
+  endOfWeek: (date: Date, opts?: { weekStartsOn?: number }) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const start = opts?.weekStartsOn ?? 0;
+    const diff = (6 - day + start) % 7;
+    d.setDate(d.getDate() + diff);
+    return d;
+  },
+  getISOWeek: () => 6,
 }));
 
 // ============================================================================
@@ -34,13 +69,10 @@ vi.mock("framer-motion", () => ({
 // ============================================================================
 
 const mockOnChangeSection = vi.fn();
-const mockOnNotificationsClick = vi.fn();
-
 const defaultProps: DashboardHeaderProps = {
   section: "daily",
   onChangeSection: mockOnChangeSection,
   selectedDate: new Date(2026, 1, 4), // February 4, 2026
-  onNotificationsClick: mockOnNotificationsClick,
 };
 
 // ============================================================================
@@ -68,11 +100,21 @@ describe("DashboardHeader", () => {
       renderHeader();
 
       // All tabs should be accessible by aria-label
-      expect(screen.getByRole("button", { name: "Daily Log" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Weekly Recap" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Stickies" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Topics" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Daily Log" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Weekly Recap" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Stickies" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Topics" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Settings" }),
+      ).toBeInTheDocument();
     });
 
     it("marks active tab with aria-current='page'", () => {
@@ -114,74 +156,67 @@ describe("DashboardHeader", () => {
   });
 
   describe("Responsive Behavior (Accessibility)", () => {
-    it("each tab has visible text with 'hidden sm:inline' class for desktop display", () => {
+    it("each tab exposes a stable accessible name", () => {
+      renderHeader();
+
+      expect(
+        screen.getByRole("button", { name: "Daily Log" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Weekly Recap" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Stickies" }),
+      ).toBeInTheDocument();
+    });
+
+    it("daily tab exposes duplicated text nodes for responsive rendering", () => {
       renderHeader();
 
       const dailyTab = screen.getByRole("button", { name: "Daily Log" });
-      
-      // Find the visible text span (hidden on mobile, shown on sm+)
-      const visibleTextSpan = dailyTab.querySelector(".hidden.sm\\:inline");
-      expect(visibleTextSpan).toBeInTheDocument();
-      expect(visibleTextSpan).toHaveTextContent("Daily Log");
+      expect(within(dailyTab).getAllByText("Daily Log")).toHaveLength(2);
     });
 
-    it("each tab has sr-only text for screen readers on mobile", () => {
+    it("all tabs include both responsive label variants", () => {
       renderHeader();
 
-      const dailyTab = screen.getByRole("button", { name: "Daily Log" });
-      
-      // Find the sr-only span for mobile accessibility
-      const srOnlySpan = dailyTab.querySelector(".sr-only");
-      expect(srOnlySpan).toBeInTheDocument();
-      expect(srOnlySpan).toHaveTextContent("Daily Log");
-    });
+      const tabLabels = [
+        "Daily Log",
+        "Weekly Recap",
+        "Stickies",
+        "Topics",
+        "Settings",
+      ];
 
-    it("all tabs have both responsive text elements", () => {
-      renderHeader();
-
-      const tabLabels = ["Daily Log", "Weekly Recap", "Stickies", "Topics", "Settings"];
-      
       for (const label of tabLabels) {
         const tab = screen.getByRole("button", { name: label });
-        
-        // Should have hidden sm:inline for desktop
-        const desktopText = tab.querySelector(".hidden.sm\\:inline");
-        expect(desktopText).toBeInTheDocument();
-        
-        // Should have sr-only for mobile accessibility
-        const mobileText = tab.querySelector(".sr-only");
-        expect(mobileText).toBeInTheDocument();
+        expect(within(tab).getAllByText(label)).toHaveLength(2);
       }
     });
   });
 
-  describe("Notifications Button", () => {
-    it("renders notifications button with aria-label", () => {
-      renderHeader();
+  describe("Notification Slot", () => {
+    it("renders the notificationSlot when provided", () => {
+      renderHeader({
+        notificationSlot: (
+          <button type="button" aria-label="Notifications">
+            Bell
+          </button>
+        ),
+      });
 
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      expect(notificationsBtn).toBeInTheDocument();
-      expect(notificationsBtn).toHaveAttribute("aria-label", "Notifications");
+      expect(
+        screen.getByRole("button", { name: "Notifications" }),
+      ).toBeInTheDocument();
     });
 
-    it("calls onNotificationsClick when clicked", async () => {
-      const user = userEvent.setup();
-      renderHeader();
+    it("renders nothing in the slot area when no notificationSlot is provided", () => {
+      renderHeader({ notificationSlot: undefined });
 
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      await user.click(notificationsBtn);
-
-      expect(mockOnNotificationsClick).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not throw when onNotificationsClick is not provided", async () => {
-      const user = userEvent.setup();
-      renderHeader({ onNotificationsClick: undefined });
-
-      const notificationsBtn = screen.getByRole("button", { name: "Notifications" });
-      
-      // Should not throw
-      await expect(user.click(notificationsBtn)).resolves.not.toThrow();
+      // No notifications button should be present
+      expect(
+        screen.queryByRole("button", { name: "Notifications" }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -190,7 +225,9 @@ describe("DashboardHeader", () => {
       renderHeader({ section: "daily", selectedDate: new Date(2026, 1, 4) });
 
       // Should show the date in the title
-      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/February 4/i);
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        /February 4/i,
+      );
     });
 
     it("displays section label when section is not 'daily'", () => {
@@ -200,11 +237,27 @@ describe("DashboardHeader", () => {
       expect(heading).toHaveTextContent("Topics");
     });
 
-    it("displays 'Weekly Recap' title for weeklyRecap section", () => {
-      renderHeader({ section: "weeklyRecap" });
+    it("displays dynamic week date range for weeklyRecap section", () => {
+      // Feb 4, 2026 is a Wednesday. Week (Mon-Sun): Feb 2 — Feb 8
+      renderHeader({
+        section: "weeklyRecap",
+        selectedDate: new Date(2026, 1, 4),
+      });
 
       const heading = screen.getByRole("heading", { level: 1 });
-      expect(heading).toHaveTextContent("Weekly Recap");
+      // Same month: "Feb 2 — 8"
+      expect(heading).toHaveTextContent(/Feb 2/);
+      expect(heading).toHaveTextContent(/8/);
+    });
+
+    it("displays week number in kicker for weeklyRecap section", () => {
+      renderHeader({
+        section: "weeklyRecap",
+        selectedDate: new Date(2026, 1, 4),
+      });
+
+      // Kicker should show "Week X · YYYY"
+      expect(screen.getByText(/Week \d+/)).toBeInTheDocument();
     });
 
     it("displays kicker label for all sections", () => {
@@ -224,7 +277,9 @@ describe("DashboardHeader", () => {
     it("has navigation with accessible label", () => {
       renderHeader();
 
-      const nav = screen.getByRole("navigation", { name: "Dashboard navigation" });
+      const nav = screen.getByRole("navigation", {
+        name: "Dashboard navigation",
+      });
       expect(nav).toBeInTheDocument();
     });
   });

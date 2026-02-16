@@ -1,6 +1,6 @@
 /**
  * Base types for the Neuraal application
- * 
+ *
  * These are foundational types used across all domain entities.
  * Keep this file free of business logic - only type definitions.
  */
@@ -19,7 +19,7 @@ export type ID = string;
  * Specific ID types for each entity.
  * These are aliases now, but can be converted to branded types
  * for stricter type checking if needed.
- * 
+ *
  * @example Converting to branded types:
  * type EntryId = string & { readonly __brand: 'EntryId' };
  */
@@ -32,7 +32,7 @@ export type UserId = ID;
 /**
  * Default topic IDs (built-in system topics).
  * These are the predefined topics available to all users.
- * 
+ *
  * User-created topics use TopicId (UUID format).
  */
 export type DefaultTopicId =
@@ -50,7 +50,7 @@ export type DefaultTopicId =
 /**
  * ISO 8601 date string without time component.
  * Format: "YYYY-MM-DD" (e.g., "2024-01-15")
- * 
+ *
  * Used for: Entry dates, calendar days.
  * Entries only have a date, no time.
  */
@@ -59,7 +59,7 @@ export type ISODate = string;
 /**
  * ISO 8601 datetime string with timezone offset.
  * Format: "YYYY-MM-DDTHH:mm:ss.sssZ" or "YYYY-MM-DDTHH:mm:ss±HH:mm"
- * 
+ *
  * Used for: Reminders, timestamps in metadata.
  */
 export type ISODateTime = string;
@@ -67,7 +67,7 @@ export type ISODateTime = string;
 /**
  * IANA timezone identifier.
  * Examples: "America/New_York", "Europe/Madrid", "UTC"
- * 
+ *
  * Used alongside ISODateTime for reminder scheduling.
  */
 export type Timezone = string;
@@ -78,7 +78,7 @@ export type Timezone = string;
 
 /**
  * Common metadata fields for all persisted entities.
- * 
+ *
  * - createdAt: When the entity was first created
  * - updatedAt: When the entity was last modified
  * - deletedAt: Soft delete timestamp (undefined = not deleted)
@@ -88,7 +88,7 @@ export interface EntityMeta {
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
   readonly deletedAt?: ISODateTime;
-  /** 
+  /**
    * Version number for optimistic locking.
    * Incremented on each update. Used to detect conflicts in autosave.
    * Backend rejects updates if version doesn't match.
@@ -108,7 +108,8 @@ export type RequireKeys<T, K extends keyof T> = T & Required<Pick<T, K>>;
 /**
  * Makes all properties optional except specified keys.
  */
-export type PartialExcept<T, K extends keyof T> = Partial<Omit<T, K>> & Pick<T, K>;
+export type PartialExcept<T, K extends keyof T> = Partial<Omit<T, K>> &
+  Pick<T, K>;
 
 /**
  * Extracts the ID type from an entity.

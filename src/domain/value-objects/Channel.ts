@@ -8,7 +8,12 @@ export class Channel {
   private readonly value: string;
 
   // Allowed channels for MVP
-  static readonly ALLOWED_CHANNELS = ["whatsapp", "email", "push", "sms"] as const;
+  static readonly ALLOWED_CHANNELS = [
+    "whatsapp",
+    "email",
+    "push",
+    "sms",
+  ] as const;
 
   private constructor(value: string) {
     this.value = value;
@@ -25,8 +30,14 @@ export class Channel {
 
     const normalized = value.trim().toLowerCase();
 
-    if (!Channel.ALLOWED_CHANNELS.includes(normalized as typeof Channel.ALLOWED_CHANNELS[number])) {
-      return err(`Invalid channel. Allowed: ${Channel.ALLOWED_CHANNELS.join(", ")}`);
+    if (
+      !Channel.ALLOWED_CHANNELS.includes(
+        normalized as (typeof Channel.ALLOWED_CHANNELS)[number],
+      )
+    ) {
+      return err(
+        `Invalid channel. Allowed: ${Channel.ALLOWED_CHANNELS.join(", ")}`,
+      );
     }
 
     return ok(new Channel(normalized));

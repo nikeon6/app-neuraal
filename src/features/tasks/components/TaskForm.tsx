@@ -40,7 +40,7 @@ export function TaskForm() {
         setIsSubmitting(false);
       }
     },
-    [dateKey, newTitle, newTopicId, queryClient, isSubmitting]
+    [dateKey, newTitle, newTopicId, queryClient, isSubmitting],
   );
 
   return (
@@ -81,7 +81,9 @@ export function TaskForm() {
           className="px-4 py-2 bg-primary text-primary-foreground rounded-xl flex items-center gap-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
         >
           <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">{isSubmitting ? "..." : "Add"}</span>
+          <span className="hidden sm:inline">
+            {isSubmitting ? "..." : "Add"}
+          </span>
         </button>
       </div>
     </form>

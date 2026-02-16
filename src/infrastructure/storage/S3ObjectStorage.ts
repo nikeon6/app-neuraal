@@ -25,6 +25,7 @@ export class S3ObjectStorage implements ObjectStoragePort {
     this.client = new S3Client({
       region: config.region,
       ...(config.endpoint && { endpoint: config.endpoint }),
+      forcePathStyle: config.forcePathStyle,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
@@ -35,7 +36,7 @@ export class S3ObjectStorage implements ObjectStoragePort {
   async getPresignedPutUrl(
     storageKey: string,
     mimeType: string,
-    sizeBytes: number
+    sizeBytes: number,
   ): Promise<string> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -71,5 +72,19 @@ export class S3ObjectStorage implements ObjectStoragePort {
     });
 
     await this.client.send(command);
+  }
+
+  async getObjectBuffer(storageKey: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: storageKey,
+    });
+
+    const response = await this.client.send(command);
+    if (!response.Body) {
+      throw new Error(`Object not found or empty: ${storageKey}`);
+    }
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
   }
 }

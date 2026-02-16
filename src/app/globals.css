@@ -77,17 +77,79 @@
     box-sizing: border-box;
   }
 
-  html,
-  body {
+  html {
     height: 100%;
+    overflow: hidden;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Fixed positioning prevents mobile browsers from scrolling the document
+       (which shows empty space behind the URL bar / keyboard).
+       Internal scroll containers (TasksContainer, calendar) still work normally. */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
     margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      Helvetica,
+      Arial,
+      sans-serif;
+  }
+}
+
+/* Landscape mobile: hide bubbles lane, calendar, and floating topics overlay.
+   Tasks area fills the entire screen since it has flex-1.
+   Only targets short+wide viewports (phones in landscape), not desktop monitors. */
+@media screen and (orientation: landscape) and (max-height: 550px) {
+  .landscape-mobile-hidden {
+    display: none !important;
+  }
+
+  /* Compact tasks area: reduce top padding to maximize vertical space */
+  .landscape-compact-tasks {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Compact header: reduce all vertical spacing */
+  .landscape-compact-header {
+    margin-bottom: 0.125rem !important;
+  }
+
+  /* Nav: tighter vertical spacing but keep some gap to the title */
+  .landscape-compact-header nav {
+    margin-bottom: 0.375rem !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Title: smaller font for landscape */
+  .landscape-compact-header h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  /* Reduce spacing between kicker and title */
+  .landscape-compact-header > div > div {
+    margin-top: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* Hide day-of-week subtitle ("Saturday") to save vertical space */
+  .landscape-compact-header h1 + p {
+    display: none !important;
   }
 }
 
@@ -142,7 +204,7 @@
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-/* Floating topics (nodes) styles */
+/* Floating topics (nodes) styles — glass/glow bubble aesthetic */
 .topic-node {
   position: absolute;
   z-index: 30;
@@ -151,25 +213,46 @@
   place-items: center;
   color: rgba(255, 255, 255, 0.95);
   font-weight: 700;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 60px rgba(0, 0, 0, 0.15);
-  border: 3px solid rgba(255, 255, 255, 0.15);
   user-select: none;
   cursor: grab;
   padding: 0;
   margin: 0;
-  background: transparent;
   font-family: inherit;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden; /* Clip text to the circular boundary */
+  /* Glass appearance: topic color is set as background via inline style.
+     We override it here to be semi-transparent and add the glass layers. */
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 0 16px rgba(255, 255, 255, 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    0 0 20px var(--topic-glow, rgba(0, 0, 0, 0));
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .topic-node:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 80px rgba(0, 0, 0, 0.2);
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.1),
+    0 6px 24px rgba(0, 0, 0, 0.35),
+    0 0 32px var(--topic-glow, rgba(0, 0, 0, 0));
+}
+
+.topic-node--selected {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    0 0 28px var(--topic-glow, rgba(0, 0, 0, 0));
 }
 
 .topic-node:active {
   cursor: grabbing;
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Junction dot (neuron point) - where branches split */
@@ -183,7 +266,8 @@
 
 /* Pulse animation for junction dot when topic is highlighted */
 @keyframes pulseDot {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.95;
   }
@@ -194,7 +278,8 @@
 }
 
 @keyframes pulseHalo {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.14;
   }
@@ -214,20 +299,67 @@
 
 .topic-label {
   text-align: center;
-  padding: 8px;
+  padding: 2px;
   width: 100%;
+  /* Use ~80% of diameter — the circle clips the rest anyway */
+  max-width: 80%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
 }
 
 .topic-name {
-  font-size: 14px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  letter-spacing: 0.5px;
+  /* Scale font with bubble radius via CSS custom property --node-r
+     Small bubbles (r=28) → ~8px, large bubbles (r=65) → 13px */
+  font-size: clamp(7px, calc(var(--node-r, 30) * 0.28px), 13px);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.2px;
+  font-weight: 600;
+  opacity: 0.95;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.15;
+  /* Multi-word names: allow up to 2 lines, wrap only at spaces */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Single-word names: force 1 line, truncate with ellipsis — never split mid-word */
+.topic-name--single {
+  display: block;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
 }
 
 .topic-count {
-  font-size: 12px;
-  opacity: 0.85;
-  font-weight: 600;
+  /* Scale font with bubble radius */
+  font-size: clamp(8px, calc(var(--node-r, 30) * 0.35px), 15px);
+  font-weight: 700;
+  opacity: 0.95;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  line-height: 1.15;
+  flex-shrink: 0;
+}
+
+/* Topic color dots — glass style matching floating bubbles.
+   Usage: add class "topic-dot" + set --dot-color via inline style.
+   The dot uses the color as a semi-transparent fill with a subtle border and glow. */
+.topic-dot {
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--dot-color, #6b7280) 20%,
+    color-mix(in srgb, var(--dot-color, #6b7280) 50%, transparent) 100%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--dot-color, #6b7280) 40%, transparent);
+  box-shadow: 0 0 6px
+    color-mix(in srgb, var(--dot-color, #6b7280) 30%, transparent);
 }
 
 /* Wires (SVG connections) */
@@ -239,7 +371,9 @@
 }
 
 .wires path {
-  transition: stroke-opacity 220ms ease, stroke-width 220ms ease;
+  transition:
+    stroke-opacity 220ms ease,
+    stroke-width 220ms ease;
 }
 
 /* Task pills in sidebar */
@@ -360,4 +494,103 @@
     min-width: 50px;
     min-height: 50px;
   }
+}
+
+/* ============================================================================
+   AI Summary Markdown Styles
+   ============================================================================ */
+.summary-markdown h1,
+.summary-markdown h2,
+.summary-markdown h3 {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.75em;
+  margin-bottom: 0.35em;
+}
+.summary-markdown h1 {
+  font-size: 1.1em;
+}
+.summary-markdown h2 {
+  font-size: 1em;
+}
+.summary-markdown h3 {
+  font-size: 0.95em;
+}
+
+.summary-markdown p {
+  margin-bottom: 0.5em;
+}
+.summary-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.summary-markdown ul,
+.summary-markdown ol {
+  padding-left: 1.25em;
+  margin-bottom: 0.5em;
+}
+.summary-markdown ul {
+  list-style-type: disc;
+}
+.summary-markdown ol {
+  list-style-type: decimal;
+}
+
+.summary-markdown li {
+  margin-bottom: 0.2em;
+}
+.summary-markdown li::marker {
+  color: rgba(56, 189, 248, 0.4);
+}
+
+.summary-markdown strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+.summary-markdown em {
+  font-style: italic;
+}
+
+.summary-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.summary-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5em;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+.summary-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.summary-markdown blockquote {
+  border-left: 3px solid rgba(56, 189, 248, 0.3);
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.summary-markdown a {
+  color: rgb(56, 189, 248);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.summary-markdown a:hover {
+  color: rgb(125, 211, 252);
+}
+
+.summary-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.75em 0;
 }

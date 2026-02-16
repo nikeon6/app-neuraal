@@ -1,6 +1,6 @@
 /**
  * Business rules and constants
- * 
+ *
  * This file contains application-wide constants and business rules
  * that are used across multiple features.
  */
@@ -47,12 +47,3 @@ export const TOPICS: Record<DefaultTopicId, DefaultTopicConfig> = {
     anchor: { xPct: 0.45, yPct: 0.7 },
   },
 };
-
-// Days array helper (1-31)
-export const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
-
-// Topic IDs list for iteration
-export const TOPIC_IDS = Object.keys(TOPICS) as DefaultTopicId[];
-
-// Re-export attachment constants
-export * from "./attachments";

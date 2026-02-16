@@ -24,8 +24,12 @@ export interface EntryDTO {
   topicId: string | null;
   completed: boolean | null;
   version: number;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  summary: string | null;
+  summaryFormat: string | null;
+  summaryUpdatedAt: string | null;
 }
 
 /**

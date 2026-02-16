@@ -1,6 +1,6 @@
 /**
  * UI types for the Topics feature
- * 
+ *
  * These are presentation/layout types specific to the floating
  * topic bubbles visualization. Not domain types.
  */
@@ -14,7 +14,7 @@ import type { TopicId, DefaultTopicId } from "@/shared/types";
 /**
  * Visual anchor position for floating topic bubbles.
  * Values are percentages (0-1) relative to container.
- * 
+ *
  * Used to set default positions when topics are first rendered.
  */
 export interface TopicAnchor {
@@ -129,7 +129,7 @@ export type { DefaultTopicId } from "@/shared/types";
 /**
  * Configuration for default (system) topics.
  * These are the built-in topics with UI-specific anchor positioning.
- * 
+ *
  * Note: Does NOT extend Topic union to avoid type complexity.
  * This is a pure configuration type for the constants/TOPICS object.
  */

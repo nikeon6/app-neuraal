@@ -8,11 +8,23 @@ export interface EnqueueReminderData {
 
 /**
  * Data for enqueuing an entry summary job.
+ * plainTextForSummary: when set (e.g. truncated), worker sends this to n8n instead of extracting from entry.
  */
 export interface EnqueueEntrySummaryData {
   requestId: string;
   userId: string;
   entryId: string;
+  plainTextForSummary?: string;
+}
+
+/**
+ * Data for enqueuing a transcription job.
+ */
+export interface EnqueueEntryTranscriptionData {
+  requestId: string;
+  userId: string;
+  entryId: string;
+  youtubeUrl: string;
 }
 
 /**
@@ -31,4 +43,10 @@ export interface QueuePort {
    * Uses requestId as jobId for idempotency.
    */
   enqueueEntrySummary(data: EnqueueEntrySummaryData): Promise<void>;
+
+  /**
+   * Enqueues an entry transcription job to be processed immediately.
+   * Uses requestId as jobId for idempotency.
+   */
+  enqueueEntryTranscription(data: EnqueueEntryTranscriptionData): Promise<void>;
 }

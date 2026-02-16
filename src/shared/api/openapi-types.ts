@@ -4,1127 +4,2189 @@
  */
 
 export interface paths {
-    "/api/topics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List user topics */
-        get: operations["listTopics"];
-        put?: never;
-        /** Create a topic */
-        post: operations["createTopic"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/api/auth/register": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/topics/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a topic */
-        delete: operations["deleteTopic"];
-        options?: never;
-        head?: never;
-        /** Update a topic */
-        patch: operations["updateTopic"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Register a new user */
+    post: operations["registerUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/topics/{id}/embedding/rebuild": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rebuild topic embedding
-         * @description Recalculates the embedding vector for a topic using Ollama. Useful after renaming.
-         */
-        post: operations["rebuildTopicEmbedding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Log in with email and password */
+    post: operations["loginUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/entries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List entries by date */
-        get: operations["listEntries"];
-        put?: never;
-        /** Create an entry */
-        post: operations["createEntry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Refresh access token
+     * @description Uses the refresh_token cookie to issue new auth tokens. Old refresh token is rotated.
+     */
+    post: operations["refreshSession"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/entries/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete an entry */
-        delete: operations["deleteEntry"];
-        options?: never;
-        head?: never;
-        /**
-         * Update an entry
-         * @description Updates entry fields with optimistic concurrency (version check).
-         */
-        patch: operations["updateEntry"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Log out (revoke tokens) */
+    post: operations["logoutUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/entries/{id}/summarize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request entry summary (async)
-         * @description Enqueues an async AI summary generation. Returns 202 Accepted.
-         */
-        post: operations["requestEntrySummary"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get current authenticated user */
+    get: operations["getMe"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/recover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/entries/{id}/auto-topic": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Auto-assign topic to entry
-         * @description Generates an embedding for the entry text, finds the best matching topic by cosine similarity, and assigns it if the score meets the threshold.
-         */
-        post: operations["autoAssignTopic"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Request password reset
+     * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).
+     */
+    post: operations["requestPasswordReset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/topics": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/reminders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a reminder */
-        post: operations["createReminder"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List user topics */
+    get: operations["listTopics"];
+    put?: never;
+    /** Create a topic */
+    post: operations["createTopic"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/topics/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/reminders/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update a reminder */
-        patch: operations["updateReminder"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a topic */
+    delete: operations["deleteTopic"];
+    options?: never;
+    head?: never;
+    /** Update a topic */
+    patch: operations["updateTopic"];
+    trace?: never;
+  };
+  "/api/topics/{id}/embedding/rebuild": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List notifications */
-        get: operations["listNotifications"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Rebuild topic embedding
+     * @description Recalculates the embedding vector for a topic using Ollama. Useful after renaming.
+     */
+    post: operations["rebuildTopicEmbedding"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/notifications/{id}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mark notification as read */
-        post: operations["markNotificationRead"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List entries by date */
+    get: operations["listEntries"];
+    put?: never;
+    /** Create an entry */
+    post: operations["createEntry"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/automations/entry-summary/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Entry summary callback (from n8n)
-         * @description Callback endpoint for n8n to deliver AI-generated summaries. Authenticated via HMAC signature (NOT x-user-id).
-         */
-        post: operations["entrySummaryCallback"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete an entry */
+    delete: operations["deleteEntry"];
+    options?: never;
+    head?: never;
+    /**
+     * Update an entry
+     * @description Updates entry fields with optimistic concurrency (version check).
+     */
+    patch: operations["updateEntry"];
+    trace?: never;
+  };
+  "/api/entries/reorder": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/attachments/init": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Initialize attachment upload
-         * @description Creates an attachment record and returns a presigned PUT URL for uploading.
-         */
-        post: operations["initAttachmentUpload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Reorder entries for a date
+     * @description Bulk-updates sortOrder for all entries on a given date. The order of IDs in the array determines the new sort order (index 0 = first).
+     */
+    patch: operations["reorderEntries"];
+    trace?: never;
+  };
+  "/api/entries/{id}/summarize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/attachments/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Complete attachment upload
-         * @description Marks an attachment as ready after successful upload to S3.
-         */
-        post: operations["completeAttachmentUpload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Request entry summary (async)
+     * @description Enqueues an async AI summary generation. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409), max input (400). Returns 202 Accepted when accepted.
+     */
+    post: operations["requestEntrySummary"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries/{id}/transcribe-youtube": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/attachments/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete an attachment */
-        delete: operations["deleteAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Request YouTube transcript for an entry (async)
+     * @description Enqueues an async YouTube transcription. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409). Returns 202 Accepted when queued.
+     */
+    post: operations["requestEntryTranscript"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries/{id}/ocr": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/attachments/{id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get attachment download URL */
-        get: operations["getAttachmentDownloadUrl"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Extract text or describe an image attachment (OCR / vision)
+     * @description Analyzes an image attachment using Ollama Vision. Mode 'scan' extracts text (OCR); mode 'describe' generates a description. Synchronous call. Subject to guardrails: rate limit (429), monthly quota (403), concurrency (409).
+     */
+    post: operations["extractImageText"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ai/usage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /**
+     * Get AI usage and limits
+     * @description Returns current usage and limits for the authenticated user across all AI actions, or filtered by a single action. Returns an object with `month` and `items` array.
+     */
+    get: operations["getAiUsage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/storage/usage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get user storage usage and limits
+     * @description Returns the authenticated user's current storage usage (total bytes) and configured limits (max per user, max per entry).
+     */
+    get: operations["getStorageUsage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries/{id}/auto-topic": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Auto-assign topic to entry
+     * @description Generates an embedding for the entry text, finds the best matching topic by cosine similarity, and assigns it if the score meets the threshold.
+     */
+    post: operations["autoAssignTopic"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/entries/{id}/attachments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List attachments for an entry */
+    get: operations["listEntryAttachments"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/reminders": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a reminder
+     * @description Creates a new reminder for an entry. When channel is 'whatsapp', AI guardrails are enforced: rate limit (429), monthly quota (403), concurrency (409).
+     */
+    post: operations["createReminder"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/reminders/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update a reminder */
+    patch: operations["updateReminder"];
+    trace?: never;
+  };
+  "/api/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List notifications */
+    get: operations["listNotifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/notifications/{id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark notification as read */
+    post: operations["markNotificationRead"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/stickies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List stickies */
+    get: operations["listStickies"];
+    put?: never;
+    /** Create sticky */
+    post: operations["createSticky"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/stickies/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete sticky */
+    delete: operations["deleteSticky"];
+    options?: never;
+    head?: never;
+    /** Update sticky */
+    patch: operations["updateSticky"];
+    trace?: never;
+  };
+  "/api/automations/entry-summary/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Entry summary callback (from n8n)
+     * @description Callback endpoint for n8n to deliver AI-generated summaries. Authenticated via HMAC signature (NOT x-user-id).
+     */
+    post: operations["entrySummaryCallback"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/automations/entry-transcript/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Entry transcript callback (from n8n)
+     * @description Callback endpoint for n8n to deliver YouTube transcriptions. Authenticated via HMAC signature (NOT user auth).
+     */
+    post: operations["entryTranscriptCallback"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/attachments/init": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Initialize attachment upload
+     * @description Creates an attachment record and returns a presigned PUT URL for uploading.
+     */
+    post: operations["initAttachmentUpload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/attachments/complete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Complete attachment upload
+     * @description Marks an attachment as ready after successful upload to S3.
+     */
+    post: operations["completeAttachmentUpload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/attachments/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete an attachment */
+    delete: operations["deleteAttachment"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/attachments/{id}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get attachment download URL */
+    get: operations["getAttachmentDownloadUrl"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        ErrorResponse: {
-            error: {
-                /** @example NOT_FOUND */
-                code: string;
-                /** @example Resource not found */
-                message: string;
-            };
-        };
-        Topic: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            name: string;
-            /** @example #e11d48 */
-            color: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        Entry: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            /** @example 2025-06-15 */
-            date: string;
-            /** @enum {string} */
-            type: "task" | "note";
-            title: string;
-            /** @description TipTap/ProseMirror JSON content */
-            content: {
-                [key: string]: unknown;
-            };
-            topicId?: string | null;
-            /** @description null for notes */
-            completed?: boolean | null;
-            version: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-            summary?: string | null;
-            /** @enum {string|null} */
-            summaryFormat?: "markdown" | "plain" | null;
-            /** Format: date-time */
-            summaryUpdatedAt?: string | null;
-        };
-        Reminder: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            /** Format: uuid */
-            entryId: string;
-            /** Format: date-time */
-            scheduledAt: string;
-            /** @enum {string} */
-            channel: "whatsapp" | "email" | "push" | "sms";
-            message?: string | null;
-            /** @enum {string} */
-            status: "pending" | "sent" | "canceled" | "failed";
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        Notification: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            /** @enum {string} */
-            type: "REMINDER_SENT" | "REMINDER_FAILED" | "REMINDER_CANCELED" | "SUMMARY_IN_PROGRESS" | "SUMMARY_DONE" | "SUMMARY_FAILED";
-            title: string;
-            message: string;
-            /** @enum {string} */
-            status: "unread" | "read";
-            payload?: Record<string, never> | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        Attachment: {
-            /** Format: uuid */
-            id: string;
-            userId: string;
-            /** Format: uuid */
-            entryId: string;
-            storageKey: string;
-            filename: string;
-            mimeType: string;
-            sizeBytes: number;
-            /** @enum {string} */
-            kind: "inline" | "file";
-            /** @enum {string} */
-            status: "pending" | "ready" | "deleted";
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
+  schemas: {
+    UserResponse: {
+      /** Format: uuid */
+      id: string;
+      /** Format: email */
+      email: string;
     };
-    responses: {
-        /** @description Validation error */
-        BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Authentication required */
-        Unauthorized: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Resource not found */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Conflict (duplicate or version mismatch) */
-        Conflict: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Internal server error */
-        InternalError: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
+    ErrorResponse: {
+      error: {
+        /** @example NOT_FOUND */
+        code: string;
+        /** @example Resource not found */
+        message: string;
+        /** @description Optional extra data (e.g. RATE_LIMITED: remaining, resetAt) */
+        details?: Record<string, never>;
+      };
     };
-    parameters: {
-        /** @description Resource UUID */
-        ResourceId: string;
+    Topic: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      name: string;
+      /** @example #e11d48 */
+      color: string;
+      /** Format: date-time */
+      createdAt: string;
     };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    Entry: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      /** @example 2025-06-15 */
+      date: string;
+      /** @enum {string} */
+      type: "task" | "note";
+      title: string;
+      /** @description TipTap/ProseMirror JSON content */
+      content: {
+        [key: string]: unknown;
+      };
+      topicId?: string | null;
+      /** @description null for notes */
+      completed?: boolean | null;
+      version: number;
+      /** @description Display order within a day. Lower values appear first. */
+      sortOrder?: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      summary?: string | null;
+      /** @enum {string|null} */
+      summaryFormat?: "markdown" | "plain" | null;
+      /** Format: date-time */
+      summaryUpdatedAt?: string | null;
+    };
+    Reminder: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      /** Format: uuid */
+      entryId: string;
+      /** Format: date-time */
+      scheduledAt: string;
+      /** @enum {string} */
+      channel: "whatsapp" | "email" | "push" | "sms";
+      message?: string | null;
+      /** @enum {string} */
+      status: "pending" | "sent" | "canceled" | "failed";
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    Notification: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      /** @enum {string} */
+      type:
+        | "REMINDER_SENT"
+        | "REMINDER_FAILED"
+        | "REMINDER_CANCELED"
+        | "SUMMARY_IN_PROGRESS"
+        | "SUMMARY_DONE"
+        | "SUMMARY_FAILED"
+        | "TRANSCRIPTION_IN_PROGRESS"
+        | "TRANSCRIPTION_DONE"
+        | "TRANSCRIPTION_FAILED";
+      title: string;
+      message: string;
+      /** @enum {string} */
+      status: "unread" | "read";
+      /** @description Dynamic payload. May contain entryId, requestId, score, etc. depending on notification type. */
+      payload?: {
+        [key: string]: unknown;
+      } | null;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    Attachment: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      /** Format: uuid */
+      entryId: string;
+      storageKey: string;
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+      /** @enum {string} */
+      kind: "inline" | "file";
+      /** @enum {string} */
+      status: "pending" | "ready" | "deleted";
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    Sticky: {
+      /** Format: uuid */
+      id: string;
+      userId: string;
+      title: string;
+      content: {
+        [key: string]: unknown;
+      };
+      version: number;
+      sortOrder: number;
+      columnIndex: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    /**
+     * @description Available AI action types for usage tracking and guardrails
+     * @enum {string}
+     */
+    AiActionType:
+      | "SUMMARY"
+      | "TRANSCRIPT_YOUTUBE"
+      | "OCR_IMAGE"
+      | "REMINDER_WHATSAPP";
+    /** @description Usage and limits for a single AI action in a given month */
+    AiUsageItem: {
+      action: components["schemas"]["AiActionType"];
+      /** @example 2026-02 */
+      month: string;
+      requestsUsed: number;
+      requestsLimit: number;
+      tokensUsed: number;
+      tokensLimit: number;
+      maxActivePerUser: number;
+      rateLimitPerMinute: number;
+      maxInputChars: number;
+      maxInputBytes: number;
+    };
+  };
+  responses: {
+    /** @description Validation error */
+    BadRequest: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Authentication required */
+    Unauthorized: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Resource not found */
+    NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Conflict (duplicate or version mismatch) */
+    Conflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Forbidden (e.g. quota exceeded) */
+    Forbidden: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Too many requests (rate limit) */
+    RateLimited: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Internal server error */
+    InternalError: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+  };
+  parameters: {
+    /** @description Resource UUID */
+    ResourceId: string;
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listTopics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of topics */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        topics: components["schemas"]["Topic"][];
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
+  registerUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    createTopic: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string;
+          password: string;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    color: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Topic created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        topic: components["schemas"]["Topic"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            409: components["responses"]["Conflict"];
-        };
+      };
     };
-    deleteTopic: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description User registered. Auth cookies set. */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Topic deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": {
+            user: components["schemas"]["UserResponse"];
+          };
         };
+      };
+      400: components["responses"]["BadRequest"];
+      409: components["responses"]["Conflict"];
     };
-    updateTopic: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name?: string;
-                    color?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Topic updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        topic: components["schemas"]["Topic"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
+  };
+  loginUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    rebuildTopicEmbedding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string;
+          password: string;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Embedding rebuilt */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        topicId: string;
-                        /** Format: date-time */
-                        embeddingUpdatedAt: string;
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
+      };
     };
-    listEntries: {
-        parameters: {
-            query: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Login successful. Auth cookies set. */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description List of entries for the given date */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        entries: components["schemas"]["Entry"][];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
+        content: {
+          "application/json": {
+            user: components["schemas"]["UserResponse"];
+          };
         };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
     };
-    createEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    date: string;
-                    /** @enum {string} */
-                    type: "task" | "note";
-                    title: string;
-                    content: {
-                        [key: string]: unknown;
-                    };
-                    topicId?: string | null;
-                    completed?: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Entry created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        entry: components["schemas"]["Entry"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-        };
+  };
+  refreshSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    deleteEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Tokens refreshed. New cookies set. */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Entry deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
         };
+      };
+      401: components["responses"]["Unauthorized"];
     };
-    updateEntry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Current version for optimistic concurrency */
-                    version?: number;
-                    title?: string;
-                    content?: {
-                        [key: string]: unknown;
-                    };
-                    topicId?: string | null;
-                    completed?: boolean;
-                    /**
-                     * @description Change entry type
-                     * @enum {string}
-                     */
-                    type?: "task" | "note";
-                };
-            };
-        };
-        responses: {
-            /** @description Entry updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        entry: components["schemas"]["Entry"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
+  };
+  logoutUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    requestEntrySummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Logged out. Cookies cleared. */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Summary generation started */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        requestId: string;
-                        /** Format: uuid */
-                        notificationId: string;
-                        message: string;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
+        content?: never;
+      };
     };
-    autoAssignTopic: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /** @description Similarity threshold (default 0.35). Higher = stricter. */
-                    threshold?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Auto-topic result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        entryId: string;
-                        /** Format: uuid */
-                        selectedTopicId: string | null;
-                        /** @description Similarity score 0..1 */
-                        score: number | null;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
+  };
+  getMe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    createReminder: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Current user info */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    entryId: string;
-                    /** Format: date-time */
-                    scheduledAt: string;
-                    /** @enum {string} */
-                    channel: "whatsapp" | "email" | "push" | "sms";
-                    message?: string | null;
-                };
-            };
+        content: {
+          "application/json": {
+            user: components["schemas"]["UserResponse"];
+          };
         };
-        responses: {
-            /** @description Reminder created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        reminder: components["schemas"]["Reminder"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
+      };
+      401: components["responses"]["Unauthorized"];
     };
-    updateReminder: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: date-time */
-                    scheduledAt?: string;
-                    /** @enum {string} */
-                    channel?: "whatsapp" | "email" | "push" | "sms";
-                    message?: string | null;
-                    /** @enum {string} */
-                    status?: "canceled";
-                };
-            };
-        };
-        responses: {
-            /** @description Reminder updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        reminder: components["schemas"]["Reminder"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
+  };
+  requestPasswordReset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listNotifications: {
-        parameters: {
-            query?: {
-                /** @description Filter notifications created after this ISO datetime */
-                since?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string;
         };
-        requestBody?: never;
-        responses: {
-            /** @description List of notifications */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        notifications: components["schemas"]["Notification"][];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-        };
+      };
     };
-    markNotificationRead: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description Request processed (always succeeds) */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Notification marked as read */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        success: boolean;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
         };
+      };
+      400: components["responses"]["BadRequest"];
     };
-    entrySummaryCallback: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Unix timestamp in ms used for HMAC computation */
-                "X-Timestamp": string;
-                /** @description HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody) */
-                "X-Signature": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    requestId: string;
-                    userId: string;
-                    /** Format: uuid */
-                    entryId: string;
-                    summary: string;
-                    /** @enum {string} */
-                    format: "markdown" | "plain";
-                };
-            };
-        };
-        responses: {
-            /** @description Summary processed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        success: boolean;
-                        alreadyProcessed?: boolean;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
+  };
+  listTopics: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    initAttachmentUpload: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description List of topics */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    entryId: string;
-                    filename: string;
-                    mimeType: string;
-                    sizeBytes: number;
-                    /** @enum {string} */
-                    kind: "inline" | "file";
-                };
-            };
+        content: {
+          "application/json": {
+            topics: components["schemas"]["Topic"][];
+          };
         };
-        responses: {
-            /** @description Upload initialized */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        attachment: components["schemas"]["Attachment"];
-                        /** Format: uri */
-                        presignedPutUrl: string;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            /** @description Quota exceeded */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
+      };
+      401: components["responses"]["Unauthorized"];
     };
-    completeAttachmentUpload: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    attachmentId: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Attachment marked as ready */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        attachment: components["schemas"]["Attachment"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  createTopic: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    deleteAttachment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        "application/json": {
+          name: string;
+          color: string;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Attachment deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
+      };
     };
-    getAttachmentDownloadUrl: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Resource UUID */
-                id: components["parameters"]["ResourceId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description Topic created */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Presigned download URL */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uri */
-                        presignedGetUrl: string;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": {
+            topic: components["schemas"]["Topic"];
+          };
         };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      409: components["responses"]["Conflict"];
     };
+  };
+  deleteTopic: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Topic deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  updateTopic: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          name?: string;
+          color?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Topic updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            topic: components["schemas"]["Topic"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  rebuildTopicEmbedding: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Embedding rebuilt */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            topicId: string;
+            /** Format: date-time */
+            embeddingUpdatedAt: string;
+          };
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  listEntries: {
+    parameters: {
+      query: {
+        /** @description Date in YYYY-MM-DD format */
+        date: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of entries for the given date */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            entries: components["schemas"]["Entry"][];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  createEntry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          date: string;
+          /** @enum {string} */
+          type: "task" | "note";
+          title: string;
+          content: {
+            [key: string]: unknown;
+          };
+          topicId?: string | null;
+          completed?: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description Entry created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            entry: components["schemas"]["Entry"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  deleteEntry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Entry deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  updateEntry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Current version for optimistic concurrency */
+          version?: number;
+          title?: string;
+          content?: {
+            [key: string]: unknown;
+          };
+          topicId?: string | null;
+          completed?: boolean;
+          /**
+           * @description Change entry type
+           * @enum {string}
+           */
+          type?: "task" | "note";
+        };
+      };
+    };
+    responses: {
+      /** @description Entry updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            entry: components["schemas"]["Entry"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  reorderEntries: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @example 2025-06-15 */
+          date: string;
+          /** @description Entry IDs in desired display order (index 0 = first). */
+          orderedIds: string[];
+        };
+      };
+    };
+    responses: {
+      /** @description Entries reordered successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  requestEntrySummary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Summary generation started */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            notificationId: string;
+            message: string;
+          };
+        };
+      };
+      /** @description Validation or INPUT_TOO_LARGE (max input chars exceeded) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      /** @description QUOTA_EXCEEDED — monthly summary limit reached */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      /** @description CONCURRENCY_LIMIT — another summary already in progress for this entry or user */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description RATE_LIMITED — too many requests (details may include remaining, resetAt) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  requestEntryTranscript: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * Format: uri
+           * @description YouTube video URL to transcribe
+           */
+          url: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Transcript generation started */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            notificationId: string;
+            message: string;
+          };
+        };
+      };
+      /** @description Validation error */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      /** @description QUOTA_EXCEEDED — monthly transcript limit reached */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description CONCURRENCY_LIMIT — another transcript already in progress for this user */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description RATE_LIMITED — too many requests per minute */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  extractImageText: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * Format: uuid
+           * @description Attachment ID of the image to analyze
+           */
+          attachmentId: string;
+          /**
+           * @description Vision analysis mode (default: scan)
+           * @default scan
+           * @enum {string}
+           */
+          mode?: "scan" | "describe";
+        };
+      };
+    };
+    responses: {
+      /** @description Image analyzed successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            attachmentId: string;
+            /** @description Extracted text or image description */
+            extractedText: string;
+            /** @enum {string} */
+            mode: "scan" | "describe";
+          };
+        };
+      };
+      /** @description Validation error or INPUT_TOO_LARGE (image too large) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      /** @description QUOTA_EXCEEDED — monthly OCR limit reached */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      /** @description CONCURRENCY_LIMIT — another OCR request already in progress */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description RATE_LIMITED — too many OCR requests per minute */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Ollama Vision backend error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  getAiUsage: {
+    parameters: {
+      query?: {
+        /** @description Filter by a single AI action type. Omit to get all actions. */
+        action?: components["schemas"]["AiActionType"];
+        /** @description Month key YYYY-MM (default: current month) */
+        month?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Usage and limits for the requested month */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /**
+             * @description The month the usage data applies to
+             * @example 2026-02
+             */
+            month: string;
+            /** @description Usage and limits per AI action */
+            items: components["schemas"]["AiUsageItem"][];
+          };
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  getStorageUsage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Storage usage and limits */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /**
+             * @description Total bytes currently used by the user's active attachments
+             * @example 52428800
+             */
+            usedBytes: number;
+            /**
+             * @description Maximum total storage allowed per user (in bytes)
+             * @example 1073741824
+             */
+            maxUserStorageBytes: number;
+            /**
+             * @description Maximum total attachment size allowed per entry (in bytes)
+             * @example 20971520
+             */
+            maxEntryAttachmentBytes: number;
+          };
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  autoAssignTopic: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          /** @description Similarity threshold (default 0.35). Higher = stricter. */
+          threshold?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Auto-topic result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uuid */
+            entryId: string;
+            /** Format: uuid */
+            selectedTopicId: string | null;
+            /** @description Similarity score 0..1 */
+            score: number | null;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  listEntryAttachments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of attachments with usage/quota info */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            attachments: components["schemas"]["Attachment"][];
+            usage: {
+              entryBytesUsed: number;
+              entryLimitBytes: number;
+              userBytesUsed: number;
+              userLimitBytes: number;
+            };
+          };
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  createReminder: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          entryId: string;
+          /** Format: date-time */
+          scheduledAt: string;
+          /** @enum {string} */
+          channel: "whatsapp" | "email" | "push" | "sms";
+          message?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description Reminder created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            reminder: components["schemas"]["Reminder"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      /** @description QUOTA_EXCEEDED — monthly WhatsApp reminder limit reached */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      404: components["responses"]["NotFound"];
+      /** @description Conflict — duplicate reminder or CONCURRENCY_LIMIT for WhatsApp channel */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description RATE_LIMITED — too many WhatsApp reminder requests per minute */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  updateReminder: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: date-time */
+          scheduledAt?: string;
+          /** @enum {string} */
+          channel?: "whatsapp" | "email" | "push" | "sms";
+          message?: string | null;
+          /** @enum {string} */
+          status?: "canceled";
+        };
+      };
+    };
+    responses: {
+      /** @description Reminder updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            reminder: components["schemas"]["Reminder"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  listNotifications: {
+    parameters: {
+      query?: {
+        /** @description Filter notifications created after this ISO datetime */
+        since?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of notifications */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            notifications: components["schemas"]["Notification"][];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  markNotificationRead: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notification marked as read */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            success: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  listStickies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of stickies */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            stickies: components["schemas"]["Sticky"][];
+          };
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  createSticky: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          title?: string;
+          content?: {
+            [key: string]: unknown;
+          };
+          columnIndex?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Sticky created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            sticky: components["schemas"]["Sticky"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  deleteSticky: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sticky deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  updateSticky: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          version: number;
+          title?: string;
+          content?: {
+            [key: string]: unknown;
+          };
+          columnIndex?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Sticky updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            sticky: components["schemas"]["Sticky"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  entrySummaryCallback: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Unix timestamp in ms used for HMAC computation */
+        "X-Timestamp": string;
+        /** @description HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody) */
+        "X-Signature": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          requestId: string;
+          userId: string;
+          /** Format: uuid */
+          entryId: string;
+          summary: string;
+          /** @enum {string} */
+          format: "markdown" | "plain";
+        };
+      };
+    };
+    responses: {
+      /** @description Summary processed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            success: boolean;
+            alreadyProcessed?: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  entryTranscriptCallback: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Unix timestamp in ms used for HMAC computation */
+        "X-Timestamp": string;
+        /** @description HMAC-SHA256 signature: hmac(secret, timestamp + '.' + rawBody) */
+        "X-Signature": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          requestId: string;
+          userId: string;
+          /** Format: uuid */
+          entryId: string;
+          /** @description The transcribed text from the YouTube video */
+          transcriptText: string;
+          /**
+           * @description Format of the transcript text (optional)
+           * @enum {string}
+           */
+          format?: "markdown" | "plain";
+          /** @description Token usage reported by the transcription model (optional) */
+          usage?: {
+            promptTokens?: number;
+            completionTokens?: number;
+            totalTokens?: number;
+            model?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Transcript processed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      /** @description Missing or invalid HMAC signature */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  initAttachmentUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          entryId: string;
+          filename: string;
+          mimeType: string;
+          sizeBytes: number;
+          /** @enum {string} */
+          kind: "inline" | "file";
+        };
+      };
+    };
+    responses: {
+      /** @description Upload initialized */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            attachment: components["schemas"]["Attachment"];
+            /** Format: uri */
+            presignedPutUrl: string;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+      /** @description Quota exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  completeAttachmentUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uuid */
+          attachmentId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Attachment marked as ready */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            attachment: components["schemas"]["Attachment"];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  deleteAttachment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Attachment deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  getAttachmentDownloadUrl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource UUID */
+        id: components["parameters"]["ResourceId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Presigned download URL */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** Format: uri */
+            presignedGetUrl: string;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      404: components["responses"]["NotFound"];
+    };
+  };
 }

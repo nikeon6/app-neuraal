@@ -23,17 +23,20 @@ export class EmbeddingVector {
    * @param values - The embedding values
    * @param expectedDim - The expected dimension (e.g. 768)
    */
-  static create(values: number[], expectedDim: number): Result<EmbeddingVector> {
+  static create(
+    values: number[],
+    expectedDim: number,
+  ): Result<EmbeddingVector> {
     if (values.length !== expectedDim) {
       return err(
-        `Embedding dimension mismatch: expected ${expectedDim}, got ${values.length}`
+        `Embedding dimension mismatch: expected ${expectedDim}, got ${values.length}`,
       );
     }
 
     for (let i = 0; i < values.length; i++) {
       if (!Number.isFinite(values[i])) {
         return err(
-          `Embedding values must be finite numbers. Found non-finite value at index ${i}`
+          `Embedding values must be finite numbers. Found non-finite value at index ${i}`,
         );
       }
     }
@@ -63,7 +66,7 @@ export class EmbeddingVector {
   cosineDistance(other: EmbeddingVector): number {
     if (this.dimension !== other.dimension) {
       throw new Error(
-        `Cannot compute cosine distance: dimension mismatch (${this.dimension} vs ${other.dimension})`
+        `Cannot compute cosine distance: dimension mismatch (${this.dimension} vs ${other.dimension})`,
       );
     }
 

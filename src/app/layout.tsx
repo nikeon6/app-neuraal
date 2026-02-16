@@ -7,7 +7,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Neuraal - Task Manager",
-  description: "Your intelligent task management system with visual connections",
+  description:
+    "Your intelligent task management system with visual connections",
 };
 
 export default function RootLayout({

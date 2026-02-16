@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UpdateReminder } from "@/application/use-cases/UpdateReminder";
+import { UpdateReminder } from "@/application/use-cases/reminders/UpdateReminder";
 import { PrismaReminderRepository } from "@/infrastructure/persistence/PrismaReminderRepository";
 import { BullMQAdapter } from "@/infrastructure/queue/BullMQAdapter";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
@@ -20,10 +20,10 @@ interface RouteParams {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -43,7 +43,7 @@ export async function PATCH(
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -69,10 +69,14 @@ export async function PATCH(
     const { code, message } = result.error;
 
     // Map error codes to HTTP status codes
-    const statusCode =
-      code === "NOT_FOUND" ? 404 : code === "CONFLICT" ? 409 : 400;
+    let statusCode = 400;
+    if (code === "NOT_FOUND") statusCode = 404;
+    else if (code === "CONFLICT") statusCode = 409;
 
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ reminder: result.value }, { status: 200 });

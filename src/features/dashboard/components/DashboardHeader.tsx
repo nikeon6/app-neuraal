@@ -1,11 +1,10 @@
 "use client";
 
 import React from "react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Calendar,
-  Bell,
   LayoutGrid,
   StickyNote,
   Users,
@@ -31,8 +30,8 @@ export interface DashboardHeaderProps {
   onChangeSection: (section: DashboardSection) => void;
   /** Currently selected date (for daily view title) */
   selectedDate: Date;
-  /** Optional callback for notifications button */
-  onNotificationsClick?: () => void;
+  /** Slot for the notifications widget (rendered in the nav bar). */
+  notificationSlot?: React.ReactNode;
 }
 
 // ============================================================================
@@ -58,6 +57,38 @@ const NAV_TABS: NavTab[] = [
 ];
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Returns a formatted week date range string, e.g.
+ * "Feb 10 — 16" (same month) or "Jan 27 — Feb 2" (cross-month).
+ */
+function formatWeekRange(date: Date): string {
+  const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+
+  const startMonth = weekStart.getMonth();
+  const endMonth = weekEnd.getMonth();
+
+  if (startMonth === endMonth) {
+    // Same month: "Feb 2 — 8"
+    return `${format(weekStart, "MMM d")} — ${format(weekEnd, "d")}`;
+  }
+  // Cross month: "Jan 27 — Feb 2"
+  return `${format(weekStart, "MMM d")} — ${format(weekEnd, "MMM d")}`;
+}
+
+/**
+ * Returns the kicker text for the weekly recap, e.g. "Week 6 · 2026".
+ */
+function formatWeekKicker(date: Date): string {
+  const weekNum = getISOWeek(date);
+  const year = format(date, "yyyy");
+  return `Week ${weekNum} · ${year}`;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -77,16 +108,26 @@ export function DashboardHeader({
   section,
   onChangeSection,
   selectedDate,
-  onNotificationsClick,
+  notificationSlot,
 }: DashboardHeaderProps) {
   const isDaily = section === "daily";
+  const isWeekly = section === "weeklyRecap";
+  const isStickies = section === "stickies";
   const currentLabel = SECTION_LABELS[section];
 
+  // Compute the motion key for section transitions
+  function getMotionKey(): string {
+    if (isDaily) return `daily-${selectedDate.getDate()}`;
+    if (isWeekly) return `weekly-${selectedDate.getTime()}`;
+    return section;
+  }
+  const motionKey = getMotionKey();
+
   return (
-    <header className="relative mb-4 lg:mb-6">
+    <header className="relative mb-2 lg:mb-6 landscape-compact-header">
       {/* Navigation tabs - horizontal scroll on mobile */}
       <nav
-        className="flex items-center gap-2 mb-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1"
+        className="flex items-center gap-1.5 lg:gap-2 mb-2 lg:mb-4 overflow-x-auto scrollbar-hide pb-1 lg:pb-2 -mx-1 px-1"
         aria-label="Dashboard navigation"
       >
         {NAV_TABS.map((tab) => {
@@ -106,13 +147,13 @@ export function DashboardHeader({
                 "p-2 sm:px-3 sm:py-1.5",
                 isActive
                   ? "bg-gradient-to-r from-sky-500/20 to-indigo-500/15 border-sky-400/30 text-white shadow-[0_0_12px_-3px_rgba(56,189,248,0.3)]"
-                  : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80"
+                  : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:border-white/15 hover:text-white/80",
               )}
             >
               <Icon
                 className={cn(
                   "w-4 h-4 sm:w-3.5 sm:h-3.5 transition-colors flex-shrink-0",
-                  isActive ? "text-sky-300" : "text-white/50"
+                  isActive ? "text-sky-300" : "text-white/50",
                 )}
               />
               {/* Label: hidden on mobile, visible on sm+ */}
@@ -131,56 +172,48 @@ export function DashboardHeader({
           );
         })}
 
-        {/* Notifications button (icon-only) */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={onNotificationsClick}
-          className={cn(
-            "relative flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0",
-            "border backdrop-blur-sm",
-            "bg-white/5 text-white/50 border-white/10",
-            "hover:bg-white/10 hover:border-white/15 hover:text-white/80"
-          )}
-        >
-          <Bell className="w-4 h-4" />
-          {/* Optional: notification badge dot (hidden by default) */}
-          {/* Uncomment when notifications are implemented:
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-400 border border-background" />
-          */}
-        </button>
+        {/* Notification widget slot (injected by Dashboard to avoid cross-feature imports) */}
+        {notificationSlot}
       </nav>
 
       {/* Kicker (small label) + Title - changes based on section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        key={isDaily ? `daily-${selectedDate.getDate()}` : section}
-        className="space-y-1 lg:space-y-2"
+        key={motionKey}
+        className="space-y-0.5 lg:space-y-2"
       >
         {/* Kicker - always visible, blue accent */}
-        <div className="flex items-center gap-2 text-sky-400/90">
-          {isDaily && <Calendar className="w-4 h-4 lg:w-5 lg:h-5" />}
-          <span className="text-xs lg:text-sm font-medium tracking-wider uppercase">
-            {currentLabel}
+        <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
+          {isDaily && <Calendar className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          {isWeekly && <LayoutGrid className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          {isStickies && <StickyNote className="w-3.5 h-3.5 lg:w-5 lg:h-5" />}
+          <span className="text-[10px] lg:text-sm font-medium tracking-wider uppercase">
+            {isWeekly ? formatWeekKicker(selectedDate) : currentLabel}
           </span>
         </div>
 
         {/* Main title */}
-        {isDaily ? (
+        {isDaily && (
           <>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
               {format(selectedDate, "MMMM d")}
               <span className="text-white/20">
                 , {format(selectedDate, "yyyy")}
               </span>
             </h1>
-            <p className="text-white/40 text-base lg:text-lg">
+            <p className="text-white/40 text-sm lg:text-lg">
               {format(selectedDate, "EEEE")}
             </p>
           </>
-        ) : (
-          <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+        )}
+        {isWeekly && (
+          <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+            {formatWeekRange(selectedDate)}
+          </h1>
+        )}
+        {!isDaily && !isWeekly && (
+          <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
             {currentLabel}
           </h1>
         )}

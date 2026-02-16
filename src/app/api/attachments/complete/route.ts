@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CompleteAttachmentUpload } from "@/application/use-cases/CompleteAttachmentUpload";
+import { CompleteAttachmentUpload } from "@/application/use-cases/attachments/CompleteAttachmentUpload";
 import { PrismaAttachmentRepository } from "@/infrastructure/persistence/PrismaAttachmentRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 
@@ -9,7 +9,7 @@ import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check authentication
-  const authResult = getAuthUserId(request);
+  const authResult = await getAuthUserId(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: 401 });
   }
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -31,8 +31,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!attachmentId) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "attachmentId is required" } },
-      { status: 400 }
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "attachmentId is required",
+        },
+      },
+      { status: 400 },
     );
   }
 
@@ -45,7 +50,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (result.isErr()) {
     const { code, message } = result.error;
     const statusCode = code === "NOT_FOUND" ? 404 : 400;
-    return NextResponse.json({ error: { code, message } }, { status: statusCode });
+    return NextResponse.json(
+      { error: { code, message } },
+      { status: statusCode },
+    );
   }
 
   return NextResponse.json({ attachment: result.value }, { status: 200 });

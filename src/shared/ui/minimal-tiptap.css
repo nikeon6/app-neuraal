@@ -1,0 +1,54 @@
+/* Minimal Tiptap styles for StickyEditor (text + code blocks only). */
+
+.minimal-tiptap-editor .tiptap {
+  outline: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  line-height: 1.45;
+  min-height: 60px;
+  caret-color: hsl(217, 91%, 60%);
+}
+
+.minimal-tiptap-editor .tiptap.is-expanded {
+  min-height: 100px;
+}
+
+.minimal-tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  color: rgba(255, 255, 255, 0.3);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.minimal-tiptap-editor .tiptap p {
+  margin: 0.1em 0;
+}
+
+.minimal-tiptap-editor .tiptap code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+.minimal-tiptap-editor .tiptap pre {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.minimal-tiptap-editor .tiptap pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.minimal-tiptap-editor .tiptap ::selection {
+  background: hsl(217, 91%, 60%, 0.3);
+}

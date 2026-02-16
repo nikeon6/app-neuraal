@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 /**
  * Hook to manage ordered task IDs with sync to store.
- * 
+ *
  * WHY THIS EXISTS:
  * - Maintains local order state that can change during drag without triggering store updates
  * - Syncs with store when tasks change (new tasks added, tasks removed, day changes)
@@ -36,13 +36,13 @@ export function useOrderedTaskIds({
   onReorder,
 }: UseOrderedTaskIdsOptions): UseOrderedTaskIdsReturn {
   // Current ordered IDs (local state for drag)
-  const [orderedIds, setOrderedIds] = useState<string[]>(() => 
-    tasks.map((t) => t.id)
+  const [orderedIds, setOrderedIds] = useState<string[]>(() =>
+    tasks.map((t) => t.id),
   );
-  
+
   // Track the original order from store to detect changes
   const originalOrderRef = useRef<string[]>(tasks.map((t) => t.id));
-  
+
   // Track selected day to detect day changes
   const prevSelectedDayRef = useRef<number | string>(selectedDay);
 
@@ -65,13 +65,13 @@ export function useOrderedTaskIds({
 
     // Find new tasks (in store but not in our order)
     const newTaskIds = taskIds.filter((id) => !orderedIdSet.has(id));
-    
+
     // Filter out removed tasks (in our order but not in store)
     const filteredIds = orderedIds.filter((id) => currentIdSet.has(id));
-    
+
     // Append new tasks at the end
     const newOrderedIds = [...filteredIds, ...newTaskIds];
-    
+
     // Only update if something changed
     if (
       newOrderedIds.length !== orderedIds.length ||
@@ -79,7 +79,7 @@ export function useOrderedTaskIds({
     ) {
       setOrderedIds(newOrderedIds);
     }
-    
+
     // Update original order reference
     originalOrderRef.current = taskIds;
   }, [tasks, selectedDay, orderedIds]);

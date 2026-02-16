@@ -54,7 +54,7 @@ export class Reminder {
     message: string | null,
     status: ReminderStatus,
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
   ) {
     this.id = id;
     this.userId = userId;
@@ -87,9 +87,10 @@ export class Reminder {
     }
 
     // Validate scheduledAt
-    const scheduledAtStr = props.scheduledAt instanceof Date 
-      ? props.scheduledAt.toISOString() 
-      : props.scheduledAt;
+    const scheduledAtStr =
+      props.scheduledAt instanceof Date
+        ? props.scheduledAt.toISOString()
+        : props.scheduledAt;
     const scheduledAtResult = ISODateTime.create(scheduledAtStr);
     if (scheduledAtResult.isErr()) {
       return err(scheduledAtResult.error);
@@ -119,8 +120,8 @@ export class Reminder {
         props.message,
         statusResult.value,
         props.createdAt,
-        props.updatedAt
-      )
+        props.updatedAt,
+      ),
     );
   }
 
@@ -138,7 +139,9 @@ export class Reminder {
   withUpdates(updates: ReminderUpdateProps): Result<Reminder, string> {
     // Business rule: can only modify if pending
     if (!this.canModify()) {
-      return err(`Cannot modify reminder with status: ${this.status.toString()}`);
+      return err(
+        `Cannot modify reminder with status: ${this.status.toString()}`,
+      );
     }
 
     // Handle status update (cancel)
@@ -150,9 +153,10 @@ export class Reminder {
     // Handle scheduledAt update
     let newScheduledAt = this.scheduledAt;
     if (updates.scheduledAt !== undefined) {
-      const scheduledAtStr = updates.scheduledAt instanceof Date
-        ? updates.scheduledAt.toISOString()
-        : updates.scheduledAt;
+      const scheduledAtStr =
+        updates.scheduledAt instanceof Date
+          ? updates.scheduledAt.toISOString()
+          : updates.scheduledAt;
       const scheduledAtResult = ISODateTime.create(scheduledAtStr);
       if (scheduledAtResult.isErr()) {
         return err(scheduledAtResult.error);
@@ -171,7 +175,8 @@ export class Reminder {
     }
 
     // Handle message update (can be string or null)
-    const newMessage = updates.message !== undefined ? updates.message : this.message;
+    const newMessage =
+      updates.message !== undefined ? updates.message : this.message;
 
     return ok(
       new Reminder(
@@ -183,8 +188,8 @@ export class Reminder {
         newMessage,
         newStatus,
         this.createdAt,
-        new Date()
-      )
+        new Date(),
+      ),
     );
   }
 
@@ -201,7 +206,7 @@ export class Reminder {
       this.message,
       ReminderStatus.sent(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 
@@ -218,7 +223,7 @@ export class Reminder {
       this.message,
       ReminderStatus.failed(),
       this.createdAt,
-      new Date()
+      new Date(),
     );
   }
 

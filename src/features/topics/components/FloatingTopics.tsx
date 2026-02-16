@@ -11,10 +11,7 @@ import React, {
 import { useStore } from "@/shared/store";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery } from "@/shared/api/queries";
-import type {
-  TopicNodeCenter,
-  TaskCenter,
-} from "@/features/topics/types";
+import type { TopicNodeCenter, TaskCenter } from "@/features/topics/types";
 import { clamp, median, quadPath, cn } from "@/shared/lib";
 // Default anchor positions for topic bubbles (cycled for > 6 topics)
 const DEFAULT_ANCHORS = [
@@ -36,13 +33,14 @@ const JUNCTION_PULL_LEFT = 120;
 const JUNCTION_LANE_OFFSET = 120;
 const JUNCTION_FOLLOW = 0.18;
 const JUNCTION_TO_NODE_BLEND = 0.65;
-const JUNCTION_TO_NODE_BLEND_X_STACK = 0.70; // Blend for X in mobile stack mode (how much junction X follows node)
+const JUNCTION_TO_NODE_BLEND_Y_STACK = 0.4; // Blend for Y in mobile stack mode — lower = junction closer to calendar
+const JUNCTION_TO_NODE_BLEND_X_STACK = 0.7; // Blend for X in mobile stack mode (how much junction X follows node)
 // Min-trunk hysteresis: prevent junction from snapping to lane center when anchor is close to node
 const MIN_TRUNK = 32;
 const DIR_HYSTERESIS = 10;
 const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
-const NODE_SCALE_STACK = 0.82; // Scale factor for topic nodes in mobile stack mode
+const NODE_SCALE_STACK = 0.59; // Scale factor for topic nodes in mobile stack mode
 
 // Junction dot (neuron point) parameters
 const DOT_RADIUS_BASE = 4.5;
@@ -57,7 +55,7 @@ function applyMinTrunkHysteresis(
   xMin: number,
   xMax: number,
   pushDirRef: { current: Partial<Record<string, 1 | -1>> },
-  topicId: string
+  topicId: string,
 ): number {
   const dist = Math.abs(desiredX - nodeX);
   if (dist >= MIN_TRUNK) return clamp(desiredX, xMin, xMax);
@@ -96,6 +94,7 @@ interface DragState {
   startX: number;
   startY: number;
   hasMoved: boolean; // Track if user actually dragged vs just clicked
+  isTouch: boolean; // Touch inputs need larger drag threshold
 }
 
 interface NodePosition {
@@ -105,9 +104,556 @@ interface NodePosition {
 }
 
 // ============================================================================
+// Pure helper functions (extracted to reduce Cognitive Complexity)
+// ============================================================================
+
+/** Wire data with nullable arrays (matches wireStructure union type). */
+type WireEntry = {
+  topicId: string;
+  mode: string;
+  dayKeys?: string[] | null;
+  taskIds?: string[] | null;
+};
+
+/** Shared junction ref types. */
+type JunctionMap = Partial<Record<string, { x: number; y: number }>>;
+type JunctionTargetYMap = Partial<Record<string, { y: number }>>;
+type JunctionTargetXMap = Partial<Record<string, { x: number }>>;
+type CenterMap = Record<string, { x: number; y: number }>;
+
+/**
+ * Collect X coordinates of wire targets for a given topic.
+ * Returns the Xs of either day cells or task cells, depending on wire mode.
+ */
+function collectWireTargetXs(
+  topicId: string,
+  wireStructure: WireEntry[],
+  dayCenters: CenterMap,
+  taskCenters: CenterMap,
+): number[] {
+  const wire = wireStructure.find((w) => w.topicId === topicId);
+  if (!wire) return [];
+
+  const xs: number[] = [];
+  if (wire.mode === "days" && wire.dayKeys) {
+    for (const key of wire.dayKeys) {
+      const center = dayCenters[key];
+      if (center) xs.push(center.x);
+    }
+  } else if (wire.mode === "tasks" && wire.taskIds) {
+    for (const taskId of wire.taskIds) {
+      const center = taskCenters[taskId];
+      if (center) xs.push(center.x);
+    }
+  }
+  return xs;
+}
+
+/** Compute topic node bounds within the available area. */
+function computeTopicBounds(
+  hasLane: boolean,
+  boardSize: {
+    laneX: number;
+    laneW: number;
+    laneTop: number;
+    laneH: number;
+    h: number;
+  },
+  leftW: number,
+  r: number,
+): { minX: number; maxX: number; minY: number; maxY: number } {
+  const minX = hasLane ? boardSize.laneX + r + NODE_MARGIN : r + NODE_MARGIN;
+  const maxX = hasLane
+    ? Math.max(minX, boardSize.laneX + boardSize.laneW - r - NODE_MARGIN)
+    : Math.max(minX, leftW - r - NODE_MARGIN);
+  const minY = hasLane ? boardSize.laneTop + r + NODE_MARGIN : r + NODE_MARGIN;
+  const maxY = hasLane
+    ? Math.max(minY, boardSize.laneTop + boardSize.laneH - r - NODE_MARGIN)
+    : Math.max(minY, boardSize.h - r - NODE_MARGIN);
+  return { minX, maxX, minY, maxY };
+}
+
+interface InitJunctionStackOpts {
+  id: string;
+  node: NodePosition;
+  boardSize: { laneX: number; laneW: number; laneTop: number; laneH: number };
+  laneBounds: { xMin: number; xMax: number; yMin: number; yMax: number };
+  junctions: {
+    map: JunctionMap;
+    targetX: JunctionTargetXMap;
+    targetY: JunctionTargetYMap;
+  };
+  pushDirRef: { current: Partial<Record<string, 1 | -1>> };
+  anchorX: number | null;
+  medianY: number;
+}
+
+/** Update junction position for a topic in STACK layout mode (mobile). */
+function initJunctionStack(opts: InitJunctionStackOpts): void {
+  const {
+    id,
+    node,
+    boardSize,
+    laneBounds,
+    junctions,
+    pushDirRef,
+    anchorX,
+    medianY,
+  } = opts;
+
+  // Initialize junction only if it doesn't exist
+  junctions.map[id] ??= { x: node.x, y: node.y };
+
+  // Calculate target X (blend anchorX with node.x)
+  const resolvedAnchorX = anchorX ?? boardSize.laneX + boardSize.laneW * 0.6;
+  let desiredX = clamp(
+    resolvedAnchorX * (1 - JUNCTION_TO_NODE_BLEND_X_STACK) +
+      node.x * JUNCTION_TO_NODE_BLEND_X_STACK,
+    laneBounds.xMin,
+    laneBounds.xMax,
+  );
+  desiredX = applyMinTrunkHysteresis(
+    desiredX,
+    node.x,
+    laneBounds.xMin,
+    laneBounds.xMax,
+    pushDirRef,
+    id,
+  );
+  junctions.targetX[id] = { x: desiredX };
+
+  // Calculate target Y (stack-specific blend)
+  const targetY = clamp(
+    medianY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) +
+      node.y * JUNCTION_TO_NODE_BLEND_Y_STACK,
+    laneBounds.yMin,
+    laneBounds.yMax,
+  );
+  junctions.targetY[id] = { y: targetY };
+}
+
+interface InitJunctionDesktopOpts {
+  id: string;
+  node: NodePosition;
+  boardSize: { laneX: number; laneW: number; h: number };
+  hasLane: boolean;
+  leftW: number;
+  junctions: { map: JunctionMap; targetY: JunctionTargetYMap };
+  targetYs: number[];
+}
+
+/** Update junction position for a topic in DESKTOP GRID layout mode. */
+function initJunctionDesktop(opts: InitJunctionDesktopOpts): void {
+  const { id, node, boardSize, hasLane, leftW, junctions, targetYs } = opts;
+
+  let xWanted: number, xMin: number, xMax: number;
+  if (hasLane) {
+    xWanted = boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET;
+    xMin = node.x + node.r + 24;
+    xMax = boardSize.laneX + boardSize.laneW - 20;
+  } else {
+    xWanted = leftW - JUNCTION_PULL_LEFT;
+    xMin = node.x + node.r + 24;
+    xMax = leftW - 10;
+  }
+  const x = clamp(xWanted, xMin, xMax);
+
+  const existing = junctions.map[id];
+  if (existing) {
+    existing.x = x;
+  } else {
+    junctions.map[id] = { x, y: node.y };
+  }
+
+  if (targetYs.length > 0) {
+    const medY = median(targetYs);
+    const targetY = clamp(
+      medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
+      20,
+      boardSize.h - 20,
+    );
+    junctions.targetY[id] = { y: targetY };
+  }
+}
+
+interface AnimateJunctionOpts {
+  id: string;
+  isStack: boolean;
+  hasLane: boolean;
+  junctions: {
+    map: JunctionMap;
+    targetY: JunctionTargetYMap;
+    targetX: JunctionTargetXMap;
+  };
+  laneBounds: { xMin: number; xMax: number; yMin: number; yMax: number };
+}
+
+/** Animate junction Y (and optionally X in stack mode). Returns true if animation continues. */
+function animateJunction(opts: AnimateJunctionOpts): boolean {
+  const { id, isStack, hasLane, junctions, laneBounds } = opts;
+  let needsMore = false;
+  const cur = junctions.map[id];
+  const tarY = junctions.targetY[id];
+  if (!cur || !tarY) return false;
+
+  // Animate Y
+  let ny = cur.y + (tarY.y - cur.y) * JUNCTION_FOLLOW;
+  if (isStack && hasLane) ny = clamp(ny, laneBounds.yMin, laneBounds.yMax);
+
+  if (Math.abs(ny - cur.y) > 0.05) {
+    cur.y = ny;
+    needsMore = true;
+  } else {
+    cur.y = tarY.y;
+  }
+
+  // Animate X only in stack mode
+  if (isStack && hasLane) {
+    const tarX = junctions.targetX[id];
+    if (tarX) {
+      let nx = cur.x + (tarX.x - cur.x) * JUNCTION_FOLLOW;
+      nx = clamp(nx, laneBounds.xMin, laneBounds.xMax);
+      if (Math.abs(tarX.x - cur.x) > 0.05) {
+        cur.x = nx;
+        needsMore = true;
+      } else {
+        cur.x = tarX.x;
+      }
+    }
+  }
+
+  return needsMore;
+}
+
+interface DragJunctionStackOpts {
+  topicId: string;
+  node: NodePosition;
+  j: { x: number; y: number };
+  boardSize: { laneX: number; laneW: number; laneTop: number; laneH: number };
+  wireStructure: WireEntry[];
+  centers: { day: CenterMap; task: CenterMap };
+  pushDirRef: { current: Partial<Record<string, 1 | -1>> };
+  junctions: { targetX: JunctionTargetXMap; targetY: JunctionTargetYMap };
+  topicMedianY: number | undefined;
+  dragFollow: number;
+}
+
+/** Update drag junction for STACK layout mode (mobile). */
+function updateDragJunctionStack(opts: DragJunctionStackOpts): void {
+  const {
+    topicId,
+    node,
+    j,
+    boardSize,
+    wireStructure,
+    centers,
+    pushDirRef,
+    junctions,
+  } = opts;
+  const lanePad = 16;
+  const xMin = boardSize.laneX + lanePad;
+  const xMax = boardSize.laneX + boardSize.laneW - lanePad;
+
+  const xs = collectWireTargetXs(
+    topicId,
+    wireStructure,
+    centers.day,
+    centers.task,
+  );
+  const anchorX =
+    xs.length > 0 ? median(xs) : boardSize.laneX + boardSize.laneW * 0.6;
+
+  let desiredX = clamp(
+    anchorX * (1 - JUNCTION_TO_NODE_BLEND_X_STACK) +
+      node.x * JUNCTION_TO_NODE_BLEND_X_STACK,
+    xMin,
+    xMax,
+  );
+  desiredX = applyMinTrunkHysteresis(
+    desiredX,
+    node.x,
+    xMin,
+    xMax,
+    pushDirRef,
+    topicId,
+  );
+
+  j.x = j.x + (desiredX - j.x) * opts.dragFollow;
+  junctions.targetX[topicId] = { x: desiredX };
+
+  const yMin = boardSize.laneTop + lanePad;
+  const yMax = boardSize.laneTop + boardSize.laneH - lanePad;
+  const desiredY =
+    opts.topicMedianY == null
+      ? clamp(boardSize.laneTop + boardSize.laneH * 0.5, yMin, yMax)
+      : clamp(
+          opts.topicMedianY * (1 - JUNCTION_TO_NODE_BLEND_Y_STACK) +
+            node.y * JUNCTION_TO_NODE_BLEND_Y_STACK,
+          yMin,
+          yMax,
+        );
+  j.y = j.y + (desiredY - j.y) * 0.15;
+  junctions.targetY[topicId] = { y: desiredY };
+}
+
+interface DragJunctionDesktopOpts {
+  topicId: string;
+  node: NodePosition;
+  j: { x: number; y: number };
+  boardH: number;
+  junctionTargetY: JunctionTargetYMap;
+  topicMedianY: number | undefined;
+  dragFollow: number;
+}
+
+/** Update drag junction for DESKTOP GRID layout mode. */
+function updateDragJunctionDesktop(opts: DragJunctionDesktopOpts): void {
+  if (opts.topicMedianY == null) return;
+  const desiredY = clamp(
+    opts.topicMedianY * (1 - JUNCTION_TO_NODE_BLEND) +
+      opts.node.y * JUNCTION_TO_NODE_BLEND,
+    20,
+    opts.boardH - 20,
+  );
+  opts.j.y = opts.j.y + (desiredY - opts.j.y) * opts.dragFollow;
+  opts.junctionTargetY[opts.topicId] = { y: desiredY };
+}
+
+// ============================================================================
+// Wire SVG sub-component (extracted to reduce Cognitive Complexity in render)
+// ============================================================================
+interface InitAllJunctionsOpts {
+  activeTopics: string[];
+  isStack: boolean;
+  hasLane: boolean;
+  boardSize: {
+    w: number;
+    h: number;
+    rightW: number;
+    laneX: number;
+    laneW: number;
+    laneTop: number;
+    laneH: number;
+  };
+  leftW: number;
+  laneBounds: { xMin: number; xMax: number; yMin: number; yMax: number };
+  junctions: {
+    map: JunctionMap;
+    targetX: JunctionTargetXMap;
+    targetY: JunctionTargetYMap;
+  };
+  nodePos: Partial<Record<string, NodePosition>>;
+  baseTopicCenters: Partial<Record<string, NodePosition>>;
+  getTargetYsForTopic: (id: string) => number[];
+  wireStructure: WireEntry[];
+  centers: { day: CenterMap; task: CenterMap };
+  pushDirRef: { current: Partial<Record<string, 1 | -1>> };
+}
+
+/** Initialize junction positions for all active topics in a single pass. */
+function initAllJunctions(opts: InitAllJunctionsOpts): void {
+  const {
+    activeTopics,
+    isStack,
+    hasLane,
+    boardSize,
+    leftW,
+    laneBounds,
+    junctions,
+    nodePos,
+    baseTopicCenters,
+    getTargetYsForTopic,
+    wireStructure,
+    centers,
+    pushDirRef,
+  } = opts;
+
+  for (const id of activeTopics) {
+    const node = nodePos[id] || baseTopicCenters[id];
+    if (!node) continue;
+
+    const ys = getTargetYsForTopic(id);
+
+    if (isStack && hasLane) {
+      const xs = collectWireTargetXs(
+        id,
+        wireStructure,
+        centers.day,
+        centers.task,
+      );
+      initJunctionStack({
+        id,
+        node,
+        boardSize,
+        laneBounds,
+        junctions,
+        pushDirRef,
+        anchorX: xs.length > 0 ? median(xs) : null,
+        medianY: ys.length > 0 ? median(ys) : node.y,
+      });
+    } else {
+      initJunctionDesktop({
+        id,
+        node,
+        boardSize,
+        hasLane,
+        leftW,
+        junctions: { map: junctions.map, targetY: junctions.targetY },
+        targetYs: ys,
+      });
+    }
+  }
+}
+
+/** Pre-compute all dim-dependent wire visual styles to reduce ternary count. */
+function computeWireStyles(dim: boolean | string | null, wireScale: number) {
+  return {
+    trunkW: (dim ? 2 : 3) * wireScale,
+    trunkOpacity: dim ? 0.03 : 0.25,
+    trunkDashW: (dim ? 1 : 2) * wireScale,
+    trunkDashOpacity: dim ? 0.02 : 0.12,
+    branchW: (dim ? 1 : 1.5) * wireScale,
+    branchOpacity: dim ? 0.04 : 0.3,
+    singleW: (dim ? 1 : 2) * wireScale,
+    singleOpacity: dim ? 0.04 : 0.3,
+    haloOpacity: dim ? HALO_OPACITY * 0.15 : HALO_OPACITY,
+    dotOpacity: dim ? DOT_OPACITY * 0.15 : DOT_OPACITY,
+  };
+}
+
+interface WireGroupProps {
+  wire: {
+    topicId: string;
+    color: string;
+    mode: string;
+    isSingle?: boolean;
+    dayKeys?: string[] | null;
+    taskIds?: string[] | null;
+  };
+  dim: boolean | string | null;
+  wireScale: number;
+  highlightedTopic: string | null;
+  isSelected: boolean;
+  pathElRef: React.RefObject<Partial<Record<string, SVGPathElement | null>>>;
+  haloElRef: React.RefObject<Partial<Record<string, SVGCircleElement | null>>>;
+  dotElRef: React.RefObject<Partial<Record<string, SVGCircleElement | null>>>;
+}
+
+function WireGroup({
+  wire,
+  dim,
+  wireScale,
+  highlightedTopic,
+  isSelected,
+  pathElRef,
+  haloElRef,
+  dotElRef,
+}: Readonly<WireGroupProps>) {
+  const s = computeWireStyles(dim, wireScale);
+  const branchIds =
+    wire.mode === "tasks" ? (wire.taskIds ?? []) : (wire.dayKeys ?? []);
+
+  if (wire.isSingle) {
+    return (
+      <g>
+        <path
+          ref={(el) => {
+            pathElRef.current[`single-${wire.topicId}`] = el;
+          }}
+          d=""
+          stroke={wire.color}
+          fill="none"
+          strokeLinecap="round"
+          strokeWidth={s.singleW}
+          strokeOpacity={s.singleOpacity}
+          strokeDasharray="4 8"
+        />
+      </g>
+    );
+  }
+
+  const isHot = highlightedTopic === wire.topicId;
+
+  return (
+    <g>
+      <path
+        ref={(el) => {
+          pathElRef.current[`trunk-${wire.topicId}`] = el;
+        }}
+        d=""
+        stroke={wire.color}
+        fill="none"
+        strokeLinecap="round"
+        strokeWidth={s.trunkW}
+        strokeOpacity={s.trunkOpacity}
+      />
+      <path
+        ref={(el) => {
+          pathElRef.current[`trunk-dash-${wire.topicId}`] = el;
+        }}
+        d=""
+        stroke={wire.color}
+        fill="none"
+        strokeLinecap="round"
+        strokeWidth={s.trunkDashW}
+        strokeOpacity={s.trunkDashOpacity}
+        strokeDasharray="4 8"
+      />
+      {branchIds.map((branchId) => (
+        <path
+          key={branchId}
+          ref={(el) => {
+            pathElRef.current[`branch-${wire.topicId}-${branchId}`] = el;
+          }}
+          d=""
+          stroke={wire.color}
+          fill="none"
+          strokeLinecap="round"
+          strokeWidth={s.branchW}
+          strokeOpacity={s.branchOpacity}
+          strokeDasharray="4 8"
+        />
+      ))}
+      <circle
+        ref={(el) => {
+          haloElRef.current[`halo-${wire.topicId}`] = el;
+        }}
+        cx="0"
+        cy="0"
+        r="0"
+        fill={wire.color}
+        fillOpacity={s.haloOpacity}
+        className={cn(
+          "junction-halo",
+          isHot && "hot",
+          isSelected && "selected",
+        )}
+        style={{ transformOrigin: "center", pointerEvents: "none" }}
+      />
+      <circle
+        ref={(el) => {
+          dotElRef.current[`dot-${wire.topicId}`] = el;
+        }}
+        cx="0"
+        cy="0"
+        r="0"
+        fill={wire.color}
+        fillOpacity={s.dotOpacity}
+        className={cn("junction-dot", isHot && "hot", isSelected && "selected")}
+        style={{ transformOrigin: "center", pointerEvents: "none" }}
+      />
+    </g>
+  );
+}
+
+// ============================================================================
 // Component
 // ============================================================================
-export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonly<FloatingTopicsProps>) {
+export function FloatingTopics({
+  containerRef,
+  laneRef,
+  entriesByDate,
+}: Readonly<FloatingTopicsProps>) {
   // ---------------------------------------------------------------------------
   // Data from TanStack Query
   // ---------------------------------------------------------------------------
@@ -139,64 +685,79 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // ---------------------------------------------------------------------------
   // State (minimal - only what triggers necessary re-renders)
   // ---------------------------------------------------------------------------
-  const [boardSize, setBoardSize] = useState({ 
-    w: 1, h: 1, rightW: 0, 
-    laneX: 0, laneW: 0, laneTop: 0, laneH: 0 
+  const [boardSize, setBoardSize] = useState({
+    w: 1,
+    h: 1,
+    rightW: 0,
+    laneX: 0,
+    laneW: 0,
+    laneTop: 0,
+    laneH: 0,
   });
-  
+
   // Layout mode: "stack" (mobile) or "grid" (desktop)
   // In stack mode, calendar is below; in grid mode, calendar is to the right
   const layoutModeRef = useRef<"stack" | "grid">("grid");
   // State mirror of layoutModeRef for triggering re-renders (e.g., baseTopicCenters needs to recalculate)
   const [isStackLayout, setIsStackLayout] = useState(false);
-  const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>({});
+  const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>(
+    {},
+  );
   // Day centers for "collapsed mode" wires (wire to day anchor instead of individual tasks)
-  const [dayCenters, setDayCenters] = useState<Record<string, { x: number; y: number; dayNumber: number }>>({});
+  const [dayCenters, setDayCenters] = useState<
+    Record<string, { x: number; y: number; dayNumber: number }>
+  >({});
 
   // ---------------------------------------------------------------------------
   // Refs for imperative updates (no re-renders during drag/animation)
   // ---------------------------------------------------------------------------
-  
+
   // Visual position of nodes (includes drag position)
   // This is the "source of truth" for rendering during drag
-  const nodePosRef = useRef<Record<string, NodePosition>>({} as Record<string, NodePosition>);
-  
+  const nodePosRef = useRef<Record<string, NodePosition>>(
+    {} as Record<string, NodePosition>,
+  );
+
   // DOM element refs for direct manipulation
-  const nodeElRef = useRef<Record<string, HTMLButtonElement | null>>({} as Record<string, HTMLButtonElement | null>);
-  
+  const nodeElRef = useRef<Record<string, HTMLButtonElement | null>>(
+    {} as Record<string, HTMLButtonElement | null>,
+  );
+
   // SVG path refs for imperative "d" updates
   const pathElRef = useRef<Record<string, SVGPathElement | null>>({});
-  
+
   // SVG circle refs for junction dots (neuron points)
   const dotElRef = useRef<Record<string, SVGCircleElement | null>>({});
   const haloElRef = useRef<Record<string, SVGCircleElement | null>>({});
-  
+
   // Junction positions (current and target) - never triggers re-render
-  const junctionRef = useRef<Partial<Record<string, { x: number; y: number }>>>({});
+  const junctionRef = useRef<Partial<Record<string, { x: number; y: number }>>>(
+    {},
+  );
   const junctionTargetRef = useRef<Partial<Record<string, { y: number }>>>({});
   const junctionTargetXRef = useRef<Partial<Record<string, { x: number }>>>({});
-  
+
   // Drag state
   const dragRef = useRef<DragState | null>(null);
   const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
   const dragRafRef = useRef<number | null>(null);
-  
+
   // Junction animation RAF
   const junctionRafRef = useRef<number | null>(null);
-  
+
   // Refs for stable access to wireStructure/dayCenters without re-triggering effects
   const wireStructureRef = useRef<typeof wireStructure>([]);
   const dayCentersRef = useRef<typeof dayCenters>({});
   const taskCentersRef = useRef<typeof taskCenters>({});
-  
+
   // Recalc throttling
   const recalcRafRef = useRef<number | null>(null);
   const recalcPendingRef = useRef(false);
-  
+
   // Cached median Y per topic - avoids expensive scans during drag
   // Updated only when wireStructure/taskCenters change, NOT per frame
   const topicMedianYRef = useRef<Partial<Record<string, number>>>({});
-  
+
   // Persistent push direction per topic (for minTrunk logic in stack mode)
   // Prevents snap/discontinuity when crossing the center of the lane
   const pushDirRef = useRef<Partial<Record<string, 1 | -1>>>({});
@@ -206,8 +767,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // ---------------------------------------------------------------------------
   // Flatten all entries across dates, keeping only those with a known topic
   const flatEntries = useMemo(
-    () => Object.values(entriesByDate).flat().filter((e) => e.topicId && topicIdSet.has(e.topicId)),
-    [entriesByDate, topicIdSet]
+    () =>
+      Object.values(entriesByDate)
+        .flat()
+        .filter((e) => e.topicId && topicIdSet.has(e.topicId)),
+    [entriesByDate, topicIdSet],
   );
 
   const topicCounts = useMemo(() => {
@@ -226,21 +790,25 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
 
   // Base topic centers (from store positions + defaults)
   // This is used for initial render and as base for drag
-  const baseTopicCenters = useMemo((): Partial<Record<string, TopicNodeCenter>> => {
+  const baseTopicCenters = useMemo((): Partial<
+    Record<string, TopicNodeCenter>
+  > => {
     const leftW = Math.max(0, boardSize.w - boardSize.rightW);
     const margin = 20;
 
     // If lane is available, position bubbles within the lane
     // In mobile: lane is horizontal (small height), in desktop: lane is vertical (full height)
     const hasLane = boardSize.laneW > 0 && boardSize.laneH > 0;
-    
+
     // X bounds: use lane width if available
     const areaX = hasLane ? boardSize.laneX : margin;
     const areaW = hasLane ? boardSize.laneW : Math.max(1, leftW - margin * 2);
-    
+
     // Y bounds: use lane height if available (critical for mobile horizontal lane)
     const areaTop = hasLane ? boardSize.laneTop : margin;
-    const areaH = hasLane ? boardSize.laneH : Math.max(1, boardSize.h - margin * 2);
+    const areaH = hasLane
+      ? boardSize.laneH
+      : Math.max(1, boardSize.h - margin * 2);
 
     const centers: Partial<Record<string, TopicNodeCenter>> = {};
 
@@ -259,20 +827,18 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       const pos = topicPositions[id] ?? { x: defX, y: defY };
 
       // Bounds depend on whether we have a lane (uses scaled r for correct bounds)
-      const minX = hasLane ? boardSize.laneX + r + NODE_MARGIN : r + NODE_MARGIN;
-      const maxX = hasLane
-        ? Math.max(minX, boardSize.laneX + boardSize.laneW - r - NODE_MARGIN)
-        : Math.max(minX, leftW - r - NODE_MARGIN);
-      
-      // Y bounds: confine to lane area (mobile horizontal lane or desktop vertical lane)
-      const minY = hasLane 
-        ? boardSize.laneTop + r + NODE_MARGIN 
-        : r + NODE_MARGIN;
-      const maxY = hasLane
-        ? Math.max(minY, boardSize.laneTop + boardSize.laneH - r - NODE_MARGIN)
-        : Math.max(minY, boardSize.h - r - NODE_MARGIN);
+      const { minX, maxX, minY, maxY } = computeTopicBounds(
+        hasLane,
+        boardSize,
+        leftW,
+        r,
+      );
 
-      centers[id] = { x: clamp(pos.x, minX, maxX), y: clamp(pos.y, minY, maxY), r };
+      centers[id] = {
+        x: clamp(pos.x, minX, maxX),
+        y: clamp(pos.y, minY, maxY),
+        r,
+      };
     }
 
     return centers;
@@ -291,7 +857,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         // Only update if not currently dragging this node
         if (dragRef.current?.id !== id) {
           nodePosRef.current[id] = { x: base.x, y: base.y, r: base.r };
-          
+
           // CRITICAL: Update DOM directly so bubbles move on resize
           const el = nodeElRef.current[id];
           if (el) {
@@ -313,7 +879,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const aside = container.querySelector('aside');
+    const aside = container.querySelector("aside");
     const asideRect = aside?.getBoundingClientRect();
     const rightW = asideRect ? asideRect.width : 0;
 
@@ -328,7 +894,8 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     // Detect layout mode: stack (mobile) vs grid (desktop)
     // In stack mode, aside is below the lane; in grid mode, aside is to the right
     // We detect this by checking if lane's bottom edge is above the aside's top edge
-    const isStack = laneRect && asideRect && laneRect.bottom <= asideRect.top + 10;
+    const isStack =
+      laneRect && asideRect && laneRect.bottom <= asideRect.top + 10;
     layoutModeRef.current = isStack ? "stack" : "grid";
     // Update state to trigger re-renders (e.g., baseTopicCenters recalculation for node scaling)
     setIsStackLayout(!!isStack);
@@ -343,9 +910,9 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       laneH,
     });
 
-    // Measure task pills from VerticalCalendar (inside aside)
+    // Measure task pills from VerticalCalendar (inside aside ONLY, not TasksContainer)
     const taskCenterMap: Record<string, TaskCenter> = {};
-    const taskPills = container.querySelectorAll('[data-task-id]');
+    const taskPills = aside?.querySelectorAll("[data-task-id]") ?? [];
 
     taskPills.forEach((el) => {
       const taskId = (el as HTMLElement).dataset.taskId;
@@ -374,7 +941,10 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
 
     // Measure day anchors (for collapsed mode - wire to days)
     // Works for both desktop (vertical scroll) and mobile (horizontal scroll)
-    const dayCenterMap: Record<string, { x: number; y: number; dayNumber: number }> = {};
+    const dayCenterMap: Record<
+      string,
+      { x: number; y: number; dayNumber: number }
+    > = {};
     const dayAnchors = aside?.querySelectorAll('[data-day-anchor="true"]');
 
     dayAnchors?.forEach((el) => {
@@ -394,12 +964,22 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         if (!isVisible) return;
       }
 
-      // Anchor point: CENTER of the day element (works for both mobile buttons and desktop rows)
-      const x = r.left - containerRect.left + r.width / 2;
-      const y = r.top - containerRect.top + r.height / 2;
+      // Anchor point depends on layout mode:
+      // Desktop (grid): LEFT EDGE X, center Y — branches arrive from the left of the calendar
+      // Mobile (stack): center X, TOP EDGE Y — branches arrive from the top of the calendar
+      const x = isStack
+        ? r.left - containerRect.left + r.width / 2 // mobile: center X
+        : r.left - containerRect.left; // desktop: left edge X
+      const y = isStack
+        ? r.top - containerRect.top // mobile: top edge Y
+        : r.top - containerRect.top + r.height / 2; // desktop: center Y
 
       if (y > 0 && y < containerRect.height && x > 0) {
-        dayCenterMap[dateKey] = { x, y, dayNumber: Number.parseInt(dayNumberStr, 10) };
+        dayCenterMap[dateKey] = {
+          x,
+          y,
+          dayNumber: Number.parseInt(dayNumberStr, 10),
+        };
       }
     });
 
@@ -410,7 +990,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   const scheduleRecalc = useCallback(() => {
     if (recalcPendingRef.current) return;
     recalcPendingRef.current = true;
-    
+
     recalcRafRef.current = requestAnimationFrame(() => {
       recalcPendingRef.current = false;
       recalc();
@@ -428,17 +1008,19 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     if (!container) return;
 
     // Initial calculation with slight delay for DOM to settle
-    const initialTimeout = setTimeout(recalc, 100);
+    const initialTimeout = setTimeout(recalc, 50);
     // Second recalc for layout stabilization
-    const secondTimeout = setTimeout(recalc, 300);
+    const secondTimeout = setTimeout(recalc, 200);
+    // Third recalc as a safety net for slower layout changes (orientation switch)
+    const thirdTimeout = setTimeout(recalc, 500);
 
     const ro = new ResizeObserver(() => {
       scheduleRecalc();
     });
-    
+
     // Observe main container
     ro.observe(container);
-    
+
     // Observe lane if available (critical for grid layout changes)
     const lane = laneRef?.current;
     if (lane) {
@@ -446,40 +1028,40 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     }
 
     // Observe aside/calendar
-    const aside = container.querySelector('aside');
+    const aside = container.querySelector("aside");
     if (aside) {
       ro.observe(aside);
     }
 
-    // Find tasks scroll container and observe it too
-    const tasksScrollEl = container.querySelector('.tasks-scrollbar');
+    // Observe tasks scroll container for size changes (task add/remove)
+    // but NOT scroll — task pills we care about are inside aside, not here
+    const tasksScrollEl = container.querySelector(".tasks-scrollbar");
     if (tasksScrollEl) {
       ro.observe(tasksScrollEl);
-      tasksScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
     }
 
-    // Also observe scroll in calendar (both desktop vertical and mobile horizontal)
-    const calendarScrollEl = aside?.querySelector('.overflow-y-auto') || aside;
-    if (calendarScrollEl) {
-      calendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
-    }
-    
-    // Mobile calendar horizontal scroll (overflow-x-auto container)
-    const mobileCalendarScrollEl = aside?.querySelector('.overflow-x-auto');
-    if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-      mobileCalendarScrollEl.addEventListener("scroll", scheduleRecalc, { passive: true });
+    // Use event delegation with capture to listen for scroll events from ANY
+    // scrollable descendant of aside. This is robust against DOM changes when
+    // the calendar switches modes, because the aside
+    // element itself is stable and the capture phase catches non-bubbling scroll
+    // events from any child.
+    if (aside) {
+      aside.addEventListener("scroll", scheduleRecalc, {
+        passive: true,
+        capture: true,
+      });
     }
 
     // Window resize as backup
     const handleResize = () => scheduleRecalc();
-    window.addEventListener("resize", handleResize);
+    globalThis.addEventListener("resize", handleResize);
 
     // Orientation change (mobile)
-    window.addEventListener("orientationchange", handleResize);
+    globalThis.addEventListener("orientationchange", handleResize);
 
     // VisualViewport listeners for Android (browser bar show/hide)
     // This fixes the 100vh bug where the viewport changes without triggering resize
-    const vv = window.visualViewport;
+    const vv = globalThis.visualViewport;
     if (vv) {
       vv.addEventListener("resize", handleResize);
       vv.addEventListener("scroll", handleResize);
@@ -494,23 +1076,18 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     return () => {
       clearTimeout(initialTimeout);
       clearTimeout(secondTimeout);
+      clearTimeout(thirdTimeout);
       if (recalcRafRef.current) cancelAnimationFrame(recalcRafRef.current);
       ro.disconnect();
       mo.disconnect();
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleResize);
+      globalThis.removeEventListener("resize", handleResize);
+      globalThis.removeEventListener("orientationchange", handleResize);
       if (vv) {
         vv.removeEventListener("resize", handleResize);
         vv.removeEventListener("scroll", handleResize);
       }
-      if (tasksScrollEl) {
-        tasksScrollEl.removeEventListener("scroll", scheduleRecalc);
-      }
-      if (calendarScrollEl) {
-        calendarScrollEl.removeEventListener("scroll", scheduleRecalc);
-      }
-      if (mobileCalendarScrollEl && mobileCalendarScrollEl !== calendarScrollEl) {
-        mobileCalendarScrollEl.removeEventListener("scroll", scheduleRecalc);
+      if (aside) {
+        aside.removeEventListener("scroll", scheduleRecalc, { capture: true });
       }
     };
   }, [recalc, scheduleRecalc, containerRef, laneRef]);
@@ -530,7 +1107,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // ---------------------------------------------------------------------------
   // Build wire structure EARLY (needed by updateWiresImperative)
   // Keys are stable, geometry (d attribute) updated imperatively
-  // 
+  //
   // MODE: Collapsed (default) - wires connect to days (1 wire per day with tasks)
   // MODE: Selected (multi-select) - selected topics use wires to individual tasks in panel
   // ---------------------------------------------------------------------------
@@ -540,7 +1117,11 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       const ids: string[] = [];
       const allEntries = Object.values(entriesByDate).flat();
       for (const e of allEntries) {
-        if (e.topicId === topicId && topicIdSet.has(e.topicId) && taskCenters[e.id]) {
+        if (
+          e.topicId === topicId &&
+          topicIdSet.has(e.topicId) &&
+          taskCenters[e.id]
+        ) {
           ids.push(e.id);
         }
       }
@@ -570,32 +1151,54 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       .map((id) => {
         const color = topicMap[id]?.color ?? "#6b7280";
         const isSelected = selectedTopicIds.includes(id);
-        
+
         if (isSelected) {
           const taskIds = getEntryIdsForTopic(id);
           if (taskIds.length > 0) {
-            return { 
-              topicId: id, 
-              color, 
-              taskIds, 
+            return {
+              topicId: id,
+              color,
+              taskIds,
               dayKeys: null,
-              mode: 'tasks' as const,
-              isSingle: taskIds.length === 1 
+              mode: "tasks" as const,
+              isSingle: taskIds.length === 1,
             };
           }
           const dayKeys = getDayKeysForTopic(id);
           return dayKeys.length > 0
-            ? { topicId: id, color, taskIds: null, dayKeys, mode: 'days' as const, isSingle: dayKeys.length === 1 }
+            ? {
+                topicId: id,
+                color,
+                taskIds: null,
+                dayKeys,
+                mode: "days" as const,
+                isSingle: dayKeys.length === 1,
+              }
             : null;
         } else {
           const dayKeys = getDayKeysForTopic(id);
           return dayKeys.length > 0
-            ? { topicId: id, color, taskIds: null, dayKeys, mode: 'days' as const, isSingle: dayKeys.length === 1 }
+            ? {
+                topicId: id,
+                color,
+                taskIds: null,
+                dayKeys,
+                mode: "days" as const,
+                isSingle: dayKeys.length === 1,
+              }
             : null;
         }
       })
       .filter((w): w is NonNullable<typeof w> => w !== null);
-  }, [activeTopics, entriesByDate, taskCenters, dayCenters, selectedTopicIds, topicIdSet, topicMap]);
+  }, [
+    activeTopics,
+    entriesByDate,
+    taskCenters,
+    dayCenters,
+    selectedTopicIds,
+    topicIdSet,
+    topicMap,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Cache median Y per topic - updated when wireStructure/taskCenters/dayCenters change
@@ -604,19 +1207,19 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   useLayoutEffect(() => {
     for (const wire of wireStructure) {
       let ys: number[];
-      
-      if (wire.mode === 'tasks' && wire.taskIds) {
+
+      if (wire.mode === "tasks" && wire.taskIds) {
         ys = wire.taskIds
           .map((taskId) => taskCenters[taskId]?.y)
           .filter((y): y is number => y != null);
-      } else if (wire.mode === 'days' && wire.dayKeys) {
+      } else if (wire.mode === "days" && wire.dayKeys) {
         ys = wire.dayKeys
           .map((dateKey) => dayCenters[dateKey]?.y)
           .filter((y): y is number => y != null);
       } else {
         continue;
       }
-      
+
       if (ys.length > 0) {
         topicMedianYRef.current[wire.topicId] = median(ys);
       }
@@ -629,26 +1232,26 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // ---------------------------------------------------------------------------
   const getTargetYsForTopic = useCallback(
     (topicId: string): number[] => {
-      const wire = wireStructure.find(w => w.topicId === topicId);
+      const wire = wireStructure.find((w) => w.topicId === topicId);
       if (!wire) return [];
 
       const ys: number[] = [];
-      
-      if (wire.mode === 'tasks' && wire.taskIds) {
+
+      if (wire.mode === "tasks" && wire.taskIds) {
         for (const taskId of wire.taskIds) {
           const c = taskCenters[taskId];
           if (c) ys.push(c.y);
         }
-      } else if (wire.mode === 'days' && wire.dayKeys) {
+      } else if (wire.mode === "days" && wire.dayKeys) {
         for (const dateKey of wire.dayKeys) {
           const c = dayCenters[dateKey];
           if (c) ys.push(c.y);
         }
       }
-      
+
       return ys;
     },
-    [wireStructure, taskCenters, dayCenters]
+    [wireStructure, taskCenters, dayCenters],
   );
 
   // ---------------------------------------------------------------------------
@@ -665,7 +1268,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     el: SVGCircleElement | null | undefined,
     x: number,
     y: number,
-    r: number
+    r: number,
   ) => {
     if (!el) return;
     el.setAttribute("cx", String(x));
@@ -673,65 +1276,82 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
     el.setAttribute("r", String(r));
   };
 
-  const updateWiresForTopic = useCallback((topicId: string) => {
-    const wire = wireStructure.find(w => w.topicId === topicId);
-    const node = nodePosRef.current[topicId];
-    if (!wire || !node) return;
+  const updateWiresForTopic = useCallback(
+    (topicId: string) => {
+      const wire = wireStructure.find((w) => w.topicId === topicId);
+      const node = nodePosRef.current[topicId];
+      if (!wire || !node) return;
 
-    // Build items based on mode (tasks or days)
-    let items: { id: string; x: number; y: number }[];
-    
-    if (wire.mode === 'tasks' && wire.taskIds) {
-      // Expanded mode: connect to individual tasks
-      items = wire.taskIds
-        .map((id) => (taskCenters[id] ? { id, ...taskCenters[id] } : null))
-        .filter((item): item is NonNullable<typeof item> => item !== null);
-    } else if (wire.mode === 'days' && wire.dayKeys) {
-      // Collapsed mode: connect to days
-      items = wire.dayKeys
-        .map((dateKey) => (dayCenters[dateKey] ? { id: dateKey, ...dayCenters[dateKey] } : null))
-        .filter((item): item is NonNullable<typeof item> => item !== null);
-    } else {
-      return;
-    }
+      // Build items based on mode (tasks or days)
+      let items: { id: string; x: number; y: number }[];
 
-    if (items.length === 0) return;
+      if (wire.mode === "tasks" && wire.taskIds) {
+        // Expanded mode: connect to individual tasks
+        items = wire.taskIds
+          .map((id) => (taskCenters[id] ? { id, ...taskCenters[id] } : null))
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+      } else if (wire.mode === "days" && wire.dayKeys) {
+        // Collapsed mode: connect to days
+        items = wire.dayKeys
+          .map((dateKey) =>
+            dayCenters[dateKey]
+              ? { id: dateKey, ...dayCenters[dateKey] }
+              : null,
+          )
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+      } else {
+        return;
+      }
 
-    // Curvature varies by layout mode:
-    // - Stack (mobile): softer curves since wires go downward to calendar below
-    // - Grid (desktop): sharper curves for horizontal wires to calendar on right
-    const isStack = layoutModeRef.current === "stack";
-    const singleCurve = isStack ? -0.35 : -0.55;
-    const trunkCurve = isStack ? -0.45 : -0.7;
-    const branchCurve = isStack ? +0.35 : +0.55;
+      if (items.length === 0) return;
 
-    // Single wire - direct from node to target
-    if (items.length === 1) {
-      const { x, y } = items[0];
-      setPathD(`single-${topicId}`, quadPath(node.x, node.y, x, y, singleCurve));
-      return;
-    }
+      // Curvature varies by layout mode:
+      // - Stack (mobile): softer curves since wires go downward to calendar below
+      // - Grid (desktop): sharper curves for horizontal wires to calendar on right
+      const isStack = layoutModeRef.current === "stack";
+      const singleCurve = isStack ? -0.35 : -0.55;
+      const trunkCurve = isStack ? -0.45 : -0.7;
+      const branchCurve = isStack ? +0.35 : +0.55;
 
-    // Multiple targets - need junction
-    const j = junctionRef.current[topicId];
-    if (!j) return;
+      // Single wire - direct from node to target
+      if (items.length === 1) {
+        const { x, y } = items[0];
+        setPathD(
+          `single-${topicId}`,
+          quadPath(node.x, node.y, x, y, singleCurve),
+        );
+        return;
+      }
 
-    // Update trunk paths
-    const trunkPath = quadPath(node.x, node.y, j.x, j.y, trunkCurve);
-    setPathD(`trunk-${topicId}`, trunkPath);
-    setPathD(`trunk-dash-${topicId}`, trunkPath);
+      // Multiple targets - need junction
+      const j = junctionRef.current[topicId];
+      if (!j) return;
 
-    // Update branch paths
-    items.forEach(({ id, x, y }) => {
-      setPathD(`branch-${topicId}-${id}`, quadPath(j.x, j.y, x, y, branchCurve));
-    });
+      // Update trunk paths
+      const trunkPath = quadPath(node.x, node.y, j.x, j.y, trunkCurve);
+      setPathD(`trunk-${topicId}`, trunkPath);
+      setPathD(`trunk-dash-${topicId}`, trunkPath);
 
-    // Update junction dot position (scaled in stack mode - isStack already declared above)
-    const dotR = isStack ? DOT_RADIUS_BASE * NODE_SCALE_STACK : DOT_RADIUS_BASE;
-    const haloR = isStack ? HALO_RADIUS_BASE * NODE_SCALE_STACK : HALO_RADIUS_BASE;
-    setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, haloR);
-    setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, dotR);
-  }, [wireStructure, taskCenters, dayCenters]);
+      // Update branch paths
+      items.forEach(({ id, x, y }) => {
+        setPathD(
+          `branch-${topicId}-${id}`,
+          quadPath(j.x, j.y, x, y, branchCurve),
+        );
+      });
+
+      // Update junction dot position (scaled in stack mode)
+      const dotR = isStack
+        ? DOT_RADIUS_BASE * NODE_SCALE_STACK
+        : DOT_RADIUS_BASE;
+      const haloR = isStack
+        ? HALO_RADIUS_BASE * NODE_SCALE_STACK
+        : HALO_RADIUS_BASE;
+      setCirclePos(haloElRef.current[`halo-${topicId}`], j.x, j.y, haloR);
+      setCirclePos(dotElRef.current[`dot-${topicId}`], j.x, j.y, dotR);
+    },
+    [wireStructure, taskCenters, dayCenters],
+  );
 
   // ---------------------------------------------------------------------------
   // Update ALL SVG paths - used for global updates (mount, layout changes)
@@ -754,9 +1374,15 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // ---------------------------------------------------------------------------
   // Keep refs in sync for stable access without re-triggering junction effect
   // ---------------------------------------------------------------------------
-  useEffect(() => { wireStructureRef.current = wireStructure; }, [wireStructure]);
-  useEffect(() => { dayCentersRef.current = dayCenters; }, [dayCenters]);
-  useEffect(() => { taskCentersRef.current = taskCenters; }, [taskCenters]);
+  useEffect(() => {
+    wireStructureRef.current = wireStructure;
+  }, [wireStructure]);
+  useEffect(() => {
+    dayCentersRef.current = dayCenters;
+  }, [dayCenters]);
+  useEffect(() => {
+    taskCentersRef.current = taskCenters;
+  }, [taskCenters]);
 
   // ---------------------------------------------------------------------------
   // Junction animation loop (runs independently, no setState per frame)
@@ -768,168 +1394,72 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
 
     const hasLane = boardSize.laneW > 0 && boardSize.laneH > 0;
     const isStack = layoutModeRef.current === "stack";
-    
+
     // Lane padding for stack mode
     const lanePad = 16;
     const xMinLane = boardSize.laneX + lanePad;
     const xMaxLane = boardSize.laneX + boardSize.laneW - lanePad;
-    
+
     // Y bounds for stack mode
     const yMinLane = boardSize.laneTop + lanePad;
     const yMaxLane = boardSize.laneTop + boardSize.laneH - lanePad;
 
-    // Helper: get anchor X (median of target Xs) for a topic
-    const getAnchorX = (topicId: string): number | null => {
-      const wire = wireStructureRef.current.find(w => w.topicId === topicId);
-      if (!wire) return null;
-      
-      const xs: number[] = [];
-      if (wire.mode === 'days' && wire.dayKeys) {
-        for (const key of wire.dayKeys) {
-          const center = dayCentersRef.current[key];
-          if (center) xs.push(center.x);
-        }
-      } else if (wire.mode === 'tasks' && wire.taskIds) {
-        for (const taskId of wire.taskIds) {
-          const center = taskCentersRef.current[taskId];
-          if (center) xs.push(center.x);
-        }
-      }
-      return xs.length > 0 ? median(xs) : null;
+    // Shared objects for this effect's lifecycle
+    const laneBounds = {
+      xMin: xMinLane,
+      xMax: xMaxLane,
+      yMin: yMinLane,
+      yMax: yMaxLane,
+    };
+    const junctions = {
+      map: junctionRef.current,
+      targetX: junctionTargetXRef.current,
+      targetY: junctionTargetRef.current,
     };
 
-    // Initialize/update junction positions and targets
-    for (const id of activeTopics) {
-      const node = nodePosRef.current[id] || baseTopicCenters[id];
-      if (!node) continue;
-
-      if (isStack && hasLane) {
-        // ===== MOBILE STACK =====
-        // Initialize junction only if it doesn't exist (don't reset on every render!)
-        if (!junctionRef.current[id]) {
-          junctionRef.current[id] = { x: node.x, y: node.y };
-        }
-        
-        // Calculate target X (blend anchorX with node.x) and store in targetXRef
-        const anchorX = getAnchorX(id) ?? (boardSize.laneX + boardSize.laneW * 0.6);
-        let desiredX = clamp(
-          anchorX * (1 - JUNCTION_TO_NODE_BLEND_X_STACK) + node.x * JUNCTION_TO_NODE_BLEND_X_STACK,
-          xMinLane,
-          xMaxLane
-        );
-        desiredX = applyMinTrunkHysteresis(desiredX, node.x, xMinLane, xMaxLane, pushDirRef, id);
-
-        junctionTargetXRef.current[id] = { x: desiredX };
-        
-        // Calculate target Y
-        const ys = getTargetYsForTopic(id);
-        const medY = ys.length > 0 ? median(ys) : node.y;
-        const targetY = clamp(
-          medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
-          yMinLane,
-          yMaxLane
-        );
-        junctionTargetRef.current[id] = { y: targetY };
-        
-      } else {
-        // ===== DESKTOP GRID / FALLBACK =====
-        let xWanted: number;
-        let xMin: number;
-        let xMax: number;
-
-        if (hasLane) {
-          // DESKTOP GRID: Junction X near right edge of lane (before calendar)
-          xWanted = boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET;
-          xMin = node.x + node.r + 24;
-          xMax = boardSize.laneX + boardSize.laneW - 20;
-        } else {
-          // FALLBACK: No lane, use leftW
-          xWanted = leftW - JUNCTION_PULL_LEFT;
-          xMin = node.x + node.r + 24;
-          xMax = leftW - 10;
-        }
-
-        const x = clamp(xWanted, xMin, xMax);
-
-        const existing = junctionRef.current[id];
-        if (existing) {
-          existing.x = x;
-        } else {
-          junctionRef.current[id] = { x, y: node.y };
-        }
-
-        // Calculate target Y
-        const ys = getTargetYsForTopic(id);
-        if (ys.length > 0) {
-          const medY = median(ys);
-          const minY = 20;
-          const maxY = boardSize.h - 20;
-          
-          const targetY = clamp(
-            medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
-            minY,
-            maxY
-          );
-          junctionTargetRef.current[id] = { y: targetY };
-        }
-      }
-    }
+    // Initialize junction positions for all active topics
+    initAllJunctions({
+      activeTopics,
+      isStack,
+      hasLane,
+      boardSize,
+      leftW,
+      laneBounds,
+      junctions,
+      nodePos: nodePosRef.current,
+      baseTopicCenters,
+      getTargetYsForTopic,
+      wireStructure: wireStructureRef.current,
+      centers: { day: dayCentersRef.current, task: taskCentersRef.current },
+      pushDirRef,
+    });
 
     // Animation step - no setState, just update refs and DOM
-    // SKIP topic being dragged to avoid conflict with drag loop
+    // IMPORTANT: animateJunction must be called for EVERY topic each frame.
+    // Do NOT use ||= here — it short-circuits and skips subsequent topics.
     const step = () => {
       let needsMore = false;
       const draggingId = dragRef.current?.id;
 
       for (const id of activeTopics) {
-        // Skip the topic being dragged - drag loop handles it
         if (draggingId === id) continue;
-
-        const cur = junctionRef.current[id];
-        const tarY = junctionTargetRef.current[id];
-        if (!cur || !tarY) continue;
-
-        // Animate Y
-        let ny = cur.y + (tarY.y - cur.y) * JUNCTION_FOLLOW;
-        if (isStack && hasLane) {
-          ny = clamp(ny, yMinLane, yMaxLane);
-        }
-        if (Math.abs(ny - cur.y) > 0.05) {
-          cur.y = ny;
-          needsMore = true;
-        } else {
-          cur.y = tarY.y;
-        }
-
-        // Animate X only in stack mode (desktop X is set directly above)
-        if (isStack && hasLane) {
-          const tarX = junctionTargetXRef.current[id];
-          if (tarX) {
-            let nx = cur.x + (tarX.x - cur.x) * JUNCTION_FOLLOW;
-            nx = clamp(nx, xMinLane, xMaxLane);
-            if (Math.abs(tarX.x - cur.x) > 0.05) {
-              cur.x = nx;
-              needsMore = true;
-            } else {
-              cur.x = tarX.x;
-            }
-          }
-        }
-
-        // Update wires for this topic only
+        const animated = animateJunction({
+          id,
+          isStack,
+          hasLane,
+          junctions,
+          laneBounds,
+        });
+        if (animated) needsMore = true;
         updateWiresForTopic(id);
       }
 
-      if (needsMore) {
-        junctionRafRef.current = requestAnimationFrame(step);
-      } else {
-        junctionRafRef.current = null;
-      }
+      junctionRafRef.current = needsMore ? requestAnimationFrame(step) : null;
     };
 
     // Initial wire update for all topics
     updateWiresImperative();
-    
+
     // Start animation
     if (junctionRafRef.current) cancelAnimationFrame(junctionRafRef.current);
     junctionRafRef.current = requestAnimationFrame(step);
@@ -940,7 +1470,14 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         junctionRafRef.current = null;
       }
     };
-  }, [activeTopics, boardSize, baseTopicCenters, getTargetYsForTopic, updateWiresImperative, updateWiresForTopic]);
+  }, [
+    activeTopics,
+    boardSize,
+    baseTopicCenters,
+    getTargetYsForTopic,
+    updateWiresImperative,
+    updateWiresForTopic,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Drag animation loop - updates ONLY the dragged topic
@@ -952,7 +1489,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   const startDragLoop = useCallback(() => {
     const loop = () => {
       const drag = dragRef.current;
-      
+
       if (!drag) {
         dragRafRef.current = null;
         return;
@@ -968,72 +1505,36 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       if (node && j) {
         const isStack = layoutModeRef.current === "stack";
         const hasLane = boardSize.laneH > 0 && boardSize.laneW > 0;
-        const lanePad = 16;
-        
-        if (isStack && hasLane) {
-          // ===== MOBILE STACK: Junction X follows node (like Y does in desktop) =====
-          const xMin = boardSize.laneX + lanePad;
-          const xMax = boardSize.laneX + boardSize.laneW - lanePad;
-          
-          // Get median X of anchor targets
-          const wire = wireStructureRef.current.find(w => w.topicId === topicId);
-          const xs: number[] = [];
-          if (wire?.mode === 'days' && wire.dayKeys) {
-            for (const key of wire.dayKeys) {
-              const c = dayCentersRef.current[key];
-              if (c) xs.push(c.x);
-            }
-          } else if (wire?.mode === 'tasks' && wire.taskIds) {
-            for (const taskId of wire.taskIds) {
-              const c = taskCentersRef.current[taskId];
-              if (c) xs.push(c.x);
-            }
-          }
-          const anchorX = xs.length > 0 ? median(xs) : (boardSize.laneX + boardSize.laneW * 0.6);
-          
-          // Blend anchor X with node X (junction follows the node)
-          let desiredX = clamp(
-            anchorX * (1 - JUNCTION_TO_NODE_BLEND_X_STACK) + node.x * JUNCTION_TO_NODE_BLEND_X_STACK,
-            xMin,
-            xMax
-          );
-          desiredX = applyMinTrunkHysteresis(desiredX, node.x, xMin, xMax, pushDirRef, topicId);
 
-          // Smooth interpolation for X
-          j.x = j.x + (desiredX - j.x) * DRAG_JUNCTION_FOLLOW;
-          
-          // Keep target X in sync so it persists when drag ends
-          junctionTargetXRef.current[topicId] = { x: desiredX };
-          
-          // Y: keep stable in center of lane (don't jump around)
-          const yMin = boardSize.laneTop + lanePad;
-          const yMax = boardSize.laneTop + boardSize.laneH - lanePad;
-          const medY = topicMedianYRef.current[topicId];
-          const desiredY = medY != null 
-            ? clamp(medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND, yMin, yMax)
-            : clamp(boardSize.laneTop + boardSize.laneH * 0.5, yMin, yMax);
-          j.y = j.y + (desiredY - j.y) * 0.15; // Slower Y easing in stack
-          
-          // Keep target Y in sync too
-          junctionTargetRef.current[topicId] = { y: desiredY };
-          
+        if (isStack && hasLane) {
+          updateDragJunctionStack({
+            topicId,
+            node,
+            j,
+            boardSize,
+            wireStructure: wireStructureRef.current,
+            centers: {
+              day: dayCentersRef.current,
+              task: taskCentersRef.current,
+            },
+            pushDirRef,
+            junctions: {
+              targetX: junctionTargetXRef.current,
+              targetY: junctionTargetRef.current,
+            },
+            topicMedianY: topicMedianYRef.current[topicId],
+            dragFollow: DRAG_JUNCTION_FOLLOW,
+          });
         } else {
-          // ===== DESKTOP GRID: Junction Y follows node (original behavior) =====
-          const medY = topicMedianYRef.current[topicId];
-          if (medY != null) {
-            const minY = 20;
-            const maxY = boardSize.h - 20;
-            
-            const desiredY = clamp(
-              medY * (1 - JUNCTION_TO_NODE_BLEND) + node.y * JUNCTION_TO_NODE_BLEND,
-              minY,
-              maxY
-            );
-            // Smooth interpolation for natural feel
-            j.y = j.y + (desiredY - j.y) * DRAG_JUNCTION_FOLLOW;
-            // Keep target in sync for when drag ends
-            junctionTargetRef.current[topicId] = { y: desiredY };
-          }
+          updateDragJunctionDesktop({
+            topicId,
+            node,
+            j,
+            boardH: boardSize.h,
+            junctionTargetY: junctionTargetRef.current,
+            topicMedianY: topicMedianYRef.current[topicId],
+            dragFollow: DRAG_JUNCTION_FOLLOW,
+          });
         }
       }
 
@@ -1073,16 +1574,24 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
 
       const leftW = Math.max(0, boardSize.w - boardSize.rightW);
       const hasLane = boardSize.laneW > 0 && boardSize.laneH > 0;
-      const minX = hasLane ? boardSize.laneX + node.r + NODE_MARGIN : node.r + NODE_MARGIN;
+      const minX = hasLane
+        ? boardSize.laneX + node.r + NODE_MARGIN
+        : node.r + NODE_MARGIN;
       const maxX = hasLane
-        ? Math.max(minX, boardSize.laneX + boardSize.laneW - node.r - NODE_MARGIN)
+        ? Math.max(
+            minX,
+            boardSize.laneX + boardSize.laneW - node.r - NODE_MARGIN,
+          )
         : Math.max(minX, leftW - node.r - NODE_MARGIN);
       // Y bounds: use lane bounds when available (matches baseTopicCenters; critical for mobile horizontal strip)
       const minY = hasLane
         ? boardSize.laneTop + node.r + NODE_MARGIN
         : node.r + NODE_MARGIN;
       const maxY = hasLane
-        ? Math.max(minY, boardSize.laneTop + boardSize.laneH - node.r - NODE_MARGIN)
+        ? Math.max(
+            minY,
+            boardSize.laneTop + boardSize.laneH - node.r - NODE_MARGIN,
+          )
         : Math.max(minY, boardSize.h - node.r - NODE_MARGIN);
 
       // Store drag state
@@ -1096,6 +1605,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
         startX: px,
         startY: py,
         hasMoved: false,
+        isTouch: e.pointerType === "touch",
       };
 
       latestPointerRef.current = { x: px, y: py };
@@ -1103,7 +1613,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       // Start the drag animation loop
       startDragLoop();
     },
-    [containerRef, boardSize, startDragLoop]
+    [containerRef, boardSize, startDragLoop],
   );
 
   const handlePointerMove = useCallback(
@@ -1117,16 +1627,18 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       const px = e.clientX - drag.containerRect.left;
       const py = e.clientY - drag.containerRect.top;
 
-      // Check if user has moved enough to be considered a drag (5px threshold)
+      // Check if user has moved enough to be considered a drag
+      // Touch inputs need a larger threshold (15px) because finger taps are imprecise
+      const dragThreshold = drag.isTouch ? 15 : 5;
       const dx = Math.abs(px - drag.startX);
       const dy = Math.abs(py - drag.startY);
-      if (dx > 5 || dy > 5) {
+      if (dx > dragThreshold || dy > dragThreshold) {
         drag.hasMoved = true;
       }
-      
+
       const { offsetX, offsetY, bounds } = drag;
       const { minX, maxX, minY, maxY } = bounds;
-      
+
       const nx = clamp(px - offsetX, minX, maxX);
       const ny = clamp(py - offsetY, minY, maxY);
 
@@ -1150,7 +1662,7 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       const hasLane = boardSize.laneW > 0 && boardSize.laneH > 0;
       const isStack = layoutModeRef.current === "stack";
       const j = junctionRef.current[id];
-      
+
       if (j && currentNode) {
         // MOBILE STACK: j.x is animated in startDragLoop rAF for smooth following
         // Don't set j.x here to avoid fighting with the rAF loop
@@ -1159,7 +1671,8 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           // Just store node position for the loop to use (already done above)
         } else if (hasLane) {
           // DESKTOP GRID: j.x stays near calendar edge
-          const xWanted = boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET;
+          const xWanted =
+            boardSize.laneX + boardSize.laneW - JUNCTION_LANE_OFFSET;
           const xMin = nx + currentNode.r + 24;
           const xMax = boardSize.laneX + boardSize.laneW - 20;
           j.x = clamp(xWanted, xMin, xMax);
@@ -1176,13 +1689,13 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       // Store pointer position (used for debugging if needed)
       latestPointerRef.current = { x: px, y: py };
     },
-    [boardSize]
+    [boardSize],
   );
 
   const handlePointerUp = useCallback(
     (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
       const drag = dragRef.current;
-      
+
       if (drag?.id === id && drag?.pointerId === e.pointerId) {
         // Stop the drag animation loop
         stopDragLoop();
@@ -1200,6 +1713,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           toggleTopicSelection(id);
         }
 
+        // On touch, clear highlightedTopic since onMouseLeave doesn't fire reliably
+        // This prevents the dimming logic from keeping the last tapped topic "highlighted"
+        if (drag.isTouch) {
+          setHighlightedTopic(null);
+        }
+
         dragRef.current = null;
         latestPointerRef.current = null;
       }
@@ -1207,8 +1726,12 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
+
+      // Remove focus from the button to prevent mobile keyboards from appearing.
+      // Buttons receive focus on tap, and some Android browsers open the keyboard.
+      e.currentTarget.blur();
     },
-    [setTopicPosition, stopDragLoop, toggleTopicSelection]
+    [setTopicPosition, stopDragLoop, toggleTopicSelection, setHighlightedTopic],
   );
 
   // ---------------------------------------------------------------------------
@@ -1226,122 +1749,39 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div 
-      className="absolute inset-0 pointer-events-none" 
+    <div
+      className="absolute inset-0 pointer-events-none landscape-mobile-hidden"
+      aria-label="Topics floating layer"
       style={{ zIndex: 15 }}
     >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg
         className="absolute inset-0 pointer-events-none"
+        aria-label="Topics connection map"
         width="100%"
         height="100%"
-        style={{ overflow: 'visible' }}
+        style={{ overflow: "visible" }}
       >
         {wireStructure.map((wire) => {
-          // Dimming logic:
-          // - If there's a selection, dim topics NOT in selection
-          // - If no selection but hover, dim topics NOT being hovered
           const hasSelection = selectedTopicIds.length > 0;
           const isSelected = selectedTopicIds.includes(wire.topicId);
           const dim = hasSelection
             ? !isSelected
-            : (highlightedTopic && wire.topicId !== highlightedTopic);
-          
-          // When dimmed, make wires almost invisible (0.02-0.04) to focus on highlighted/selected topic
-          const trunkOpacity = dim ? 0.03 : 0.25;
-          const branchOpacity = dim ? 0.04 : 0.3;
-          
-          // Scale stroke widths in stack mode for proportional visuals
+            : highlightedTopic && wire.topicId !== highlightedTopic;
           const wireScale = isStackLayout ? 0.85 : 1;
-          
-          // Get the branch IDs based on mode
-          const branchIds = wire.mode === 'tasks' ? (wire.taskIds || []) : (wire.dayKeys || []);
-
-          if (wire.isSingle) {
-            return (
-              <g key={wire.topicId}>
-                <path
-                  ref={(el) => { pathElRef.current[`single-${wire.topicId}`] = el; }}
-                  d="" // Will be set imperatively
-                  stroke={wire.color}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeWidth={(dim ? 1 : 2) * wireScale}
-                  strokeOpacity={dim ? 0.04 : 0.3}
-                  strokeDasharray="4 8"
-                />
-              </g>
-            );
-          }
-
-          // Check if this topic is highlighted/selected for visual feedback
-          const isHot = highlightedTopic === wire.topicId;
 
           return (
-            <g key={wire.topicId}>
-              {/* Trunk - solid */}
-              <path
-                ref={(el) => { pathElRef.current[`trunk-${wire.topicId}`] = el; }}
-                d="" // Will be set imperatively
-                stroke={wire.color}
-                fill="none"
-                strokeLinecap="round"
-                strokeWidth={(dim ? 2 : 3) * wireScale}
-                strokeOpacity={trunkOpacity}
-              />
-              {/* Trunk - dashed overlay */}
-              <path
-                ref={(el) => { pathElRef.current[`trunk-dash-${wire.topicId}`] = el; }}
-                d="" // Will be set imperatively
-                stroke={wire.color}
-                fill="none"
-                strokeLinecap="round"
-                strokeWidth={(dim ? 1 : 2) * wireScale}
-                strokeOpacity={dim ? 0.02 : 0.12}
-                strokeDasharray="4 8"
-              />
-              {/* Branches - to tasks or days depending on mode */}
-              {branchIds.map((branchId) => (
-                <path
-                  key={branchId}
-                  ref={(el) => { pathElRef.current[`branch-${wire.topicId}-${branchId}`] = el; }}
-                  d="" // Will be set imperatively
-                  stroke={wire.color}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeWidth={(dim ? 1 : 1.5) * wireScale}
-                  strokeOpacity={branchOpacity}
-                  strokeDasharray="4 8"
-                />
-              ))}
-              {/* Junction dot (neuron point) - rendered LAST to be on top */}
-              {/* Halo (glow effect - cheaper than filter) */}
-              <circle
-                ref={(el) => { haloElRef.current[`halo-${wire.topicId}`] = el; }}
-                cx="0" cy="0" r="0" // Will be set imperatively
-                fill={wire.color}
-                fillOpacity={dim ? HALO_OPACITY * 0.15 : HALO_OPACITY}
-                className={cn(
-                  "junction-halo",
-                  isHot && "hot",
-                  isSelected && "selected"
-                )}
-                style={{ transformOrigin: "center", pointerEvents: "none" }}
-              />
-              {/* Dot (solid center) */}
-              <circle
-                ref={(el) => { dotElRef.current[`dot-${wire.topicId}`] = el; }}
-                cx="0" cy="0" r="0" // Will be set imperatively
-                fill={wire.color}
-                fillOpacity={dim ? DOT_OPACITY * 0.15 : DOT_OPACITY}
-                className={cn(
-                  "junction-dot",
-                  isHot && "hot",
-                  isSelected && "selected"
-                )}
-                style={{ transformOrigin: "center", pointerEvents: "none" }}
-              />
-            </g>
+            <WireGroup
+              key={wire.topicId}
+              wire={wire}
+              dim={dim}
+              wireScale={wireScale}
+              highlightedTopic={highlightedTopic}
+              isSelected={isSelected}
+              pathElRef={pathElRef}
+              haloElRef={haloElRef}
+              dotElRef={dotElRef}
+            />
           );
         })}
       </svg>
@@ -1364,32 +1804,61 @@ export function FloatingTopics({ containerRef, laneRef, entriesByDate }: Readonl
           <button
             type="button"
             key={id}
-            ref={(el) => { nodeElRef.current[id] = el; }}
-            aria-label={`${isSelected ? 'Deselect' : 'Select'} topic ${topicMap[id]?.name ?? id}`}
+            ref={(el) => {
+              nodeElRef.current[id] = el;
+            }}
+            aria-label={`${isSelected ? "Deselect" : "Select"} topic ${topicMap[id]?.name ?? id}`}
             aria-pressed={isSelected}
-            onMouseEnter={() => setHighlightedTopic(id)}
-            onMouseLeave={() => setHighlightedTopic(null)}
+            onMouseEnter={() => {
+              if (!isStackLayout) setHighlightedTopic(id);
+            }}
+            onMouseLeave={() => {
+              if (!isStackLayout) setHighlightedTopic(null);
+            }}
             onPointerDown={handlePointerDown(id)}
             onPointerMove={handlePointerMove(id)}
             onPointerUp={handlePointerUp(id)}
             onPointerCancel={handlePointerUp(id)}
             className={cn(
               "topic-node pointer-events-auto absolute",
-              isSelected && "ring-2 ring-white/50 ring-offset-2 ring-offset-transparent"
+              isSelected && "topic-node--selected",
             )}
-            style={{
-              // Position is controlled imperatively during drag via left/top
-              left: node.x - node.r,
-              top: node.y - node.r,
-              width: node.r * 2,
-              height: node.r * 2,
-              background: topicMap[id]?.color ?? "#6b7280",
-              touchAction: "none",
-            }}
-            title={`${topicMap[id]?.name ?? id} (${topicCounts[id] ?? 0} entries) - Click to ${isSelected ? 'deselect' : 'select'}`}
+            style={
+              {
+                // Position is controlled imperatively during drag via left/top
+                left: node.x - node.r,
+                top: node.y - node.r,
+                width: node.r * 2,
+                height: node.r * 2,
+                // Glass bubble: semi-transparent fill + radial glow
+                // Selected state gets higher opacity for a brighter look
+                background: isSelected
+                  ? `radial-gradient(circle at 35% 35%, ${topicMap[id]?.color ?? "#6b7280"}90, ${topicMap[id]?.color ?? "#6b7280"}55 70%)`
+                  : `radial-gradient(circle at 35% 35%, ${topicMap[id]?.color ?? "#6b7280"}60, ${topicMap[id]?.color ?? "#6b7280"}35 70%)`,
+                borderColor: isSelected
+                  ? `${topicMap[id]?.color ?? "#6b7280"}90`
+                  : `${topicMap[id]?.color ?? "#6b7280"}55`,
+                // CSS custom property consumed by .topic-node box-shadow
+                "--topic-glow": isSelected
+                  ? `${topicMap[id]?.color ?? "#6b7280"}50`
+                  : `${topicMap[id]?.color ?? "#6b7280"}28`,
+                // CSS custom property for scaling font sizes with bubble radius
+                "--node-r": node.r,
+                touchAction: "none",
+              } as React.CSSProperties
+            }
+            title={`${topicMap[id]?.name ?? id} (${topicCounts[id] ?? 0} entries) - Click to ${isSelected ? "deselect" : "select"}`}
           >
             <div className="topic-label">
-              <div className="topic-name">{topicMap[id]?.name ?? "?"}</div>
+              <div
+                className={cn(
+                  "topic-name",
+                  !(topicMap[id]?.name ?? "").includes(" ") &&
+                    "topic-name--single",
+                )}
+              >
+                {topicMap[id]?.name ?? "?"}
+              </div>
               <div className="topic-count">{topicCounts[id] ?? 0}</div>
             </div>
           </button>

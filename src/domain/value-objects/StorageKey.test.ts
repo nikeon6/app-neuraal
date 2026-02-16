@@ -13,7 +13,7 @@ describe("StorageKey", () => {
 
     it("should accept keys with uuid format", () => {
       const result = StorageKey.create(
-        "users/550e8400-e29b-41d4-a716-446655440000/attachments/abc123.pdf"
+        "users/550e8400-e29b-41d4-a716-446655440000/attachments/abc123.pdf",
       );
       expect(result.isOk()).toBe(true);
     });

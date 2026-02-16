@@ -10,7 +10,7 @@ import type { ApiEntry } from "@/shared/api/sdk";
 // ============================================================================
 export function getTopicIdsFromExpandedDays(
   expandedDayKeys: ISODate[],
-  entriesByDate: Record<string, ApiEntry[]>
+  entriesByDate: Record<string, ApiEntry[]>,
 ): string[] {
   const topicIds = new Set<string>();
   for (const dateKey of expandedDayKeys) {
@@ -38,8 +38,8 @@ export type DashboardSection =
  * Topics and entries come from TanStack Query (useTopicsQuery, useEntriesByDateQuery).
  */
 interface AppState {
-  isAuthenticated: boolean;
-  login: () => void;
+  user: { id: string; email: string } | null;
+  login: (user: { id: string; email: string }) => void;
   logout: () => void;
 
   selectedDate: Date;
@@ -56,15 +56,31 @@ interface AppState {
   selectedTopicIds: string[];
   selectedTopicIdsManual: string[];
   expandedDayKeys: ISODate[];
+  pinnedDayKeys: ISODate[];
   toggleTopicSelection: (topicId: string) => void;
   setSelectedTopics: (topicIds: string[]) => void;
-  expandDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
-  collapseDay: (dateKey: ISODate, entriesByDate: Record<string, ApiEntry[]>) => void;
+  expandDay: (
+    dateKey: ISODate,
+    entriesByDate: Record<string, ApiEntry[]>,
+  ) => void;
+  collapseDay: (
+    dateKey: ISODate,
+    entriesByDate: Record<string, ApiEntry[]>,
+  ) => void;
+  pinDay: (dateKey: ISODate) => void;
+  unpinDay: (
+    dateKey: ISODate,
+    entriesByDate: Record<string, ApiEntry[]>,
+  ) => void;
   clearExpandedDays: () => void;
   clearSelection: () => void;
 
   dashboardSection: DashboardSection;
   setDashboardSection: (section: DashboardSection) => void;
+
+  /** Entry ID to scroll to in TasksContainer (set by navigation, cleared after scroll) */
+  scrollToEntryId: string | null;
+  setScrollToEntryId: (entryId: string | null) => void;
 }
 
 // ============================================================================
@@ -74,9 +90,9 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
-      isAuthenticated: false,
-      login: () => set({ isAuthenticated: true }),
-      logout: () => set({ isAuthenticated: false }),
+      user: null,
+      login: (user) => set({ user }),
+      logout: () => set({ user: null }),
 
       selectedDate: new Date(),
       selectedDay: new Date().getDate(),
@@ -96,6 +112,7 @@ export const useStore = create<AppState>()(
       selectedTopicIds: [],
       selectedTopicIdsManual: [],
       expandedDayKeys: [],
+      pinnedDayKeys: [],
 
       toggleTopicSelection: (topicId) =>
         set((state) => {
@@ -107,6 +124,7 @@ export const useStore = create<AppState>()(
             selectedTopicIdsManual: newManual,
             selectedTopicIds: newManual,
             expandedDayKeys: [],
+            pinnedDayKeys: [],
           };
         }),
 
@@ -114,9 +132,17 @@ export const useStore = create<AppState>()(
 
       expandDay: (dateKey, entriesByDate) =>
         set((state) => {
-          if (state.expandedDayKeys.includes(dateKey)) return state;
-          const newExpandedDays = [...state.expandedDayKeys, dateKey];
-          const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
+          // Keep pinned days + add the newly clicked day
+          const pinned = state.pinnedDayKeys.filter((k) =>
+            state.expandedDayKeys.includes(k),
+          );
+          const newExpandedDays = pinned.includes(dateKey)
+            ? pinned
+            : [...pinned, dateKey];
+          const topicsFromDays = getTopicIdsFromExpandedDays(
+            newExpandedDays,
+            entriesByDate,
+          );
           return {
             selectedTopicIdsManual: [],
             expandedDayKeys: newExpandedDays,
@@ -127,36 +153,64 @@ export const useStore = create<AppState>()(
       collapseDay: (dateKey, entriesByDate) =>
         set((state) => {
           if (!state.expandedDayKeys.includes(dateKey)) return state;
-          const newExpandedDays = state.expandedDayKeys.filter((k) => k !== dateKey);
-          const topicsFromDays = getTopicIdsFromExpandedDays(newExpandedDays, entriesByDate);
+          const newExpandedDays = state.expandedDayKeys.filter(
+            (k) => k !== dateKey,
+          );
+          const newPinned = state.pinnedDayKeys.filter((k) => k !== dateKey);
+          const topicsFromDays = getTopicIdsFromExpandedDays(
+            newExpandedDays,
+            entriesByDate,
+          );
           return {
             expandedDayKeys: newExpandedDays,
+            pinnedDayKeys: newPinned,
             selectedTopicIds: topicsFromDays,
           };
         }),
 
+      pinDay: (dateKey) =>
+        set((state) => ({
+          pinnedDayKeys: state.pinnedDayKeys.includes(dateKey)
+            ? state.pinnedDayKeys
+            : [...state.pinnedDayKeys, dateKey],
+        })),
+
+      unpinDay: (dateKey, _entriesByDate) =>
+        set((state) => {
+          const newPinned = state.pinnedDayKeys.filter((k) => k !== dateKey);
+          // Don't collapse immediately — just unpin.
+          // The day will collapse the next time another day is clicked.
+          return {
+            pinnedDayKeys: newPinned,
+          };
+        }),
+
       clearExpandedDays: () =>
-        set({ expandedDayKeys: [], selectedTopicIds: [] }),
+        set({ expandedDayKeys: [], pinnedDayKeys: [], selectedTopicIds: [] }),
 
       clearSelection: () =>
         set({
           selectedTopicIds: [],
           selectedTopicIdsManual: [],
           expandedDayKeys: [],
+          pinnedDayKeys: [],
         }),
 
       dashboardSection: "daily" as DashboardSection,
       setDashboardSection: (section) => set({ dashboardSection: section }),
+
+      scrollToEntryId: null,
+      setScrollToEntryId: (entryId) => set({ scrollToEntryId: entryId }),
     }),
     {
       name: "neuraal-storage",
       partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
+        user: state.user,
         topicPositions: state.topicPositions,
         dashboardSection: state.dashboardSection,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // ============================================================================

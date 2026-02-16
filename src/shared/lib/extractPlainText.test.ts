@@ -31,9 +31,7 @@ describe("extractPlainText", () => {
       ],
     };
 
-    expect(extractPlainText(content)).toBe(
-      "First paragraph Second paragraph"
-    );
+    expect(extractPlainText(content)).toBe("First paragraph Second paragraph");
   });
 
   it("should handle inline marks (bold, italic, etc)", () => {
@@ -222,5 +220,141 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toBe("Done task Pending task");
+  });
+
+  // ---- New node types (Tiptap WYSIWYG) ----
+
+  it("should extract text from codeBlock nodes", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "javascript" },
+          content: [{ type: "text", text: "const x = 1;" }],
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("const x = 1;");
+  });
+
+  it("should extract alt text from image nodes", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: {
+            src: "https://example.com/photo.jpg",
+            alt: "A beautiful sunset",
+          },
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("A beautiful sunset");
+  });
+
+  it("should skip image nodes without alt text", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Before" }],
+        },
+        {
+          type: "image",
+          attrs: { src: "https://example.com/photo.jpg" },
+        },
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "After" }],
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("Before After");
+  });
+
+  it("should extract filename from fileAttachment nodes", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "fileAttachment",
+          attrs: {
+            attachmentId: "abc-123",
+            filename: "report.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 1024,
+          },
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("report.pdf");
+  });
+
+  it("should skip youtube nodes (no meaningful text)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Check this out" }],
+        },
+        {
+          type: "youtube",
+          attrs: { src: "https://youtube.com/watch?v=abc123" },
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("Check this out");
+  });
+
+  it("should handle mixed content with new node types", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "heading",
+          attrs: { level: 1 },
+          content: [{ type: "text", text: "Project Notes" }],
+        },
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Some context here" }],
+        },
+        {
+          type: "codeBlock",
+          attrs: { language: "python" },
+          content: [{ type: "text", text: "print('hello')" }],
+        },
+        {
+          type: "image",
+          attrs: { src: "img.png", alt: "Diagram" },
+        },
+        {
+          type: "fileAttachment",
+          attrs: {
+            attachmentId: "x",
+            filename: "spec.docx",
+            mimeType: "application/docx",
+            sizeBytes: 500,
+          },
+        },
+        {
+          type: "youtube",
+          attrs: { src: "https://youtube.com/watch?v=x" },
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe(
+      "Project Notes Some context here print('hello') Diagram spec.docx",
+    );
   });
 });

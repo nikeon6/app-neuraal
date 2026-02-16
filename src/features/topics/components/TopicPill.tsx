@@ -14,15 +14,15 @@ export interface TopicPillProps {
 
 export function TopicPill({ topic, onDelete }: TopicPillProps) {
   return (
-    <div
+    <li
       data-testid={`topic-pill-${topic.id}`}
       aria-label={`Topic ${topic.name}`}
       className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm group hover:bg-white/10 transition-all"
     >
       {/* Color indicator */}
       <span
-        className="w-3 h-3 rounded-full flex-shrink-0"
-        style={{ backgroundColor: topic.color }}
+        className="w-3 h-3 rounded-full flex-shrink-0 topic-dot"
+        style={{ "--dot-color": topic.color } as React.CSSProperties}
       />
 
       {/* Name */}
@@ -37,6 +37,6 @@ export function TopicPill({ topic, onDelete }: TopicPillProps) {
       >
         <X className="w-3.5 h-3.5" />
       </button>
-    </div>
+    </li>
   );
 }

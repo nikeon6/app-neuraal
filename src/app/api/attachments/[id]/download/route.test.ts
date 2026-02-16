@@ -30,7 +30,7 @@ function createRequest(headers?: Record<string, string>): NextRequest {
       headers: {
         ...headers,
       },
-    }
+    },
   );
 }
 

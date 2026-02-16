@@ -1,6 +1,7 @@
 import { Entry } from "@/domain/entities/Entry";
 import type { EntryRepository } from "@/application/ports/EntryRepository";
 import type { SummaryFormat } from "@/domain/value-objects/SummaryText";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 /**
@@ -27,8 +28,12 @@ export class PrismaEntryRepository implements EntryRepository {
       topicId: record.topicId,
       completed: record.completed,
       version: record.version,
+      sortOrder: record.sortOrder,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      summary: record.summary,
+      summaryFormat: record.summaryFormat,
+      summaryUpdatedAt: record.summaryUpdatedAt,
     });
 
     return result.isOk() ? result.value : null;
@@ -37,7 +42,7 @@ export class PrismaEntryRepository implements EntryRepository {
   async findByUserAndDate(userId: string, date: string): Promise<Entry[]> {
     const records = await prisma.entry.findMany({
       where: { userId, date },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
 
     return records
@@ -52,8 +57,12 @@ export class PrismaEntryRepository implements EntryRepository {
           topicId: record.topicId,
           completed: record.completed,
           version: record.version,
+          sortOrder: record.sortOrder,
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
+          summary: record.summary,
+          summaryFormat: record.summaryFormat,
+          summaryUpdatedAt: record.summaryUpdatedAt,
         });
         return result.isOk() ? result.value : null;
       })
@@ -68,10 +77,11 @@ export class PrismaEntryRepository implements EntryRepository {
         date: entry.date.toString(),
         type: entry.type.toString(),
         title: entry.title.toString(),
-        content: entry.content.toJSON(),
+        content: entry.content.toJSON() as Prisma.InputJsonValue,
         topicId: entry.topicId,
         completed: entry.completed,
         version: entry.version,
+        sortOrder: entry.sortOrder,
         createdAt: entry.createdAt,
       },
     });
@@ -83,7 +93,7 @@ export class PrismaEntryRepository implements EntryRepository {
       data: {
         type: entry.type.toString(),
         title: entry.title.toString(),
-        content: entry.content.toJSON(),
+        content: entry.content.toJSON() as Prisma.InputJsonValue,
         topicId: entry.topicId,
         completed: entry.completed,
         version: entry.version,
@@ -100,7 +110,7 @@ export class PrismaEntryRepository implements EntryRepository {
   async updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },
@@ -112,10 +122,59 @@ export class PrismaEntryRepository implements EntryRepository {
     });
   }
 
+  async clearSummary(entryId: string): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: {
+        summary: null,
+        summaryFormat: null,
+        summaryUpdatedAt: null,
+      },
+    });
+  }
+
+  async updateContent(
+    entryId: string,
+    content: Record<string, unknown>,
+  ): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: { content: content as Prisma.InputJsonValue },
+    });
+  }
+
+  async updateTranscript(
+    entryId: string,
+    transcriptText: string,
+  ): Promise<void> {
+    await prisma.entry.update({
+      where: { id: entryId },
+      data: {
+        transcriptText,
+        transcriptUpdatedAt: new Date(),
+      },
+    });
+  }
+
   async updateTopic(entryId: string, topicId: string | null): Promise<void> {
     await prisma.entry.update({
       where: { id: entryId },
       data: { topicId },
     });
+  }
+
+  async reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[],
+  ): Promise<void> {
+    await prisma.$transaction(
+      orderedIds.map((id, index) =>
+        prisma.entry.updateMany({
+          where: { id, userId, date },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
   }
 }

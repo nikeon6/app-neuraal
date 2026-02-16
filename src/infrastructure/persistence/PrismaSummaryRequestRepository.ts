@@ -1,5 +1,6 @@
 import { EntrySummaryRequest } from "@/domain/entities/EntrySummaryRequest";
 import type { SummaryRequestRepository } from "@/application/ports/SummaryRequestRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
 /**
@@ -14,6 +15,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
         userId: request.userId,
         entryId: request.entryId,
         status: request.status.toString(),
+        meta: (request.meta ?? undefined) as Prisma.InputJsonValue | undefined,
         createdAt: request.createdAt,
       },
     });
@@ -33,7 +35,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
 
   async findByIdForUser(
     id: string,
-    userId: string
+    userId: string,
   ): Promise<EntrySummaryRequest | null> {
     const record = await prisma.entrySummaryRequest.findFirst({
       where: { id, userId },
@@ -51,12 +53,13 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
       where: { id: request.id },
       data: {
         status: request.status.toString(),
+        meta: (request.meta ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
   }
 
   async findActiveByEntryId(
-    entryId: string
+    entryId: string,
   ): Promise<EntrySummaryRequest | null> {
     const record = await prisma.entrySummaryRequest.findFirst({
       where: {
@@ -73,11 +76,21 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
     return this.toDomain(record);
   }
 
+  async countActiveByUserId(userId: string): Promise<number> {
+    return prisma.entrySummaryRequest.count({
+      where: {
+        userId,
+        status: { in: ["pending", "submitted"] },
+      },
+    });
+  }
+
   private toDomain(record: {
     id: string;
     userId: string;
     entryId: string;
     status: string;
+    meta: unknown;
     createdAt: Date;
     updatedAt: Date;
   }): EntrySummaryRequest | null {
@@ -86,6 +99,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
       userId: record.userId,
       entryId: record.entryId,
       status: record.status,
+      meta: (record.meta as Record<string, unknown>) ?? null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });

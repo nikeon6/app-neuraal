@@ -2,10 +2,7 @@
 // Use cases and ports (interfaces)
 
 // Core
-export type {
-  UseCaseError,
-  UseCaseErrorCode,
-} from "./core/UseCaseError";
+export type { UseCaseError, UseCaseErrorCode } from "./core/UseCaseError";
 export {
   validationError,
   duplicateError,
@@ -37,31 +34,36 @@ export type { AttachmentRepository } from "./ports/AttachmentRepository";
 export type { ObjectStoragePort } from "./ports/ObjectStoragePort";
 
 // Use Cases - Topics
-export { CreateTopic } from "./use-cases/CreateTopic";
-export type { CreateTopicInput } from "./use-cases/CreateTopic";
-export { ListTopics } from "./use-cases/ListTopics";
-export type { ListTopicsInput } from "./use-cases/ListTopics";
-export { UpdateTopic } from "./use-cases/UpdateTopic";
-export type { UpdateTopicInput } from "./use-cases/UpdateTopic";
-export { DeleteTopic } from "./use-cases/DeleteTopic";
-export type { DeleteTopicInput } from "./use-cases/DeleteTopic";
+export { CreateTopic } from "./use-cases/topics/CreateTopic";
+export type { CreateTopicInput } from "./use-cases/topics/CreateTopic";
+export { ListTopics } from "./use-cases/topics/ListTopics";
+export type { ListTopicsInput } from "./use-cases/topics/ListTopics";
+export { UpdateTopic } from "./use-cases/topics/UpdateTopic";
+export type { UpdateTopicInput } from "./use-cases/topics/UpdateTopic";
+export { DeleteTopic } from "./use-cases/topics/DeleteTopic";
+export type { DeleteTopicInput } from "./use-cases/topics/DeleteTopic";
 
 // Use Cases - Entries
-export { CreateEntry } from "./use-cases/CreateEntry";
-export type { CreateEntryInput } from "./use-cases/CreateEntry";
-export { ListEntriesByDate } from "./use-cases/ListEntriesByDate";
-export type { ListEntriesByDateInput } from "./use-cases/ListEntriesByDate";
-export { UpdateEntry } from "./use-cases/UpdateEntry";
-export type { UpdateEntryInput } from "./use-cases/UpdateEntry";
-export { DeleteEntry } from "./use-cases/DeleteEntry";
-export type { DeleteEntryInput } from "./use-cases/DeleteEntry";
+export { CreateEntry } from "./use-cases/entries/CreateEntry";
+export type { CreateEntryInput } from "./use-cases/entries/CreateEntry";
+export { ListEntriesByDate } from "./use-cases/entries/ListEntriesByDate";
+export type { ListEntriesByDateInput } from "./use-cases/entries/ListEntriesByDate";
+export { UpdateEntry } from "./use-cases/entries/UpdateEntry";
+export type { UpdateEntryInput } from "./use-cases/entries/UpdateEntry";
+export { DeleteEntry } from "./use-cases/entries/DeleteEntry";
+export type { DeleteEntryInput } from "./use-cases/entries/DeleteEntry";
+export { ReorderEntries } from "./use-cases/entries/ReorderEntries";
+export type { ReorderEntriesInput } from "./use-cases/entries/ReorderEntries";
 
 // Use Cases - Attachments
-export { InitAttachmentUpload } from "./use-cases/InitAttachmentUpload";
-export type { InitAttachmentInput, AttachmentQuotaConfig } from "./use-cases/InitAttachmentUpload";
-export { CompleteAttachmentUpload } from "./use-cases/CompleteAttachmentUpload";
-export type { CompleteAttachmentInput } from "./use-cases/CompleteAttachmentUpload";
-export { GetAttachmentDownloadUrl } from "./use-cases/GetAttachmentDownloadUrl";
-export type { GetDownloadUrlInput } from "./use-cases/GetAttachmentDownloadUrl";
-export { DeleteAttachment } from "./use-cases/DeleteAttachment";
-export type { DeleteAttachmentInput } from "./use-cases/DeleteAttachment";
+export { InitAttachmentUpload } from "./use-cases/attachments/InitAttachmentUpload";
+export type {
+  InitAttachmentInput,
+  AttachmentQuotaConfig,
+} from "./use-cases/attachments/InitAttachmentUpload";
+export { CompleteAttachmentUpload } from "./use-cases/attachments/CompleteAttachmentUpload";
+export type { CompleteAttachmentInput } from "./use-cases/attachments/CompleteAttachmentUpload";
+export { GetAttachmentDownloadUrl } from "./use-cases/attachments/GetAttachmentDownloadUrl";
+export type { GetDownloadUrlInput } from "./use-cases/attachments/GetAttachmentDownloadUrl";
+export { DeleteAttachment } from "./use-cases/attachments/DeleteAttachment";
+export type { DeleteAttachmentInput } from "./use-cases/attachments/DeleteAttachment";

@@ -11,6 +11,12 @@ export class InMemoryAttachmentRepository implements AttachmentRepository {
     return this.attachments.find((a) => a.id === attachmentId) ?? null;
   }
 
+  async findByEntryId(entryId: string): Promise<Attachment[]> {
+    return this.attachments.filter(
+      (a) => a.entryId === entryId && !a.status.isDeleted(),
+    );
+  }
+
   async save(attachment: Attachment): Promise<void> {
     this.attachments.push(attachment);
   }

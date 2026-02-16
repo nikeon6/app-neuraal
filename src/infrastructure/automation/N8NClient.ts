@@ -3,8 +3,10 @@ import {
   AutomationPort,
   ReminderPayload,
   EntrySummaryPayload,
+  EntryTranscriptionPayload,
   AutomationResult,
 } from "../../application/ports/AutomationPort";
+import { withSentrySpan } from "../logging/sentryTracing";
 
 /**
  * Configuration for N8NClient.
@@ -12,6 +14,7 @@ import {
 export interface N8NClientConfig {
   reminderWebhookUrl: string;
   summaryWebhookUrl: string;
+  transcriptionWebhookUrl: string;
   webhookSecret: string;
   basicAuthUser?: string;
   basicAuthPassword?: string;
@@ -31,8 +34,10 @@ export class N8NClient implements AutomationPort {
         process.env.N8N_REMINDER_WEBHOOK_URL ??
         "",
       summaryWebhookUrl:
-        config?.summaryWebhookUrl ??
-        process.env.N8N_SUMMARY_WEBHOOK_URL ??
+        config?.summaryWebhookUrl ?? process.env.N8N_SUMMARY_WEBHOOK_URL ?? "",
+      transcriptionWebhookUrl:
+        config?.transcriptionWebhookUrl ??
+        process.env.N8N_TRANSCRIPTION_WEBHOOK_URL ??
         "",
       webhookSecret:
         config?.webhookSecret ?? process.env.N8N_WEBHOOK_SECRET ?? "",
@@ -44,20 +49,48 @@ export class N8NClient implements AutomationPort {
 
   async sendReminder(payload: ReminderPayload): Promise<AutomationResult> {
     if (!this.config.reminderWebhookUrl) {
-      return { success: false, error: "N8N reminder webhook URL not configured" };
+      return {
+        success: false,
+        error: "N8N reminder webhook URL not configured",
+      };
     }
 
-    return this.sendRequest(this.config.reminderWebhookUrl, payload);
+    return this.sendRequest(
+      this.config.reminderWebhookUrl,
+      payload as unknown as Record<string, unknown>,
+    );
   }
 
   async requestEntrySummary(
-    payload: EntrySummaryPayload
+    payload: EntrySummaryPayload,
   ): Promise<AutomationResult> {
     if (!this.config.summaryWebhookUrl) {
-      return { success: false, error: "N8N summary webhook URL not configured" };
+      return {
+        success: false,
+        error: "N8N summary webhook URL not configured",
+      };
     }
 
-    return this.sendRequest(this.config.summaryWebhookUrl, payload);
+    return this.sendRequest(
+      this.config.summaryWebhookUrl,
+      payload as unknown as Record<string, unknown>,
+    );
+  }
+
+  async requestEntryTranscription(
+    payload: EntryTranscriptionPayload,
+  ): Promise<AutomationResult> {
+    if (!this.config.transcriptionWebhookUrl) {
+      return {
+        success: false,
+        error: "N8N transcription webhook URL not configured",
+      };
+    }
+
+    return this.sendRequest(
+      this.config.transcriptionWebhookUrl,
+      payload as unknown as Record<string, unknown>,
+    );
   }
 
   /**
@@ -65,7 +98,7 @@ export class N8NClient implements AutomationPort {
    */
   private async sendRequest(
     url: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
   ): Promise<AutomationResult> {
     const timestamp = Date.now().toString();
     const body = JSON.stringify(payload);
@@ -80,33 +113,47 @@ export class N8NClient implements AutomationPort {
     // Add basic auth if configured
     if (this.config.basicAuthUser && this.config.basicAuthPassword) {
       const credentials = Buffer.from(
-        `${this.config.basicAuthUser}:${this.config.basicAuthPassword}`
+        `${this.config.basicAuthUser}:${this.config.basicAuthPassword}`,
       ).toString("base64");
       headers["Authorization"] = `Basic ${credentials}`;
     }
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body,
-      });
+    return withSentrySpan(
+      {
+        name: "n8n.webhook.request",
+        op: "http.client",
+        attributes: {
+          "http.method": "POST",
+          "http.url": url,
+        },
+      },
+      async () => {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers,
+            body,
+          });
 
-      if (response.ok) {
-        return { success: true, statusCode: response.status };
-      } else {
-        const errorText = await response.text().catch(() => "Unknown error");
-        return {
-          success: false,
-          statusCode: response.status,
-          error: `HTTP ${response.status}: ${errorText}`,
-        };
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      return { success: false, error: `Network error: ${errorMessage}` };
-    }
+          if (response.ok) {
+            return { success: true, statusCode: response.status };
+          } else {
+            const errorText = await response
+              .text()
+              .catch(() => "Unknown error");
+            return {
+              success: false,
+              statusCode: response.status,
+              error: `HTTP ${response.status}: ${errorText}`,
+            };
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          return { success: false, error: `Network error: ${errorMessage}` };
+        }
+      },
+    );
   }
 
   /**

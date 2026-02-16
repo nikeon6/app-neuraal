@@ -26,6 +26,9 @@ export type ApiNotification = components["schemas"]["Notification"];
 /** Attachment entity as returned by the API. */
 export type ApiAttachment = components["schemas"]["Attachment"];
 
+/** Sticky entity as returned by the API. */
+export type ApiSticky = components["schemas"]["Sticky"];
+
 /** Standard error response shape. */
 export type ApiErrorResponse = components["schemas"]["ErrorResponse"];
 
@@ -53,6 +56,22 @@ export type UpdateEntryBody =
 export type AutoTopicBody = NonNullable<
   operations["autoAssignTopic"]["requestBody"]
 >["content"]["application/json"];
+
+/** Request body for creating a reminder. */
+export type CreateReminderBody =
+  operations["createReminder"]["requestBody"]["content"]["application/json"];
+
+/** Request body for updating a reminder (reschedule / cancel). */
+export type UpdateReminderBody =
+  operations["updateReminder"]["requestBody"]["content"]["application/json"];
+
+/** Request body for creating a sticky. */
+export type CreateStickyBody =
+  operations["createSticky"]["requestBody"]["content"]["application/json"];
+
+/** Request body for updating a sticky. */
+export type UpdateStickyBody =
+  operations["updateSticky"]["requestBody"]["content"]["application/json"];
 
 // ---------------------------------------------------------------------------
 // Response helpers (extract the success JSON payload from an operation)

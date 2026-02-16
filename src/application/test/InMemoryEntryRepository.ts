@@ -25,7 +25,7 @@ export class InMemoryEntryRepository implements EntryRepository {
 
   async findByUserAndDate(userId: string, date: string): Promise<Entry[]> {
     return this.entries.filter(
-      (e) => e.userId === userId && e.date.toString() === date
+      (e) => e.userId === userId && e.date.toString() === date,
     );
   }
 
@@ -48,13 +48,41 @@ export class InMemoryEntryRepository implements EntryRepository {
   async updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void> {
     this.summaries.set(entryId, {
       summary,
       format,
       updatedAt: new Date(),
     });
+  }
+
+  async clearSummary(entryId: string): Promise<void> {
+    this.summaries.delete(entryId);
+  }
+
+  async updateContent(
+    entryId: string,
+    content: Record<string, unknown>,
+  ): Promise<void> {
+    const entry = this.entries.find((e) => e.id === entryId);
+    if (entry) {
+      const updated = entry.withUpdates({ content });
+      if (updated.isOk()) {
+        const index = this.entries.findIndex((e) => e.id === entryId);
+        this.entries[index] = updated.value;
+      }
+    }
+  }
+
+  async updateTranscript(
+    entryId: string,
+    _transcriptText: string,
+  ): Promise<void> {
+    const entry = this.entries.find((e) => e.id === entryId);
+    if (entry) {
+      // In-memory: transcript is typically stored in content; tests can assert via updateContent or entry state
+    }
   }
 
   async updateTopic(entryId: string, topicId: string | null): Promise<void> {
@@ -65,6 +93,47 @@ export class InMemoryEntryRepository implements EntryRepository {
       if (updated.isOk()) {
         const index = this.entries.findIndex((e) => e.id === entryId);
         this.entries[index] = updated.value;
+      }
+    }
+  }
+
+  async reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[],
+  ): Promise<void> {
+    // Simulate updating sortOrder for each entry
+    for (let i = 0; i < orderedIds.length; i++) {
+      const entry = this.entries.find(
+        (e) =>
+          e.id === orderedIds[i] &&
+          e.userId === userId &&
+          e.date.toString() === date,
+      );
+      if (entry) {
+        // Re-create with updated sortOrder via Entry.create
+        const { Entry } = await import("@/domain/entities/Entry");
+        const updated = Entry.create({
+          id: entry.id,
+          userId: entry.userId,
+          date: entry.date.toString(),
+          type: entry.type.toString() as "task" | "note",
+          title: entry.title.toString(),
+          content: entry.content.toJSON(),
+          topicId: entry.topicId,
+          completed: entry.completed,
+          version: entry.version,
+          sortOrder: i,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+          summary: entry.summary,
+          summaryFormat: entry.summaryFormat,
+          summaryUpdatedAt: entry.summaryUpdatedAt,
+        });
+        if (updated.isOk()) {
+          const index = this.entries.findIndex((e) => e.id === orderedIds[i]);
+          this.entries[index] = updated.value;
+        }
       }
     }
   }

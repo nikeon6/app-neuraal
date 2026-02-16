@@ -1,0 +1,275 @@
+{
+  "name": "Neuraal — Send Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "neuraal-send-reminder",
+        "authentication": "basicAuth",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Receive Reminder",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "neuraal-send-reminder",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "BASIC_AUTH_CREDENTIAL_ID",
+          "name": "Neuraal Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.channel }}",
+                    "rightValue": "email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "email"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.channel }}",
+                    "rightValue": "whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "whatsapp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-channel",
+      "name": "Switch: Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "email-to",
+              "name": "to",
+              "value": "dev@example.com",
+              "type": "string"
+            },
+            {
+              "id": "email-subject",
+              "name": "subject",
+              "value": "={{ \"Neuraal Reminder: \" + ($json.body.message || \"You have a scheduled reminder\").substring(0, 80) }}",
+              "type": "string"
+            },
+            {
+              "id": "email-body",
+              "name": "body",
+              "value": "={{ \"<h2>Neuraal Reminder</h2>\" + \"<p><strong>Scheduled at:</strong> \" + $json.body.scheduledAt + \"</p>\" + \"<p><strong>Message:</strong> \" + ($json.body.message || \"You have a scheduled reminder\") + \"</p>\" + \"<p style='color:#888;font-size:12px'>Reminder ID: \" + $json.body.reminderId + \" | Entry ID: \" + $json.body.entryId + \"</p>\" }}",
+              "type": "string"
+            },
+            {
+              "id": "reminder-id",
+              "name": "reminderId",
+              "value": "={{ $json.body.reminderId }}",
+              "type": "string"
+            },
+            {
+              "id": "entry-id",
+              "name": "entryId",
+              "value": "={{ $json.body.entryId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-email-params",
+      "name": "Set: Build Email Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, 180]
+    },
+    {
+      "parameters": {},
+      "id": "email-placeholder",
+      "name": "Email Placeholder (replace me)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 180],
+      "notes": "PLACEHOLDER: Replace this No-Op node with your actual email sending node (Gmail, SMTP, SendGrid, Resend, etc.).\n\nThe previous Set node provides:\n- to: recipient email\n- subject: email subject line\n- body: HTML email body\n\nConnect your chosen email provider here."
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "wa-phone",
+              "name": "phone",
+              "value": "+34600000000",
+              "type": "string"
+            },
+            {
+              "id": "wa-message",
+              "name": "messageText",
+              "value": "={{ \"🔔 *Neuraal Reminder*\\n\\n\" + ($json.body.message || \"You have a scheduled reminder\") + \"\\n\\n📅 Scheduled: \" + $json.body.scheduledAt }}",
+              "type": "string"
+            },
+            {
+              "id": "wa-reminder-id",
+              "name": "reminderId",
+              "value": "={{ $json.body.reminderId }}",
+              "type": "string"
+            },
+            {
+              "id": "wa-entry-id",
+              "name": "entryId",
+              "value": "={{ $json.body.entryId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-whatsapp-params",
+      "name": "Set: Build WhatsApp Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/YOUR_PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.phone }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"preview_url\": false,\n    \"body\": \"{{ $json.messageText }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "send-whatsapp",
+      "name": "WhatsApp Business API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "WHATSAPP_AUTH_CREDENTIAL_ID",
+          "name": "WhatsApp Business Token"
+        }
+      },
+      "notes": "WhatsApp Business Cloud API (Meta).\n\nSetup:\n1. Replace YOUR_PHONE_NUMBER_ID in the URL with your actual Phone Number ID from Meta Business.\n2. Create an 'Header Auth' credential in n8n with:\n   - Name: Authorization\n   - Value: Bearer YOUR_ACCESS_TOKEN\n3. Link that credential to this node.\n\nFor templates instead of free-form text, change the body to use type: 'template'."
+    }
+  ],
+  "connections": {
+    "Webhook: Receive Reminder": {
+      "main": [
+        [
+          {
+            "node": "Switch: Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Channel": {
+      "main": [
+        [
+          {
+            "node": "Set: Build Email Params",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Build WhatsApp Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Build Email Params": {
+      "main": [
+        [
+          {
+            "node": "Email Placeholder (replace me)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Build WhatsApp Params": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Business API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "neuraal",
+      "id": "1"
+    },
+    {
+      "name": "reminders",
+      "id": "2"
+    }
+  ],
+  "triggerCount": 1,
+  "versionId": "2"
+}

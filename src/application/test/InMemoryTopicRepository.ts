@@ -31,14 +31,28 @@ export class InMemoryTopicRepository implements TopicRepository {
 
   async findByUserIdAndName(
     userId: string,
-    name: string
+    name: string,
   ): Promise<Topic | null> {
     const normalizedName = name.trim().toLowerCase();
     return (
       this.topics.find(
         (t) =>
           t.userId === userId &&
-          t.name.toString().toLowerCase() === normalizedName
+          t.name.toString().toLowerCase() === normalizedName,
+      ) ?? null
+    );
+  }
+
+  async findByUserIdAndColor(
+    userId: string,
+    color: string,
+  ): Promise<Topic | null> {
+    const normalizedColor = color.trim().toLowerCase();
+    return (
+      this.topics.find(
+        (t) =>
+          t.userId === userId &&
+          t.color.toString().toLowerCase() === normalizedColor,
       ) ?? null
     );
   }
@@ -67,14 +81,14 @@ export class InMemoryTopicRepository implements TopicRepository {
     topicId: string,
     vector: number[],
     model: string,
-    updatedAt: Date
+    updatedAt: Date,
   ): Promise<void> {
     this.embeddings.set(topicId, { vector, model, updatedAt });
   }
 
   async findBestMatchByEmbedding(
     userId: string,
-    vector: number[]
+    vector: number[],
   ): Promise<TopicSimilarityMatch | null> {
     const userTopics = this.topics.filter((t) => t.userId === userId);
 

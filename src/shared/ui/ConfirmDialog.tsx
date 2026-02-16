@@ -59,7 +59,8 @@ export function ConfirmDialog({
   // Focus management - focus the appropriate button when dialog opens
   useEffect(() => {
     if (open) {
-      const targetRef = initialFocus === "confirm" ? confirmButtonRef : cancelButtonRef;
+      const targetRef =
+        initialFocus === "confirm" ? confirmButtonRef : cancelButtonRef;
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
         targetRef.current?.focus();
@@ -75,7 +76,7 @@ export function ConfirmDialog({
         onCancel();
       }
     },
-    [onCancel, loading]
+    [onCancel, loading],
   );
 
   // Handle backdrop click
@@ -107,6 +108,7 @@ export function ConfirmDialog({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        aria-label="Close confirmation dialog"
         data-testid="dialog-backdrop"
         onClick={handleBackdropClick}
         aria-hidden="true"
@@ -123,10 +125,7 @@ export function ConfirmDialog({
       >
         {/* Title (optional) */}
         {title && (
-          <h2
-            id={titleId}
-            className="text-lg font-semibold text-white mb-2"
-          >
+          <h2 id={titleId} className="text-lg font-semibold text-white mb-2">
             {title}
           </h2>
         )}
@@ -148,7 +147,7 @@ export function ConfirmDialog({
               "bg-white/5 border border-white/10 text-white/70",
               loading
                 ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-white/10 hover:text-white"
+                : "hover:bg-white/10 hover:text-white",
             )}
           >
             {cancelText}
@@ -160,12 +159,10 @@ export function ConfirmDialog({
             disabled={loading || disableConfirm}
             className={cn(
               "flex-1 px-4 py-2.5 rounded-xl font-medium transition-all inline-flex items-center justify-center gap-2",
-              loading || disableConfirm
-                ? "opacity-50 cursor-not-allowed"
-                : "",
+              loading || disableConfirm ? "opacity-50 cursor-not-allowed" : "",
               destructive
                 ? "bg-red-500/80 text-white hover:bg-red-500"
-                : "bg-sky-500/80 text-white hover:bg-sky-500"
+                : "bg-sky-500/80 text-white hover:bg-sky-500",
             )}
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

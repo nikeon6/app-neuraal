@@ -3,6 +3,7 @@ import type {
   TopicRepository,
   TopicSimilarityMatch,
 } from "@/application/ports/TopicRepository";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma, pool } from "./prisma";
 
 /**
@@ -52,7 +53,7 @@ export class PrismaTopicRepository implements TopicRepository {
 
   async findByUserIdAndName(
     userId: string,
-    name: string
+    name: string,
   ): Promise<Topic | null> {
     const normalizedName = name.trim().toLowerCase();
 
@@ -63,9 +64,32 @@ export class PrismaTopicRepository implements TopicRepository {
       where: { userId },
     });
 
-    const record = records.find(
-      (r) => r.name.toLowerCase() === normalizedName
-    );
+    const record = records.find((r) => r.name.toLowerCase() === normalizedName);
+
+    if (!record) {
+      return null;
+    }
+
+    const result = Topic.create({
+      id: record.id,
+      userId: record.userId,
+      name: record.name,
+      color: record.color,
+      createdAt: record.createdAt,
+    });
+
+    return result.isOk() ? result.value : null;
+  }
+
+  async findByUserIdAndColor(
+    userId: string,
+    color: string,
+  ): Promise<Topic | null> {
+    const normalizedColor = color.trim().toLowerCase();
+
+    const record = await prisma.topic.findFirst({
+      where: { userId, color: normalizedColor },
+    });
 
     if (!record) {
       return null;
@@ -83,15 +107,30 @@ export class PrismaTopicRepository implements TopicRepository {
   }
 
   async save(topic: Topic): Promise<void> {
-    await prisma.topic.create({
-      data: {
-        id: topic.id,
-        userId: topic.userId,
-        name: topic.name.toString(),
-        color: topic.color.toString(),
-        createdAt: topic.createdAt,
-      },
-    });
+    try {
+      await prisma.topic.create({
+        data: {
+          id: topic.id,
+          userId: topic.userId,
+          name: topic.name.toString(),
+          color: topic.color.toString(),
+          createdAt: topic.createdAt,
+        },
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation — convert to a readable error
+      // so the API layer can return 409 instead of 500.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const fields = (error.meta?.target as string[]) ?? [];
+        throw new Error(
+          `Duplicate topic: unique constraint violated on [${fields.join(", ")}]`,
+        );
+      }
+      throw error;
+    }
   }
 
   async update(topic: Topic): Promise<void> {
@@ -122,7 +161,7 @@ export class PrismaTopicRepository implements TopicRepository {
     topicId: string,
     vector: number[],
     model: string,
-    updatedAt: Date
+    updatedAt: Date,
   ): Promise<void> {
     const pgVector = `[${vector.join(",")}]`;
     await pool.query(
@@ -131,7 +170,7 @@ export class PrismaTopicRepository implements TopicRepository {
              embedding_model = $2,
              embedding_updated_at = $3
        WHERE id = $4`,
-      [pgVector, model, updatedAt, topicId]
+      [pgVector, model, updatedAt, topicId],
     );
   }
 
@@ -142,7 +181,7 @@ export class PrismaTopicRepository implements TopicRepository {
    */
   async findBestMatchByEmbedding(
     userId: string,
-    vector: number[]
+    vector: number[],
   ): Promise<TopicSimilarityMatch | null> {
     const pgVector = `[${vector.join(",")}]`;
 
@@ -153,7 +192,7 @@ export class PrismaTopicRepository implements TopicRepository {
           AND embedding IS NOT NULL
         ORDER BY embedding <=> $1::vector
         LIMIT 1`,
-      [pgVector, userId]
+      [pgVector, userId],
     );
 
     if (result.rows.length === 0) {

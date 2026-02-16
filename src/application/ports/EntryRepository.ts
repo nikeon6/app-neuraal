@@ -38,12 +38,42 @@ export interface EntryRepository {
   updateSummary(
     entryId: string,
     summary: string,
-    format: SummaryFormat
+    format: SummaryFormat,
   ): Promise<void>;
+
+  /**
+   * Clears the AI-generated summary from an entry.
+   */
+  clearSummary(entryId: string): Promise<void>;
+
+  /**
+   * Updates the raw JSON content of an entry.
+   * Used by transcription callback to inject transcription into Tiptap doc.
+   */
+  updateContent(
+    entryId: string,
+    content: Record<string, unknown>,
+  ): Promise<void>;
+
+  /**
+   * Updates the transcript text of an entry.
+   * Used by the transcription callback handler.
+   */
+  updateTranscript(entryId: string, transcriptText: string): Promise<void>;
 
   /**
    * Updates the topicId of an entry.
    * Used by auto-topic assignment.
    */
   updateTopic(entryId: string, topicId: string | null): Promise<void>;
+
+  /**
+   * Bulk-updates sort_order for entries on a given user+date.
+   * orderedIds[0] gets sortOrder=0, orderedIds[1] gets sortOrder=1, etc.
+   */
+  reorderEntries(
+    userId: string,
+    date: string,
+    orderedIds: string[],
+  ): Promise<void>;
 }

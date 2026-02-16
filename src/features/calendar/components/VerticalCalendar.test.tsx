@@ -1,6 +1,12 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,21 +18,46 @@ Element.prototype.scrollTo = vi.fn();
 
 // Mock IntersectionObserver since jsdom doesn't implement it
 class MockIntersectionObserver {
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
-  constructor() {}
+  private readonly callback: IntersectionObserverCallback;
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+  }
+  observe(target: Element) {
+    this.callback(
+      [
+        {
+          isIntersecting: true,
+          target,
+        } as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver,
+    );
+  }
+  unobserve() {
+    return undefined;
+  }
+  disconnect() {
+    return undefined;
+  }
 }
-window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+globalThis.IntersectionObserver =
+  MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
 // ============================================================================
 // Mock Data (ApiEntry shape)
 // ============================================================================
-function createMockEntry(id: string, title: string, overrides: Partial<ApiEntry> = {}): ApiEntry {
+const MOCK_USER_ID = "user-123";
+const MOCK_DATE = "2024-01-15";
+
+function createMockEntry(
+  id: string,
+  title: string,
+  overrides: Partial<ApiEntry> = {},
+): ApiEntry {
   return {
     id,
-    userId: "user-123",
-    date: "2024-01-15",
+    userId: MOCK_USER_ID,
+    date: MOCK_DATE,
     type: "task",
     title,
     content: null,
@@ -42,19 +73,31 @@ function createMockEntry(id: string, title: string, overrides: Partial<ApiEntry>
 }
 
 const mockEntriesByDate: Record<string, ApiEntry[]> = {
-  "2024-01-15": [
-    createMockEntry("entry-1", "Complete project report", { topicId: "topic-work" }),
-    createMockEntry("entry-2", "Morning yoga session", { topicId: "topic-health" }),
+  [MOCK_DATE]: [
+    createMockEntry("entry-1", "Complete project report", {
+      topicId: "topic-work",
+    }),
+    createMockEntry("entry-2", "Morning yoga session", {
+      topicId: "topic-health",
+    }),
   ],
   "2024-01-20": [
-    createMockEntry("entry-3", "Study TypeScript", { date: "2024-01-20", topicId: "topic-learning" }),
+    createMockEntry("entry-3", "Study TypeScript", {
+      date: "2024-01-20",
+      topicId: "topic-learning",
+    }),
   ],
 };
 
 const mockTopics = [
-  { id: "topic-work", userId: "user-123", name: "Trabajo", color: "#3b82f6" },
-  { id: "topic-health", userId: "user-123", name: "Salud", color: "#22c55e" },
-  { id: "topic-learning", userId: "user-123", name: "Learning", color: "#f59e0b" },
+  { id: "topic-work", userId: MOCK_USER_ID, name: "Trabajo", color: "#3b82f6" },
+  { id: "topic-health", userId: MOCK_USER_ID, name: "Salud", color: "#22c55e" },
+  {
+    id: "topic-learning",
+    userId: MOCK_USER_ID,
+    name: "Learning",
+    color: "#f59e0b",
+  },
 ];
 
 // ============================================================================
@@ -66,6 +109,8 @@ const mockSetSelectedDay = vi.fn();
 const mockSetSelectedDate = vi.fn();
 const mockExpandDay = vi.fn();
 const mockCollapseDay = vi.fn();
+const mockPinDay = vi.fn();
+const mockUnpinDay = vi.fn();
 
 vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
@@ -73,20 +118,24 @@ vi.mock("@/shared/api/queries", () => ({
 }));
 
 vi.mock("@/shared/api/mutations", () => ({
-  deleteEntryAndInvalidate: (...args: unknown[]) => mockDeleteEntryAndInvalidate(...args),
+  deleteEntryAndInvalidate: (...args: unknown[]) =>
+    mockDeleteEntryAndInvalidate(...args),
 }));
 
 vi.mock("@/shared/store", () => ({
   useStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) => {
     const state = {
-      selectedDate: new Date("2024-01-15"),
+      selectedDate: new Date(MOCK_DATE),
       selectedDay: 15,
       setSelectedDay: mockSetSelectedDay,
       setSelectedDate: mockSetSelectedDate,
       selectedTopicIds: [] as string[],
       expandedDayKeys: [] as string[],
+      pinnedDayKeys: [] as string[],
       expandDay: mockExpandDay,
       collapseDay: mockCollapseDay,
+      pinDay: mockPinDay,
+      unpinDay: mockUnpinDay,
     };
     return typeof selector === "function" ? selector(state) : state;
   }),
@@ -95,6 +144,28 @@ vi.mock("@/shared/store", () => ({
 // Import for resetting mock
 import * as storeModule from "../../../shared/store";
 
+function mockStoreState(overrides: Partial<Record<string, unknown>> = {}) {
+  vi.mocked(storeModule.useStore).mockImplementation((selector) => {
+    const state = {
+      selectedDate: new Date(MOCK_DATE),
+      selectedDay: 15,
+      setSelectedDay: mockSetSelectedDay,
+      setSelectedDate: mockSetSelectedDate,
+      selectedTopicIds: [],
+      expandedDayKeys: [],
+      pinnedDayKeys: [],
+      expandDay: mockExpandDay,
+      collapseDay: mockCollapseDay,
+      pinDay: mockPinDay,
+      unpinDay: mockUnpinDay,
+      ...overrides,
+    };
+    return typeof selector === "function"
+      ? selector(state as Record<string, unknown>)
+      : state;
+  });
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -102,12 +173,14 @@ function createQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function renderCalendar(entriesByDate: Record<string, ApiEntry[]> = mockEntriesByDate) {
+function renderCalendar(
+  entriesByDate: Record<string, ApiEntry[]> = mockEntriesByDate,
+) {
   const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
       <VerticalCalendar entriesByDate={entriesByDate} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -119,24 +192,16 @@ describe("VerticalCalendar", () => {
     vi.clearAllMocks();
     mockTopicsQuery.mockReturnValue({ data: mockTopics, isPending: false });
     mockDeleteEntryAndInvalidate.mockResolvedValue(undefined);
-
-    vi.mocked(storeModule.useStore).mockImplementation((selector) => {
-      const state = {
-        selectedDate: new Date("2024-01-15"),
-        selectedDay: 15,
-        setSelectedDay: mockSetSelectedDay,
-        setSelectedDate: mockSetSelectedDate,
-        selectedTopicIds: [],
-        expandedDayKeys: [],
-        expandDay: mockExpandDay,
-        collapseDay: mockCollapseDay,
-      };
-      return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
+    mockStoreState();
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(16);
+      return 1;
     });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   // --------------------------------------------------------------------------
@@ -146,8 +211,10 @@ describe("VerticalCalendar", () => {
     it("renders the calendar container", () => {
       renderCalendar();
 
-      expect(screen.getByText("Jan")).toBeInTheDocument();
-      expect(screen.getByText("2024")).toBeInTheDocument();
+      // "Jan" appears in both desktop and mobile views
+      const janElements = screen.getAllByText("Jan");
+      expect(janElements.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("2024").length).toBeGreaterThanOrEqual(1);
     });
 
     it("renders all days of the month", () => {
@@ -171,8 +238,9 @@ describe("VerticalCalendar", () => {
     it("highlights the selected day", () => {
       renderCalendar();
 
-      const dayElement = document.getElementById("day-2024-01-15");
-      expect(dayElement).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/day row 2024-01-15 selected/i),
+      ).toBeInTheDocument();
     });
   });
 
@@ -184,28 +252,36 @@ describe("VerticalCalendar", () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const day20Buttons = screen.getAllByText("20");
-      const mobileButton = day20Buttons.find(
-        (el) => el.closest("button") && !el.closest(".day-row")
-      );
+      const day20Buttons = screen
+        .getAllByLabelText(/day 2024-01-20/i)
+        .filter((el) => el.tagName === "BUTTON");
+      expect(day20Buttons.length).toBeGreaterThan(0);
 
-      if (mobileButton) {
-        await user.click(mobileButton.closest("button")!);
-        expect(mockSetSelectedDate).toHaveBeenCalled();
-        expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
-      }
+      await user.click(day20Buttons[0]);
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
     });
 
     it("calls setSelectedDate and setSelectedDay when clicking a day row", async () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const dayRow = document.getElementById("day-2024-01-20");
-      if (dayRow) {
-        await user.click(dayRow);
-        expect(mockSetSelectedDate).toHaveBeenCalled();
-        expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
-      }
+      const dayRow = screen.getByLabelText(/day row 2024-01-20/i);
+      await user.click(dayRow);
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
+    });
+
+    it("expands a non-expanded day row on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-20/i));
+      expect(mockExpandDay).toHaveBeenCalledWith(
+        "2024-01-20",
+        mockEntriesByDate,
+      );
     });
   });
 
@@ -216,19 +292,26 @@ describe("VerticalCalendar", () => {
     it("does NOT display task pills by default (no selection)", () => {
       renderCalendar();
 
-      expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Morning yoga session")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Complete project report"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Morning yoga session"),
+      ).not.toBeInTheDocument();
     });
 
-    it("shows day anchors with data attributes for wire connections", () => {
+    it("shows day anchors with date metadata for wire connections", () => {
       renderCalendar();
 
-      const dayAnchors = document.querySelectorAll("[data-day-anchor=\"true\"]");
+      const dayAnchors = screen.getAllByLabelText(/day (row )?2024-01-/i);
       expect(dayAnchors.length).toBeGreaterThan(0);
 
-      const firstAnchor = dayAnchors[0] as HTMLElement;
-      expect(firstAnchor.dataset.dayNumber).toBeDefined();
-      expect(firstAnchor.dataset.dateKey).toBeDefined();
+      const firstAnchor = dayAnchors.find(
+        (el) =>
+          (el as HTMLElement).dataset.dayNumber &&
+          (el as HTMLElement).dataset.dateKey,
+      );
+      expect(firstAnchor).toBeDefined();
     });
   });
 
@@ -239,8 +322,11 @@ describe("VerticalCalendar", () => {
     it("renders calendar without entries when entriesByDate is empty", () => {
       renderCalendar({});
 
-      expect(screen.getByText("Jan")).toBeInTheDocument();
-      expect(screen.queryByText("Complete project report")).not.toBeInTheDocument();
+      // "Jan" appears in both desktop and mobile views
+      expect(screen.getAllByText("Jan").length).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.queryByText("Complete project report"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -251,7 +337,9 @@ describe("VerticalCalendar", () => {
     it("no remove buttons in collapsed mode", () => {
       renderCalendar();
 
-      const removeButtons = screen.queryAllByRole("button", { name: /eliminar tarea/i });
+      const removeButtons = screen.queryAllByRole("button", {
+        name: /eliminar tarea/i,
+      });
       expect(removeButtons.length).toBe(0);
     });
 
@@ -262,6 +350,161 @@ describe("VerticalCalendar", () => {
       dayButtons.forEach((button) => {
         expect(button).not.toHaveAttribute("tabindex", "-1");
       });
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Expanded/Pin/Delete flows (desktop)
+  // --------------------------------------------------------------------------
+  describe("Expanded Day Interactions", () => {
+    it("collapses an expanded non-pinned day on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [MOCK_DATE], pinnedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-15 selected/i));
+      expect(mockCollapseDay).toHaveBeenCalledWith(
+        MOCK_DATE,
+        mockEntriesByDate,
+      );
+    });
+
+    it("keeps expanded pinned day open and navigates on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+      });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-15 selected/i));
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(15);
+      expect(mockCollapseDay).not.toHaveBeenCalled();
+    });
+
+    it("pins day from pin button when currently unpinned", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [MOCK_DATE], pinnedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /pin day/i }));
+      expect(mockPinDay).toHaveBeenCalledWith(MOCK_DATE);
+    });
+
+    it("unpins selected day without collapsing", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+        selectedDate: new Date(MOCK_DATE),
+      });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /unpin day/i }));
+      expect(mockUnpinDay).toHaveBeenCalledWith(MOCK_DATE, mockEntriesByDate);
+      expect(mockCollapseDay).not.toHaveBeenCalled();
+    });
+
+    it("unpins non-selected day and collapses it", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+        selectedDate: new Date("2024-01-20"),
+      });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /unpin day/i }));
+      expect(mockUnpinDay).toHaveBeenCalledWith(MOCK_DATE, mockEntriesByDate);
+      expect(mockCollapseDay).toHaveBeenCalledWith(
+        MOCK_DATE,
+        mockEntriesByDate,
+      );
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Month picker
+  // --------------------------------------------------------------------------
+  describe("Month Picker", () => {
+    it("opens month picker and allows selecting another month", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+      await user.click(screen.getByRole("button", { name: "Feb" }));
+
+      expect(mockSetSelectedDate).toHaveBeenCalled();
+      expect(mockSetSelectedDay).toHaveBeenCalledWith(1);
+    });
+
+    it("closes month picker on outside click", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+      expect(screen.getByRole("button", { name: "Feb" })).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Feb" }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("toggles month picker closed when header button is clicked twice", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+
+      await user.click(janButton as HTMLButtonElement);
+      expect(screen.getByRole("button", { name: "Feb" })).toBeInTheDocument();
+      await user.click(janButton as HTMLButtonElement);
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Feb" }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("navigates picker year with previous and next controls", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+
+      const prevButton = screen.getByRole("button", { name: "‹" });
+      const pickerRoot = prevButton.closest(
+        "[data-month-picker]",
+      ) as HTMLElement;
+
+      expect(within(pickerRoot).getByText("2024")).toBeInTheDocument();
+      await user.click(prevButton);
+      expect(within(pickerRoot).getByText("2023")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "›" }));
+      expect(within(pickerRoot).getByText("2024")).toBeInTheDocument();
     });
   });
 
@@ -285,7 +528,9 @@ describe("VerticalCalendar", () => {
             expandDay: mockExpandDay,
             collapseDay: mockCollapseDay,
           };
-          return typeof selector === "function" ? selector(state as Record<string, unknown>) : state;
+          return typeof selector === "function"
+            ? selector(state as Record<string, unknown>)
+            : state;
         });
 
         renderCalendar({});

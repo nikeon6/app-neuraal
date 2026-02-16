@@ -20,7 +20,7 @@ import { PATCH, DELETE } from "./route";
 function createRequest(
   method: string,
   body?: Record<string, unknown>,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): NextRequest {
   const url = "http://localhost:3000/api/topics/topic-123";
   const init: RequestInit = {
@@ -58,7 +58,11 @@ describe("PATCH /api/topics/:id", () => {
   it("should return 404 when topic does not exist", async () => {
     vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
 
-    const request = createRequest("PATCH", { name: "Updated" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { name: "Updated" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(404);
@@ -74,7 +78,11 @@ describe("PATCH /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("PATCH", { name: "Hacked" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { name: "Hacked" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(404);
@@ -102,7 +110,11 @@ describe("PATCH /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("PATCH", { name: "Updated" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { name: "Updated" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(200);
@@ -128,7 +140,11 @@ describe("PATCH /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("PATCH", { color: "#ef4444" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { color: "#ef4444" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(200);
@@ -164,7 +180,11 @@ describe("PATCH /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("PATCH", { name: "" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { name: "" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(400);
@@ -180,7 +200,11 @@ describe("PATCH /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("PATCH", { color: "invalid" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { color: "invalid" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(400);
@@ -206,7 +230,11 @@ describe("PATCH /api/topics/:id", () => {
       },
     ]);
 
-    const request = createRequest("PATCH", { name: "Health" }, { "x-user-id": "user-123" });
+    const request = createRequest(
+      "PATCH",
+      { name: "Health" },
+      { "x-user-id": "user-123" },
+    );
     const response = await PATCH(request, createContext("topic-123"));
 
     expect(response.status).toBe(409);
@@ -228,7 +256,9 @@ describe("DELETE /api/topics/:id", () => {
   it("should return 404 when topic does not exist", async () => {
     vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
 
-    const request = createRequest("DELETE", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("DELETE", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await DELETE(request, createContext("topic-123"));
 
     expect(response.status).toBe(404);
@@ -244,7 +274,9 @@ describe("DELETE /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("DELETE", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("DELETE", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await DELETE(request, createContext("topic-123"));
 
     expect(response.status).toBe(404);
@@ -270,7 +302,9 @@ describe("DELETE /api/topics/:id", () => {
       updatedAt: new Date(),
     });
 
-    const request = createRequest("DELETE", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("DELETE", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await DELETE(request, createContext("topic-123"));
 
     expect(response.status).toBe(204);
@@ -280,7 +314,9 @@ describe("DELETE /api/topics/:id", () => {
   });
 
   it("should return 400 when topicId is empty", async () => {
-    const request = createRequest("DELETE", undefined, { "x-user-id": "user-123" });
+    const request = createRequest("DELETE", undefined, {
+      "x-user-id": "user-123",
+    });
     const response = await DELETE(request, createContext(""));
 
     expect(response.status).toBe(400);

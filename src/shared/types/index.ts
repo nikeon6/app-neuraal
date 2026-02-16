@@ -1,13 +1,13 @@
 /**
  * Domain types for the Neuraal application
- * 
+ *
  * This is the main entry point for all shared types.
  * Import from "@/shared/types" to access any type.
- * 
+ *
  * NOTE: UI-specific types are in their respective features:
  * - src/features/topics/types.ts (TopicPosition, TopicAnchor, etc.)
  * - src/features/calendar/types.ts (CalendarViewState, CalendarDayUI, etc.)
- * 
+ *
  * @example
  * import type { Entry, Topic, CalendarDay, CreateEntryInput } from "@/shared/types";
  */
@@ -35,12 +35,7 @@ export type {
 // ============================================================================
 // Topic Types
 // ============================================================================
-export type {
-  UserTopic,
-  SystemTopic,
-  Topic,
-  TopicRef,
-} from "./topic";
+export type { UserTopic, SystemTopic, Topic, TopicRef } from "./topic";
 
 // ============================================================================
 // Entry Types
@@ -66,8 +61,6 @@ export type {
   TasksByDay,
   NotesByDate,
 } from "./entry";
-
-// NOTE: MAX_ATTACHMENTS_SIZE_BYTES moved to @/shared/constants
 
 // ============================================================================
 // Reminder Types

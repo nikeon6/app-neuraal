@@ -111,10 +111,10 @@ services:
       # Disable telemetry for local dev
       N8N_DIAGNOSTICS_ENABLED: "false"
       # LangSmith (LangChain) - preparado
-      LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+      LANGCHAIN_ENDPOINT: "https://eu.api.smith.langchain.com"
       LANGCHAIN_TRACING_V2: "true"
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
-      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-neuraal-dev}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
       LANGCHAIN_CALLBACKS_BACKGROUND: "true"
       # Environment variables
       N8N_ENV_VARS_ENABLED: "N8N_WEBHOOK_SECRET,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT"
@@ -134,13 +134,17 @@ services:
   # ==========================================================================
   # Ollama - Local LLM inference server
   # API: http://localhost:11434
-  # Using 0.15.5-rc1 for glm-ocr support (revert to :latest when 0.15.5 is stable)
   # ==========================================================================
   ollama:
-    image: ollama/ollama:0.15.5-rc1
+    image: ollama/ollama:latest
     container_name: neuraal-ollama
     ports:
       - "11434:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"        # Never unload models from RAM (eliminates cold-start)
+      OLLAMA_NUM_PARALLEL: "2"       # Allow 2 simultaneous requests (safe with 16GB RAM)
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_FLASH_ATTENTION: "1"   # glm-ocr + qwen3-embedding loaded at once
     volumes:
       - neuraal_ollama_data:/root/.ollama
     healthcheck:
@@ -152,25 +156,111 @@ services:
 
   # ==========================================================================
   # Ollama Init - One-shot container to pull models
-  # Models: nomic-embed-text-v2-moe (embeddings), glm-ocr (OCR)
+  # Models: qwen3-embedding:latest (embeddings, 8b), glm-ocr:q8_0 (OCR)
+  # Previous models: qwen3-embedding:4b, glm-ocr:latest, nomic-embed-text-v2-moe:latest
   # ==========================================================================
   ollama-init:
-    image: ollama/ollama:0.15.5-rc1
+    image: curlimages/curl:latest
     container_name: neuraal-ollama-init
     depends_on:
       ollama:
         condition: service_healthy
-    environment:
-      OLLAMA_HOST: ollama:11434
     entrypoint: >
       /bin/sh -c "
-      echo 'Pulling nomic-embed-text-v2-moe:latest...';
-      ollama pull nomic-embed-text-v2-moe:latest;
-      echo 'Pulling glm-ocr:latest...';
-      ollama pull glm-ocr:latest;
+      echo 'Pulling qwen3-embedding:latest (8b)...';
+      curl -sf --max-time 600 http://ollama:11434/api/pull -d '{\"name\":\"qwen3-embedding:latest\",\"stream\":false}';
+      echo '';
+      echo 'Pulling glm-ocr:q8_0...';
+      curl -sf --max-time 600 http://ollama:11434/api/pull -d '{\"name\":\"glm-ocr:q8_0\",\"stream\":false}';
+      echo '';
       echo 'All models pulled successfully';
+      echo 'Warming up glm-ocr:q8_0 (preloading into RAM)...';
+      curl -sf --max-time 120 http://ollama:11434/api/generate -d '{\"model\":\"glm-ocr:q8_0\",\"prompt\":\"hello\",\"stream\":false}' > /dev/null;
+      echo 'Warmup complete — glm-ocr:q8_0 is loaded in RAM';
       exit 0;
       "
+
+  # ==========================================================================
+  # WAHA - WhatsApp HTTP API (self-hosted) [DEPRECATED - replaced by Evolution API]
+  # ==========================================================================
+  # waha:
+    # image: devlikeapro/waha
+    # container_name: neuraal-waha
+    # restart: always
+    # ports:
+      # - "3009:3000"
+    # environment:
+      # WAHA_API_KEY: f07c98acf04c4f4eac21dc94aca9e2d6
+      # WAHA_DASHBOARD_NO_PASSWORD: "True"
+      # WHATSAPP_SWAGGER_NO_PASSWORD: "True"
+      # WHATSAPP_DEFAULT_ENGINE: NOWEB
+      # WHATSAPP_RESTART_ALL_SESSIONS: "True"
+    # volumes:
+      # - neuraal_waha_sessions:/app/.sessions
+
+  # ==========================================================================
+  # Evolution DB Init - One-shot container to create the evolution database
+  # in the shared PostgreSQL instance (runs only once per volume lifecycle)
+  # ==========================================================================
+  evolution-db-init:
+    image: pgvector/pgvector:pg16
+    container_name: neuraal-evolution-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      PGPASSWORD=neuraal_password psql -h postgres -U neuraal -tc
+      \"SELECT 1 FROM pg_database WHERE datname = 'evolution'\"
+      | grep -q 1
+      || PGPASSWORD=neuraal_password createdb -h postgres -U neuraal evolution;
+      echo 'Database evolution is ready';
+      exit 0;
+      "
+
+  # ==========================================================================
+  # Evolution API - Multi-channel messaging (WhatsApp, Telegram, etc.)
+  # Dashboard: http://localhost:8080
+  # Swagger:   http://localhost:8080/docs
+  # ==========================================================================
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.2.3
+    container_name: neuraal-evolution-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      evolution-db-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      # Authentication
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+
+      # Database (PostgreSQL) — shared Postgres instance, dedicated "evolution" database
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://neuraal:neuraal_password@postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+
+      # Cache Redis — shared Redis instance with dedicated prefix
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+    volumes:
+      - neuraal_evolution_instances:/evolution/instances
 
 # ==========================================================================
 # Named volumes for data persistence
@@ -181,3 +271,4 @@ volumes:
   neuraal_minio_data:
   neuraal_n8n_data:
   neuraal_ollama_data:
+  neuraal_evolution_instances:

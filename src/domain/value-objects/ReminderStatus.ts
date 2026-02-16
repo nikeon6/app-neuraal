@@ -30,11 +30,21 @@ export class ReminderStatus {
 
     const normalized = value.trim().toLowerCase();
 
-    if (!ReminderStatus.VALID_STATUSES.includes(normalized as typeof ReminderStatus.VALID_STATUSES[number])) {
-      return err(`Invalid status. Allowed: ${ReminderStatus.VALID_STATUSES.join(", ")}`);
+    if (
+      !ReminderStatus.VALID_STATUSES.includes(
+        normalized as (typeof ReminderStatus.VALID_STATUSES)[number],
+      )
+    ) {
+      return err(
+        `Invalid status. Allowed: ${ReminderStatus.VALID_STATUSES.join(", ")}`,
+      );
     }
 
-    return ok(new ReminderStatus(normalized as "pending" | "sent" | "canceled" | "failed"));
+    return ok(
+      new ReminderStatus(
+        normalized as "pending" | "sent" | "canceled" | "failed",
+      ),
+    );
   }
 
   static pending(): ReminderStatus {
