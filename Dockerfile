@@ -28,14 +28,26 @@
     ENV HOSTNAME=0.0.0.0
     RUN corepack enable
     
-    # solo lo necesario para correr
+ 
+
+    # Copiamos solo lo necesario que sí existe siempre
     COPY --from=build /app/package.json ./package.json
     COPY --from=build /app/node_modules ./node_modules
     COPY --from=build /app/.next ./.next
-    COPY --from=build /app/public ./public
-    COPY --from=build /app/next.config.mjs ./next.config.mjs
-    COPY --from=build /app/next.config.js ./next.config.js
     COPY --from=build /app/prisma ./prisma
+
+    # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
+    COPY --from=build /app/src/generated ./src/generated
+
+    # Opcionales: public y next.config.*
+    # (Docker falla si haces COPY y no existen, así que lo hacemos condicional)
+    COPY --from=build /app /tmp/app
+    RUN set -eux; \
+        if [ -d /tmp/app/public ]; then cp -r /tmp/app/public /app/; fi; \
+        if [ -f /tmp/app/next.config.js ]; then cp /tmp/app/next.config.js /app/; fi; \
+        if [ -f /tmp/app/next.config.mjs ]; then cp /tmp/app/next.config.mjs /app/; fi; \
+        if [ -f /tmp/app/next.config.ts ]; then cp /tmp/app/next.config.ts /app/; fi; \
+        rm -rf /tmp/app
     
     EXPOSE 3000
     CMD ["pnpm", "start"]
