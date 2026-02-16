@@ -23,7 +23,7 @@
     "openapi:types": "openapi-typescript openapi/openapi.json -o src/shared/api/openapi-types.ts",
     "openapi:generate": "pnpm openapi:emit && pnpm openapi:types",
     "db:seed:e2e": "tsx prisma/seed-e2e.ts",
-    "prepare": "husky"
+    "prepare": "node -e \"process.exit(require('fs').existsSync('.git') ? 0 : 1)\" || exit 0 && husky"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.982.0",
@@ -66,6 +66,7 @@
     "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
     "require-in-the-middle": "^8.0.1",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.8"
   },
