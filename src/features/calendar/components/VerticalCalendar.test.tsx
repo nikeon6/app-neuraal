@@ -1,6 +1,12 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -265,6 +271,18 @@ describe("VerticalCalendar", () => {
       expect(mockSetSelectedDate).toHaveBeenCalled();
       expect(mockSetSelectedDay).toHaveBeenCalledWith(20);
     });
+
+    it("expands a non-expanded day row on click", async () => {
+      const user = userEvent.setup();
+      mockStoreState({ expandedDayKeys: [] });
+      renderCalendar();
+
+      await user.click(screen.getByLabelText(/day row 2024-01-20/i));
+      expect(mockExpandDay).toHaveBeenCalledWith(
+        "2024-01-20",
+        mockEntriesByDate,
+      );
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -387,6 +405,23 @@ describe("VerticalCalendar", () => {
       expect(mockUnpinDay).toHaveBeenCalledWith(MOCK_DATE, mockEntriesByDate);
       expect(mockCollapseDay).not.toHaveBeenCalled();
     });
+
+    it("unpins non-selected day and collapses it", async () => {
+      const user = userEvent.setup();
+      mockStoreState({
+        expandedDayKeys: [MOCK_DATE],
+        pinnedDayKeys: [MOCK_DATE],
+        selectedDate: new Date("2024-01-20"),
+      });
+      renderCalendar();
+
+      await user.click(screen.getByRole("button", { name: /unpin day/i }));
+      expect(mockUnpinDay).toHaveBeenCalledWith(MOCK_DATE, mockEntriesByDate);
+      expect(mockCollapseDay).toHaveBeenCalledWith(
+        MOCK_DATE,
+        mockEntriesByDate,
+      );
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -427,6 +462,49 @@ describe("VerticalCalendar", () => {
           screen.queryByRole("button", { name: "Feb" }),
         ).not.toBeInTheDocument();
       });
+    });
+
+    it("toggles month picker closed when header button is clicked twice", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+
+      await user.click(janButton as HTMLButtonElement);
+      expect(screen.getByRole("button", { name: "Feb" })).toBeInTheDocument();
+      await user.click(janButton as HTMLButtonElement);
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Feb" }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("navigates picker year with previous and next controls", async () => {
+      const user = userEvent.setup();
+      renderCalendar();
+
+      const janButton = screen
+        .getAllByText("Jan")
+        .map((el) => el.closest("button"))
+        .find((el): el is HTMLButtonElement => el instanceof HTMLButtonElement);
+      expect(janButton).toBeDefined();
+      await user.click(janButton as HTMLButtonElement);
+
+      const prevButton = screen.getByRole("button", { name: "‹" });
+      const pickerRoot = prevButton.closest(
+        "[data-month-picker]",
+      ) as HTMLElement;
+
+      expect(within(pickerRoot).getByText("2024")).toBeInTheDocument();
+      await user.click(prevButton);
+      expect(within(pickerRoot).getByText("2023")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "›" }));
+      expect(within(pickerRoot).getByText("2024")).toBeInTheDocument();
     });
   });
 

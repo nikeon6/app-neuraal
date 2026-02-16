@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { ReminderDialog, type ReminderDialogProps } from "./ReminderDialog";
@@ -53,6 +53,7 @@ function renderDialog(overrides: Partial<ReminderDialogProps> = {}) {
 describe("ReminderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   afterEach(() => {
@@ -285,6 +286,74 @@ describe("ReminderDialog", () => {
       expect(
         screen.getByRole("button", { name: /cancel reminder/i }),
       ).toBeDisabled();
+    });
+
+    it("shows validation error and blocks reschedule when selected time is in the past", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(
+        new Date("2099-01-01T00:00:00.000Z").getTime(),
+      );
+      const onReschedule = vi.fn();
+      const user = userEvent.setup();
+      renderDialog({ hasActiveReminder: true, onReschedule });
+
+      await user.click(screen.getByRole("button", { name: /reschedule/i }));
+
+      expect(
+        screen.getByText(/the selected date and time is in the past/i),
+      ).toBeInTheDocument();
+      expect(onReschedule).not.toHaveBeenCalled();
+    });
+
+    it("clears validation error after changing date or time fields", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(
+        new Date("2099-01-01T00:00:00.000Z").getTime(),
+      );
+      const user = userEvent.setup();
+      renderDialog({ hasActiveReminder: true });
+
+      await user.click(screen.getByRole("button", { name: /reschedule/i }));
+      expect(
+        screen.getByText(/the selected date and time is in the past/i),
+      ).toBeInTheDocument();
+
+      // Date change clears error
+      await user.click(screen.getByRole("button", { name: /next month/i }));
+      await user.click(screen.getByRole("button", { name: "1" }));
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/the selected date and time is in the past/i),
+        ).not.toBeInTheDocument();
+      });
+
+      // Re-trigger error, then hour change clears it
+      await user.click(screen.getByRole("button", { name: /reschedule/i }));
+      expect(
+        screen.getByText(/the selected date and time is in the past/i),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /hour/i }));
+      const hourOption = screen.getAllByRole("button", { name: "10" }).at(-1);
+      expect(hourOption).toBeDefined();
+      await user.click(hourOption as HTMLButtonElement);
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/the selected date and time is in the past/i),
+        ).not.toBeInTheDocument();
+      });
+
+      // Re-trigger error, then minute change clears it
+      await user.click(screen.getByRole("button", { name: /reschedule/i }));
+      expect(
+        screen.getByText(/the selected date and time is in the past/i),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /minute/i }));
+      const minuteOption = screen.getAllByRole("button", { name: "05" }).at(-1);
+      expect(minuteOption).toBeDefined();
+      await user.click(minuteOption as HTMLButtonElement);
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/the selected date and time is in the past/i),
+        ).not.toBeInTheDocument();
+      });
     });
   });
 

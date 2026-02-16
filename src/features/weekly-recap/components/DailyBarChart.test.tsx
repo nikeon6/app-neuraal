@@ -4,6 +4,10 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { DailyBarChart, type DailyBarData } from "./DailyBarChart";
 
+let lastTooltipProps: {
+  labelFormatter?: (value: string) => string;
+} | null = null;
+
 // Mock recharts to render simple testable output
 vi.mock("recharts", () => {
   return {
@@ -29,7 +33,12 @@ vi.mock("recharts", () => {
     ),
     YAxis: () => <div aria-label="y axis" />,
     CartesianGrid: () => <div aria-label="cartesian grid" />,
-    Tooltip: () => <div aria-label="chart tooltip" />,
+    Tooltip: (props: Record<string, unknown>) => {
+      lastTooltipProps = props as {
+        labelFormatter?: (value: string) => string;
+      };
+      return <div aria-label="chart tooltip" />;
+    },
     Legend: () => <div aria-label="chart legend" />,
   };
 });
@@ -45,6 +54,10 @@ const mockData: DailyBarData[] = [
 ];
 
 describe("DailyBarChart", () => {
+  beforeEach(() => {
+    lastTooltipProps = null;
+  });
+
   describe("Rendering", () => {
     it("renders the chart title", () => {
       render(<DailyBarChart data={mockData} />);
@@ -85,6 +98,16 @@ describe("DailyBarChart", () => {
       render(<DailyBarChart data={[]} />);
 
       expect(screen.getByText("Tasks by Day")).toBeInTheDocument();
+    });
+
+    it("formats tooltip label using full day when available", () => {
+      render(<DailyBarChart data={mockData} />);
+      expect(lastTooltipProps?.labelFormatter?.("Mon")).toBe("Monday");
+    });
+
+    it("falls back to original tooltip label when day is not found", () => {
+      render(<DailyBarChart data={mockData} />);
+      expect(lastTooltipProps?.labelFormatter?.("Xxx")).toBe("Xxx");
     });
   });
 });

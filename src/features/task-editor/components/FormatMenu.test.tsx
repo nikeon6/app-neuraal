@@ -175,6 +175,15 @@ describe("FormatMenu", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("does not close on non-Escape keys", () => {
+    const onClose = vi.fn();
+    const { editor } = createMockEditor();
+    render(<FormatMenu editor={editor as never} onClose={onClose} />);
+
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("subscribes and unsubscribes to editor transaction events", () => {
     const { editor, on, off } = createMockEditor();
     const { unmount } = render(

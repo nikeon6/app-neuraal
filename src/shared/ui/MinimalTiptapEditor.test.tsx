@@ -20,10 +20,14 @@ const mockGetJSON = vi.fn(() => ({ type: "doc", content: [] }));
 let currentUseEditorOptions: UseEditorOptions | null = null;
 let isFocusedState = false;
 let isDestroyedState = false;
+let useNullEditorState = false;
 
 vi.mock("@tiptap/react", () => ({
   useEditor: (options: UseEditorOptions) => {
     currentUseEditorOptions = options;
+    if (useNullEditorState) {
+      return null;
+    }
     return {
       isDestroyed: isDestroyedState,
       isFocused: isFocusedState,
@@ -45,12 +49,20 @@ describe("MinimalTiptapEditor", () => {
     currentUseEditorOptions = null;
     isFocusedState = false;
     isDestroyedState = false;
+    useNullEditorState = false;
   });
 
   it("renders editor container", () => {
     render(<MinimalTiptapEditor content={{}} onUpdate={vi.fn()} />);
     expect(screen.getByTestId("minimal-tiptap-editor")).toBeInTheDocument();
     expect(screen.getByTestId("editor-content")).toHaveTextContent("ready");
+  });
+
+  it("renders empty editor content when useEditor returns null", () => {
+    useNullEditorState = true;
+    render(<MinimalTiptapEditor content={{}} onUpdate={vi.fn()} />);
+    expect(screen.getByTestId("editor-content")).toHaveTextContent("empty");
+    expect(mockSetEditable).not.toHaveBeenCalled();
   });
 
   it("applies expanded class when isExpanded is true", () => {
@@ -147,5 +159,28 @@ describe("MinimalTiptapEditor", () => {
       type: "doc",
       content: [{ type: "paragraph" }],
     });
+  });
+
+  it("skips bubbling onUpdate while syncing external content", () => {
+    const onUpdate = vi.fn();
+    mockSetContent.mockImplementationOnce(() => {
+      currentUseEditorOptions?.onUpdate?.({
+        editor: {
+          getJSON: () => ({ type: "doc", content: [{ type: "paragraph" }] }),
+        },
+      });
+    });
+
+    const { rerender } = render(
+      <MinimalTiptapEditor content={{}} onUpdate={onUpdate} />,
+    );
+    const newContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [] }],
+    };
+    rerender(<MinimalTiptapEditor content={newContent} onUpdate={onUpdate} />);
+
+    expect(mockSetContent).toHaveBeenCalledWith(newContent);
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 });
