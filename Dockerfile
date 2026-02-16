@@ -31,6 +31,7 @@
     ENV NODE_ENV=production
     ENV PORT=3000
     ENV HOSTNAME=0.0.0.0
+    ENV HUSKY=0
     RUN corepack enable
     
  
@@ -40,6 +41,8 @@
     COPY --from=build /app/node_modules ./node_modules
     COPY --from=build /app/.next ./.next
     COPY --from=build /app/prisma ./prisma
+    COPY --from=build /app/src ./src
+    COPY --from=build /app/tsconfig.json ./tsconfig.json
     COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
     # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
