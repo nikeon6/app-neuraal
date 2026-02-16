@@ -47,15 +47,8 @@
     # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
     COPY --from=build /app/src/generated ./src/generated
 
-    # Opcionales: public y next.config.*
-    # (Docker falla si haces COPY y no existen, así que lo hacemos condicional)
-    COPY --from=build /app /tmp/app
-    RUN set -eux; \
-        if [ -d /tmp/app/public ]; then cp -r /tmp/app/public /app/; fi; \
-        if [ -f /tmp/app/next.config.js ]; then cp /tmp/app/next.config.js /app/; fi; \
-        if [ -f /tmp/app/next.config.mjs ]; then cp /tmp/app/next.config.mjs /app/; fi; \
-        if [ -f /tmp/app/next.config.ts ]; then cp /tmp/app/next.config.ts /app/; fi; \
-        rm -rf /tmp/app
+    # Project-level Next runtime config used by next start
+    COPY --from=build /app/next.config.ts ./next.config.ts
     
     EXPOSE 3000
     CMD ["pnpm", "start"]
