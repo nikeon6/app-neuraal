@@ -2,9 +2,9 @@ name: Build & Push Docker Image (GHCR)
 
 on:
   push:
-    branches: 
-    - main
-    - dev/observability
+    branches:
+      - main
+    # - dev/observability
 
 permissions:
   contents: read
