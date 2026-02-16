@@ -27,7 +27,7 @@
     # Build workers
     RUN pnpm build:workers
 
-    
+
     # ---------- runtime ----------
     FROM node:20-alpine AS runtime
     ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -44,7 +44,7 @@
     COPY --from=build /app/package.json ./package.json
     COPY --from=build /app/node_modules ./node_modules
     COPY --from=build /app/.next ./.next
-    COPY --from=build /app/prisma ./prisma
+    COPY --from=build /app/prisma.config.ts ./prisma.config.ts
     COPY --from=build /app/src ./src
     COPY --from=build /app/tsconfig.json ./tsconfig.json
     COPY --from=build /app/dist ./dist
