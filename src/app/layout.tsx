@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Neuraal - Task Manager",
   description:
     "Your intelligent task management system with visual connections",
+  other: {
+    google: "notranslate",
+  },
 };
 
 export default function RootLayout({
@@ -17,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" translate="no">
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

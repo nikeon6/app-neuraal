@@ -3,10 +3,23 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
 import { ArrowRight, Check, X } from "lucide-react";
+
+function isConnectionApiError(error: ApiError): boolean {
+  if (error.status >= 500) return true;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("connect") ||
+    msg.includes("connection") ||
+    msg.includes("econnrefused") ||
+    msg.includes("database") ||
+    msg.includes("timeout")
+  );
+}
 
 const PASSWORD_REQUIREMENTS = [
   { label: "Min 8 characters", test: (p: string) => p.length >= 8 },
@@ -82,6 +95,8 @@ export default function RegisterPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("An account with this email already exists");
+      } else if (err instanceof ApiError && isConnectionApiError(err)) {
+        setError("Connection error. Please check your database/server.");
       } else {
         setError("Registration failed");
       }
@@ -110,8 +125,17 @@ export default function RegisterPage() {
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">Neuraal</h1>
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center mb-8">
+            <Image
+              src="/branding/lockups/Neuraal_Blanco_Logotipo.svg"
+              alt="Neuraal"
+              width={200}
+              height={76}
+              priority
+              className="h-auto w-[200px] max-w-full opacity-60"
+            />
+          </div>
           <p className="text-white/40">Create your account</p>
         </div>
 

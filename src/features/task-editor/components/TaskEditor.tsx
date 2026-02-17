@@ -1131,6 +1131,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
               id={`title-${entry.id}`}
               type="text"
               aria-label="Title"
+              autoComplete="off"
               value={title}
               onChange={handleTitleChange}
               placeholder={entryType === "task" ? "Task title" : "Note title"}

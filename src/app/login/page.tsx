@@ -3,11 +3,24 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
-import { ArrowRight, Brain } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+
+function isConnectionApiError(error: ApiError): boolean {
+  if (error.status >= 500) return true;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("connect") ||
+    msg.includes("connection") ||
+    msg.includes("econnrefused") ||
+    msg.includes("database") ||
+    msg.includes("timeout")
+  );
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -85,6 +98,8 @@ export default function LoginPage() {
           setError("Invalid email or password");
         } else if (err.status === 400) {
           setError(err.message || "Invalid input");
+        } else if (isConnectionApiError(err)) {
+          setError("Connection error. Please check your network connection.");
         } else {
           setError("Login failed. Please try again.");
         }
@@ -113,16 +128,18 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
-        {/* Header with Neuraal branding */}
+        {/* Header with lockup logo */}
         <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Brain className="w-10 h-10 text-primary" />
-            <span className="text-2xl font-bold text-white tracking-wide">
-              Neuraal
-            </span>
+          <div className="flex items-center justify-center">
+            <Image
+              src="/branding/lockups/Neuraal_Blanco_Logotipo.svg"
+              alt="Neuraal"
+              width={200}
+              height={76}
+              priority
+              className="h-auto w-[200px] max-w-full opacity-60"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-          <p className="text-white/40">Sign in to access your daily log</p>
         </div>
 
         {/* Login Form */}

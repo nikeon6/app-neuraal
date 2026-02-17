@@ -28,6 +28,24 @@
   overflow-anchor: none; /* Prevent browser scroll anchoring from jumping during layout changes */
 }
 
+/* Smooth fade at scroll container edges so content does not clip abruptly */
+.tasks-scroll-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 36px,
+    black calc(100% - 36px),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 36px,
+    black calc(100% - 36px),
+    transparent
+  );
+}
+
 /* Scroll-to-entry highlight animation */
 @keyframes entryHighlight {
   0% {

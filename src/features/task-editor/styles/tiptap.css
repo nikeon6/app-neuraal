@@ -8,7 +8,7 @@
   outline: none;
   color: rgba(255, 255, 255, 0.8);
   font-size: 1rem;
-  line-height: 1.75;
+  line-height: 1.45;
   min-height: 60px;
   caret-color: hsl(217, 91%, 60%);
 }
@@ -32,7 +32,7 @@
 
 /* ---- Paragraphs ---- */
 .tiptap-editor .tiptap p {
-  margin: 0.25em 0;
+  margin: 0.1em 0;
 }
 
 /* ---- Headings ---- */
@@ -44,16 +44,23 @@
   margin: 0.75em 0 0.25em;
 }
 
-.tiptap-editor .tiptap h1 { font-size: 1.5em; }
-.tiptap-editor .tiptap h2 { font-size: 1.25em; }
-.tiptap-editor .tiptap h3 { font-size: 1.1em; }
+.tiptap-editor .tiptap h1 {
+  font-size: 1.5em;
+}
+.tiptap-editor .tiptap h2 {
+  font-size: 1.25em;
+}
+.tiptap-editor .tiptap h3 {
+  font-size: 1.1em;
+}
 
 /* ---- Inline code ---- */
 .tiptap-editor .tiptap code {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   padding: 0.15em 0.35em;
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-family:
+    ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
   font-size: 0.9em;
   color: rgba(255, 255, 255, 0.85);
 }
@@ -71,7 +78,8 @@
   padding: 2rem 1rem 1rem 1rem;
   margin: 0.75em 0;
   overflow-x: auto;
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-family:
+    ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
   font-size: 0.875rem;
   line-height: 1.6;
 }
@@ -145,31 +153,64 @@
 
 /* ---- Syntax highlighting — dark theme (Material Palenight) ---- */
 .tiptap-editor .code-block-node .hljs-comment,
-.tiptap-editor .code-block-node .hljs-quote { color: rgba(255, 255, 255, 0.35); font-style: italic; }
+.tiptap-editor .code-block-node .hljs-quote {
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
+}
 .tiptap-editor .code-block-node .hljs-keyword,
 .tiptap-editor .code-block-node .hljs-selector-tag,
-.tiptap-editor .code-block-node .hljs-addition { color: #c792ea; }
+.tiptap-editor .code-block-node .hljs-addition {
+  color: #c792ea;
+}
 .tiptap-editor .code-block-node .hljs-string,
-.tiptap-editor .code-block-node .hljs-attr { color: #c3e88d; }
+.tiptap-editor .code-block-node .hljs-attr {
+  color: #c3e88d;
+}
 .tiptap-editor .code-block-node .hljs-number,
-.tiptap-editor .code-block-node .hljs-literal { color: #f78c6c; }
+.tiptap-editor .code-block-node .hljs-literal {
+  color: #f78c6c;
+}
 .tiptap-editor .code-block-node .hljs-built_in,
-.tiptap-editor .code-block-node .hljs-type { color: #ffcb6b; }
+.tiptap-editor .code-block-node .hljs-type {
+  color: #ffcb6b;
+}
 .tiptap-editor .code-block-node .hljs-variable,
-.tiptap-editor .code-block-node .hljs-template-variable { color: #f07178; }
+.tiptap-editor .code-block-node .hljs-template-variable {
+  color: #f07178;
+}
 .tiptap-editor .code-block-node .hljs-title,
-.tiptap-editor .code-block-node .hljs-section { color: #82aaff; }
+.tiptap-editor .code-block-node .hljs-section {
+  color: #82aaff;
+}
 .tiptap-editor .code-block-node .hljs-name,
-.tiptap-editor .code-block-node .hljs-tag { color: #f07178; }
-.tiptap-editor .code-block-node .hljs-regexp { color: #89ddff; }
-.tiptap-editor .code-block-node .hljs-meta { color: rgba(255, 255, 255, 0.5); }
+.tiptap-editor .code-block-node .hljs-tag {
+  color: #f07178;
+}
+.tiptap-editor .code-block-node .hljs-regexp {
+  color: #89ddff;
+}
+.tiptap-editor .code-block-node .hljs-meta {
+  color: rgba(255, 255, 255, 0.5);
+}
 .tiptap-editor .code-block-node .hljs-symbol,
-.tiptap-editor .code-block-node .hljs-bullet { color: #89ddff; }
-.tiptap-editor .code-block-node .hljs-deletion { color: #ff5370; }
-.tiptap-editor .code-block-node .hljs-function { color: #82aaff; }
-.tiptap-editor .code-block-node .hljs-params { color: rgba(255, 255, 255, 0.7); }
-.tiptap-editor .code-block-node .hljs-property { color: #f07178; }
-.tiptap-editor .code-block-node .hljs-operator { color: #89ddff; }
+.tiptap-editor .code-block-node .hljs-bullet {
+  color: #89ddff;
+}
+.tiptap-editor .code-block-node .hljs-deletion {
+  color: #ff5370;
+}
+.tiptap-editor .code-block-node .hljs-function {
+  color: #82aaff;
+}
+.tiptap-editor .code-block-node .hljs-params {
+  color: rgba(255, 255, 255, 0.7);
+}
+.tiptap-editor .code-block-node .hljs-property {
+  color: #f07178;
+}
+.tiptap-editor .code-block-node .hljs-operator {
+  color: #89ddff;
+}
 
 /* ---- Blockquotes ---- */
 .tiptap-editor .tiptap blockquote {
@@ -191,8 +232,12 @@
   margin: 0.15em 0;
 }
 
-.tiptap-editor .tiptap ul li::marker { color: rgba(255, 255, 255, 0.3); }
-.tiptap-editor .tiptap ol li::marker { color: rgba(255, 255, 255, 0.4); }
+.tiptap-editor .tiptap ul li::marker {
+  color: rgba(255, 255, 255, 0.3);
+}
+.tiptap-editor .tiptap ol li::marker {
+  color: rgba(255, 255, 255, 0.4);
+}
 
 /* ---- Horizontal rule ---- */
 .tiptap-editor .tiptap hr {
@@ -202,10 +247,19 @@
 }
 
 /* ---- Bold / Italic / Strike / Underline ---- */
-.tiptap-editor .tiptap strong { color: rgba(255, 255, 255, 0.95); }
-.tiptap-editor .tiptap em { font-style: italic; }
-.tiptap-editor .tiptap s { color: rgba(255, 255, 255, 0.4); }
-.tiptap-editor .tiptap u { text-decoration: underline; text-underline-offset: 2px; }
+.tiptap-editor .tiptap strong {
+  color: rgba(255, 255, 255, 0.95);
+}
+.tiptap-editor .tiptap em {
+  font-style: italic;
+}
+.tiptap-editor .tiptap s {
+  color: rgba(255, 255, 255, 0.4);
+}
+.tiptap-editor .tiptap u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 /* ---- Images (NodeView wrapper) ---- */
 .tiptap-editor .image-attachment-wrapper {
@@ -255,7 +309,11 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    transform 80ms ease,
+    box-shadow 120ms ease;
 }
 
 .tiptap-editor .image-attachment-btn:disabled {
@@ -358,7 +416,9 @@
   background: rgba(239, 68, 68, 0.07);
 }
 
-.tiptap-editor .image-attachment-result[data-error="true"] .image-attachment-result-title {
+.tiptap-editor
+  .image-attachment-result[data-error="true"]
+  .image-attachment-result-title {
   color: rgb(248, 113, 113); /* red-400 */
 }
 
@@ -406,7 +466,9 @@
   color: rgba(255, 255, 255, 0.5);
   background: transparent;
   cursor: pointer;
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 
 .tiptap-editor .image-attachment-result-copy:hover {
@@ -428,7 +490,9 @@
   font-size: 0.75rem;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.7);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
 /* ---- File attachment node ---- */
@@ -538,7 +602,9 @@
 }
 
 @keyframes yt-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tiptap-editor .youtube-embed-loading-label {
@@ -568,7 +634,9 @@
   font-weight: 500;
   border: none;
   cursor: pointer;
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 
 .tiptap-editor .youtube-embed-btn-icon {
@@ -717,7 +785,9 @@
   color: rgba(255, 255, 255, 0.5);
   background: transparent;
   cursor: pointer;
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 
 .tiptap-editor .youtube-embed-panel-copy:hover,
