@@ -440,7 +440,7 @@ export function TasksContainer() {
         onReorder={setOrderedIds}
         data-testid="tasks-scroll-container"
         aria-label="Tasks list"
-        className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 lg:space-y-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar"
+        className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 lg:space-y-4 pt-4 pb-4 pr-2 lg:pr-4 pl-6 lg:pl-10 tasks-scrollbar tasks-scroll-fade"
         layoutScroll
       >
         {orderedIds.map((entryId) => {

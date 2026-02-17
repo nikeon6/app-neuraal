@@ -199,7 +199,7 @@ export function Dashboard() {
         return <TopicsSection />;
       case "settings":
         return (
-          <div className="h-full overflow-y-auto pr-1 tasks-scrollbar">
+          <div className="h-full overflow-y-auto pr-1 tasks-scrollbar tasks-scroll-fade">
             <div className="max-w-xl mx-auto py-4 space-y-6">
               <StorageUsagePanel />
               <AiUsagePanel />
