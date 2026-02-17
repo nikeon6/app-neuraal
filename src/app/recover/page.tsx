@@ -2,9 +2,22 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import { post } from "@/shared/api/apiClient";
+import { post, ApiError } from "@/shared/api/apiClient";
 import { ArrowRight, CheckCircle } from "lucide-react";
+
+function isConnectionApiError(error: ApiError): boolean {
+  if (error.status >= 500) return true;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("connect") ||
+    msg.includes("connection") ||
+    msg.includes("econnrefused") ||
+    msg.includes("database") ||
+    msg.includes("timeout")
+  );
+}
 
 export default function RecoverPage() {
   const [email, setEmail] = useState("");
@@ -22,12 +35,14 @@ export default function RecoverPage() {
     try {
       await post("/api/auth/recover", { email: email.trim() });
       setSuccess(true);
-    } catch {
+    } catch (err) {
       // Only show error for network failures (timeout, no connection, etc.)
       // API errors are intentionally ignored to prevent email enumeration.
-      setNetworkError(
-        "Unable to connect. Please check your connection and try again.",
-      );
+      if (!(err instanceof ApiError) || isConnectionApiError(err)) {
+        setNetworkError(
+          "Unable to connect. Please check your connection and try again.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -51,8 +66,17 @@ export default function RecoverPage() {
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">Neuraal</h1>
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center mb-8">
+            <Image
+              src="/branding/lockups/Neuraal_Blanco_Logotipo.svg"
+              alt="Neuraal"
+              width={200}
+              height={76}
+              priority
+              className="h-auto w-[200px] max-w-full opacity-60"
+            />
+          </div>
           <p className="text-white/40">Reset your password</p>
         </div>
 
