@@ -1571,6 +1571,16 @@ export function FloatingTopics({
       const node = nodePosRef.current[id];
       if (!container || !node) return;
 
+      // On touch devices, the previously focused editor/input can keep focus
+      // after the keyboard is dismissed. Blur it before handling the bubble tap
+      // to prevent mobile browsers from reopening the keyboard.
+      if (e.pointerType === "touch") {
+        const activeEl = document.activeElement;
+        if (activeEl instanceof HTMLElement && activeEl !== e.currentTarget) {
+          activeEl.blur();
+        }
+      }
+
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
 
