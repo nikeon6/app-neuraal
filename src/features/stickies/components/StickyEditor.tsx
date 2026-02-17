@@ -139,6 +139,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
       <input
         type="text"
         aria-label="Sticky title"
+        autoComplete="off"
         value={title}
         onChange={handleTitleChange}
         placeholder="Title"
