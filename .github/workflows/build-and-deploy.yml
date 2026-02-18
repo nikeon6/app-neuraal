@@ -59,14 +59,13 @@ jobs:
 
             # 1) Use workflow_run head SHA when available, otherwise push SHA
             TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
-            IMAGE="ghcr.io/${{ github.repository_owner }}/neuraal:$TAG"
-            echo "Deploying image: $IMAGE"
+            echo "Deploying tag: $TAG"
 
-            # 2) Update APP_IMAGE in .env.prod so compose uses the exact SHA image
-            if grep -q '^APP_IMAGE=' .env.prod; then
-              sed -i "s|^APP_IMAGE=.*|APP_IMAGE=$IMAGE|" .env.prod
+            # 2) Persist selected tag for docker compose image reference
+            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
+              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
             else
-              echo "APP_IMAGE=$IMAGE" >> .env.prod
+              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
             fi
 
             # 3) Login to GHCR (private registry)
@@ -77,9 +76,9 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 
-            # 5) Save last deployed image for quick rollback reference
-            echo "$IMAGE" > .last_deploy_image
-            echo "Last deployed image: $IMAGE"
+            # 5) Guardamos el último deploy (útil para rollback rápido)
+            echo "$TAG" > .last_deploy_tag
+            echo "Last deploy tag saved: $TAG"
 
   build-and-push-main:
     name: Build & Push (main after CI)
@@ -132,14 +131,13 @@ jobs:
 
             # 1) Use workflow_run head SHA when available, otherwise push SHA
             TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
-            IMAGE="ghcr.io/${{ github.repository_owner }}/neuraal:$TAG"
-            echo "Deploying image: $IMAGE"
+            echo "Deploying tag: $TAG"
 
-            # 2) Update APP_IMAGE in .env.prod so compose uses the exact SHA image
-            if grep -q '^APP_IMAGE=' .env.prod; then
-              sed -i "s|^APP_IMAGE=.*|APP_IMAGE=$IMAGE|" .env.prod
+            # 2) Persist selected tag for docker compose image reference
+            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
+              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
             else
-              echo "APP_IMAGE=$IMAGE" >> .env.prod
+              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
             fi
 
             # 3) Login to GHCR (private registry)
@@ -150,6 +148,6 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 
-            # 5) Save last deployed image for quick rollback reference
-            echo "$IMAGE" > .last_deploy_image
-            echo "Last deployed image: $IMAGE"
+            # 5) Guardamos el último deploy (útil para rollback rápido)
+            echo "$TAG" > .last_deploy_tag
+            echo "Last deploy tag saved: $TAG"
