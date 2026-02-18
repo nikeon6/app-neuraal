@@ -54,11 +54,31 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             set -euo pipefail
+
             cd /srv/neuraal
+
+            # 1) Use workflow_run head SHA when available, otherwise push SHA
+            TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "Deploying tag: $TAG"
+
+            # 2) Persist selected tag for docker compose image reference
+            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
+              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
+            else
+              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
+            fi
+
+            # 3) Login to GHCR (private registry)
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_PULL_USER }}" --password-stdin
+
+            # 4) Pull exact tag + migrate + up
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+
+            # 5) Guardamos el último deploy (útil para rollback rápido)
+            echo "$TAG" > .last_deploy_tag
+            echo "Last deploy tag saved: $TAG"
 
   build-and-push-main:
     name: Build & Push (main after CI)
@@ -106,8 +126,28 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             set -euo pipefail
+
             cd /srv/neuraal
+
+            # 1) Use workflow_run head SHA when available, otherwise push SHA
+            TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "Deploying tag: $TAG"
+
+            # 2) Persist selected tag for docker compose image reference
+            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
+              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
+            else
+              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
+            fi
+
+            # 3) Login to GHCR (private registry)
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_PULL_USER }}" --password-stdin
+
+            # 4) Pull exact tag + migrate + up
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+
+            # 5) Guardamos el último deploy (útil para rollback rápido)
+            echo "$TAG" > .last_deploy_tag
+            echo "Last deploy tag saved: $TAG"
