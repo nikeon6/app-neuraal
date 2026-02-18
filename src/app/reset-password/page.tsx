@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,7 +26,7 @@ function getPasswordRequirements(password: string) {
   }));
 }
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -282,5 +282,17 @@ export default function ResetPasswordPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+function ResetPasswordFallback() {
+  return <div className="min-h-screen w-full bg-background" />;
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }

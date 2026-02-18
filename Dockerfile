@@ -1,15 +1,19 @@
 # ---------- deps ----------
     FROM node:20-alpine AS deps
     ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    ENV PNPM_DISABLE_SELF_UPDATE_CHECK=1
+    ENV NEXT_TELEMETRY_DISABLED=1
     WORKDIR /app
     RUN corepack enable
     
-    COPY package.json pnpm-lock.yaml ./
+    COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
     RUN pnpm install --frozen-lockfile --ignore-scripts=false
     
     # ---------- build ----------
     FROM node:20-alpine AS build
     ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    ENV PNPM_DISABLE_SELF_UPDATE_CHECK=1
+    ENV NEXT_TELEMETRY_DISABLED=1
     WORKDIR /app
     RUN corepack enable
     
