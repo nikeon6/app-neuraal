@@ -51,12 +51,16 @@ export class RequestPasswordReset {
 
       if (this.emailService) {
         const resetUrl = `${this.appBaseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-        await this.emailService.send({
-          to: emailResult.value.toString(),
-          subject: "Reset your password — Neuraal",
-          html: buildResetEmailHtml(resetUrl, this.resetTtlMinutes),
-          text: buildResetEmailText(resetUrl, this.resetTtlMinutes),
-        });
+        try {
+          await this.emailService.send({
+            to: emailResult.value.toString(),
+            subject: "Reset your password — Neuraal",
+            html: buildResetEmailHtml(resetUrl, this.resetTtlMinutes),
+            text: buildResetEmailText(resetUrl, this.resetTtlMinutes),
+          });
+        } catch {
+          // Keep recover flow semantics: always return generic success.
+        }
       }
     }
 

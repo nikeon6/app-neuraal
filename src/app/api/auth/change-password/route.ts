@@ -5,6 +5,8 @@ import { PrismaRefreshTokenRepository } from "@/infrastructure/persistence/Prism
 import { BcryptPasswordHasher } from "@/infrastructure/auth/BcryptPasswordHasher";
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
+import { clearAuthCookies } from "@/infrastructure/auth/AuthCookies";
+import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { withApiContext } from "@/infrastructure/http/withApiContext";
 import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
 
@@ -89,5 +91,7 @@ export const POST = withApiContext(async (request: NextRequest) => {
     return NextResponse.json({ error: { code, message } }, { status });
   }
 
-  return NextResponse.json({ ok: true }, { status: 200 });
+  const response = NextResponse.json({ ok: true }, { status: 200 });
+  clearAuthCookies(response, getAuthConfig());
+  return response;
 });

@@ -6,6 +6,7 @@ import { FakeRefreshTokenService } from "../../test/FakeRefreshTokenService";
 import { FakeEmailService } from "../../test/FakeEmailService";
 import { FakeClock } from "../../test/FakeClock";
 import { User } from "@/domain/entities/User";
+import type { EmailServicePort } from "@/application/ports/EmailServicePort";
 
 const RESET_TTL_MINUTES = 60;
 const APP_BASE_URL = "https://app.test";
@@ -132,5 +133,41 @@ describe("RequestPasswordReset", () => {
       clock.now().getTime() + RESET_TTL_MINUTES * 60 * 1000,
     );
     expect(tokens[0].expiresAt.getTime()).toBe(expectedExpiry.getTime());
+  });
+
+  it("should return ok when email transport fails for existing user", async () => {
+    const userResult = User.create({
+      id: "user-1",
+      email: "test@example.com",
+      passwordHash: "hashed:password",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    if (userResult.isOk()) {
+      await userRepository.create(userResult.value);
+    }
+
+    const failingEmailService: EmailServicePort = {
+      async send() {
+        throw new Error("SMTP unavailable");
+      },
+    };
+    const useCaseWithFailingEmail = new RequestPasswordReset(
+      userRepository,
+      passwordResetTokenRepository,
+      refreshTokenService,
+      clock,
+      RESET_TTL_MINUTES,
+      failingEmailService,
+      APP_BASE_URL,
+    );
+
+    const result = await useCaseWithFailingEmail.execute({
+      email: "test@example.com",
+    });
+
+    expect(result.isOk()).toBe(true);
+    const tokens = passwordResetTokenRepository.getAll();
+    expect(tokens).toHaveLength(1);
   });
 });
