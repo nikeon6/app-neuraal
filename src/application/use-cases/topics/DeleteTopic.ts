@@ -46,7 +46,7 @@ export class DeleteTopic {
     }
 
     // Reassign entries that pointed to this topic back to "No topic" (null).
-    await this.entryRepository.clearTopicFromEntries(topicId);
+    await this.entryRepository.clearTopicFromEntries(userId, topicId);
 
     // Delete from repository
     await this.topicRepository.delete(topicId);

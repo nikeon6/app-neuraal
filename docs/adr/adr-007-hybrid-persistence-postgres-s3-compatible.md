@@ -1,16 +1,16 @@
 # ADR-007: Hybrid Persistence: Postgres (source of truth) + S3-Compatible Object Storage
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-01-28
 - **Deciders:** Project maintainer(s)
 - **Technical Story:** Neuraal (TFM) — architecture decision
 
 ---
 
-
 ## Context
 
 Neuraal needs to persist:
+
 - Relational application data (users, tasks/topics, schedules, AI jobs)
 - Binary objects (attachments such as images and documents)
 
@@ -21,7 +21,7 @@ The deployment model is “hybrid”: core services are **self-hosted** on a VPS
 
 1. Use **Postgres** as the **source of truth** for all application entities.
 2. Use **S3-compatible object storage** for attachments:
-   - Production: external S3 provider (e.g., AWS S3 / Cloudflare R2) *or* self-hosted S3-compatible storage.
+   - Production: external S3 provider (e.g., AWS S3 / Cloudflare R2) _or_ self-hosted S3-compatible storage.
    - Development: **MinIO** (S3-compatible) via Docker Compose.
 3. Store **only metadata** about objects in Postgres (never the binary itself), including:
    - `ownerId`
@@ -33,17 +33,20 @@ The deployment model is “hybrid”: core services are **self-hosted** on a VPS
    - optional `etag` / checksum
 
 Access pattern:
+
 - Use **pre-signed URLs** for uploads/downloads where possible.
 - Enforce authorization before issuing pre-signed URLs.
 
 ## Consequences
 
 ### Positive
+
 - Postgres remains clean and efficient for relational queries.
 - Object storage scales for large files and reduces load on the app server.
 - S3 compatibility allows flexible hosting (AWS/R2/MinIO) with minimal code changes.
 
 ### Negative / Trade-offs
+
 - Adds an external dependency (object store) and its credentials/permissions.
 - Requires lifecycle management (delete/GC, retention).
 

@@ -97,10 +97,10 @@ export class InMemoryEntryRepository implements EntryRepository {
     }
   }
 
-  async clearTopicFromEntries(topicId: string): Promise<void> {
+  async clearTopicFromEntries(userId: string, topicId: string): Promise<void> {
     for (let i = 0; i < this.entries.length; i++) {
       const entry = this.entries[i];
-      if (entry.topicId !== topicId) continue;
+      if (entry.userId !== userId || entry.topicId !== topicId) continue;
       const updated = entry.withUpdates({ topicId: null });
       if (updated.isOk()) {
         this.entries[i] = updated.value;

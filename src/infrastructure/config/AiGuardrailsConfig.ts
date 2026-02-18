@@ -109,7 +109,7 @@ export function getAiGuardrailsConfig(): AiGuardrailsConfig {
     reminderWhatsapp: {
       rateLimitPerMinute: parseEnvInt(
         "AI_WHATSAPP_RATE_LIMIT_PER_MINUTE",
-        5,
+        3,
         1,
       ),
       rateLimitPerHour: 0,

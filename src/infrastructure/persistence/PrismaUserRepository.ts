@@ -48,4 +48,14 @@ export class PrismaUserRepository implements UserRepository {
       },
     });
   }
+
+  async updatePasswordHash(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+  }
 }

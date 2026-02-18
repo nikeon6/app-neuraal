@@ -7,7 +7,6 @@
 
 ---
 
-
 ## Context
 
 Neuraal is a responsive Next.js application with two core feature areas already emerging in the codebase:
@@ -16,6 +15,7 @@ Neuraal is a responsive Next.js application with two core feature areas already 
 - `calendar` (calendar-like UI with derived display values)
 
 The project needs a structure that:
+
 - Scales as features grow
 - Keeps UI state and UI-specific types **inside** their feature boundaries
 - Enables testability and clean dependency direction (Clean Architecture-inspired)
@@ -56,11 +56,13 @@ docs/
 ## Consequences
 
 ### Positive
+
 - Clear boundaries: feature UI state stays close to its UI.
 - Reduced coupling and fewer circular dependencies.
 - Better testability and refactor safety.
 
 ### Negative / Trade-offs
+
 - Some duplicated “glue” code across features (acceptable for clarity).
 - Requires discipline to prevent `shared/` from becoming a dumping ground.
 

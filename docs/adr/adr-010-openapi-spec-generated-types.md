@@ -12,6 +12,7 @@
 The Neuraal backend exposes a REST API via Next.js route handlers. As the API surface has grown (topics, entries, reminders, notifications, summaries, attachments, embeddings, automations), keeping frontend types in sync with backend responses has become error-prone.
 
 We need:
+
 - A single source of truth for the API contract.
 - Automatic TypeScript type generation for the frontend API client.
 - Runtime access to the spec for tooling and debugging.
@@ -30,6 +31,7 @@ Adopt an **OpenAPI 3.1 spec-first** approach:
 ### Spec coverage
 
 Documents all existing API endpoints (16+ operations), including:
+
 - Request/response schemas for all CRUD operations.
 - Security schemes: `DevUserIdHeader` (current) + `BearerAuth` (future JWT).
 - Tags for logical grouping (Topics, Entries, Reminders, Notifications, Automations, Embeddings).
@@ -38,6 +40,7 @@ Documents all existing API endpoints (16+ operations), including:
 ### Update workflow
 
 When adding or modifying an API endpoint:
+
 1. Update `openapi/spec.ts` in the same PR.
 2. Run `pnpm openapi:generate` to regenerate JSON + types.
 3. Commit the generated files.
@@ -45,6 +48,7 @@ When adding or modifying an API endpoint:
 ## Consequences
 
 ### Positive
+
 - Single source of truth eliminates type drift between frontend and backend.
 - Generated types catch breaking changes at compile time.
 - Runtime endpoint enables future Swagger UI, Redoc, or API testing tools.
@@ -52,6 +56,7 @@ When adding or modifying an API endpoint:
 - Security schemes document the auth transition path clearly.
 
 ### Negative / Trade-offs
+
 - Spec must be manually kept in sync with route handlers (no code-gen from routes).
 - Generated files (`openapi.json`, `openapi-types.ts`) are committed to the repo, adding diff noise.
 - OpenAPI 3.1 is newer; some tools may lag behind in support.

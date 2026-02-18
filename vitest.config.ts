@@ -15,7 +15,6 @@ export default defineConfig({
       "**/dist/**",
       "**/cypress/**",
       "**/.{idea,git,cache,output,temp}/**",
-      "**/proyectos-base-ejemplo-mvps/**",
       "**/tests/e2e/**",
     ],
     coverage: {
@@ -27,7 +26,6 @@ export default defineConfig({
         "vitest.config.ts",
         "**/*.d.ts",
         "**/types.ts",
-        "proyectos-base-ejemplo-mvps/**",
       ],
       thresholds: {
         // Avoid blind global % gates. Enforce by risk tier instead.

@@ -71,7 +71,7 @@ describe("DeleteTopic", () => {
         topicId: topic.id,
       });
 
-      expect(clearSpy).toHaveBeenCalledWith(topic.id);
+      expect(clearSpy).toHaveBeenCalledWith("user-123", topic.id);
     });
   });
 

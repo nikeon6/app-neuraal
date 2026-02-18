@@ -313,7 +313,7 @@ describe("DELETE /api/topics/:id", () => {
 
     expect(response.status).toBe(204);
     expect(prisma.entry.updateMany).toHaveBeenCalledWith({
-      where: { topicId: "topic-123" },
+      where: { userId: "user-123", topicId: "topic-123" },
       data: { topicId: null },
     });
     expect(prisma.topic.delete).toHaveBeenCalledWith({

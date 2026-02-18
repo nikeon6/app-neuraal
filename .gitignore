@@ -32,6 +32,7 @@ next-env.d.ts
 # IDE
 .idea
 .vscode
+.claude
 *.swp
 *.swo
 
@@ -48,8 +49,5 @@ coverage
 
 # Specstory
 .specstory/
-
-# Submodule (ignored)
-proyectos-base-ejemplo-mvps/planner-demo
 
 /src/generated/prisma

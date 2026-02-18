@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   createReminderAndInvalidate,
@@ -20,15 +20,29 @@ function isReminderAlreadyProcessed(error: unknown): boolean {
 /**
  * Hook encapsulating reminder state and actions (create / reschedule / cancel).
  *
- * Initializes activeReminderId from the server via usePendingReminderQuery,
- * so the reminder indicator persists across day navigation.
+ * The pending-reminder query is deferred until the TaskEditor is expanded
+ * or the reminder dialog is opened, avoiding an N+1 fetch on day load.
+ * Once fetched, the result is cached by TanStack Query (30s stale time).
  */
-export function useReminderActions(entryId: string, queryClient: QueryClient) {
+export function useReminderActions(
+  entryId: string,
+  queryClient: QueryClient,
+  isExpanded: boolean,
+) {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [activeReminderId, setActiveReminderId] = useState<string | null>(null);
   const [isReminderSaving, setIsReminderSaving] = useState(false);
 
-  const { data: pendingReminder } = usePendingReminderQuery(entryId);
+  // Latch: once activated, stay activated so we don't lose cached data on collapse
+  const hasActivated = useRef(false);
+  if (isExpanded || isReminderDialogOpen) {
+    hasActivated.current = true;
+  }
+
+  const { data: pendingReminder } = usePendingReminderQuery(
+    entryId,
+    hasActivated.current,
+  );
 
   useEffect(() => {
     if (pendingReminder) {

@@ -5,6 +5,18 @@ import { PrismaPasswordResetTokenRepository } from "@/infrastructure/persistence
 import { CryptoRefreshTokenService } from "@/infrastructure/auth/CryptoRefreshTokenService";
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
+import { SmtpEmailService } from "@/infrastructure/email/SmtpEmailService";
+import { getEmailConfig } from "@/infrastructure/email/EmailConfig";
+import type { EmailServicePort } from "@/application/ports/EmailServicePort";
+
+function tryBuildEmailService(): EmailServicePort | null {
+  try {
+    const emailConfig = getEmailConfig();
+    return new SmtpEmailService(emailConfig);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * POST /api/auth/recover
@@ -29,13 +41,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const config = getAuthConfig();
+  const authConfig = getAuthConfig();
+  const appBaseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  ).replace(/\/+$/, "");
+
   const useCase = new RequestPasswordReset(
     new PrismaUserRepository(),
     new PrismaPasswordResetTokenRepository(),
     new CryptoRefreshTokenService(),
     new SystemClock(),
-    config.resetTtlMinutes,
+    authConfig.resetTtlMinutes,
+    tryBuildEmailService(),
+    appBaseUrl,
   );
 
   const result = await useCase.execute({ email: body.email });

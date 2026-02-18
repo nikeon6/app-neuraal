@@ -163,9 +163,9 @@ export class PrismaEntryRepository implements EntryRepository {
     });
   }
 
-  async clearTopicFromEntries(topicId: string): Promise<void> {
+  async clearTopicFromEntries(userId: string, topicId: string): Promise<void> {
     await prisma.entry.updateMany({
-      where: { topicId },
+      where: { userId, topicId },
       data: { topicId: null },
     });
   }

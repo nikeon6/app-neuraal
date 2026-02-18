@@ -34,7 +34,7 @@ const spec = {
     {
       name: "Auth",
       description:
-        "Authentication endpoints (register, login, refresh, logout, me, recover)",
+        "Authentication endpoints (register, login, refresh, logout, me, recover, reset-password, change-password)",
     },
     { name: "Topics", description: "User topic/category management" },
     { name: "Entries", description: "Task and note entries" },
@@ -541,7 +541,7 @@ const spec = {
         summary: "Request password reset",
         operationId: "requestPasswordReset",
         description:
-          "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
+          "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created and a reset email is sent (when SMTP is configured).",
         security: [],
         requestBody: {
           required: true,
@@ -571,6 +571,103 @@ const spec = {
             },
           },
           "400": { $ref: "#/components/responses/BadRequest" },
+        },
+      },
+    },
+
+    "/api/auth/reset-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Confirm password reset",
+        operationId: "confirmPasswordReset",
+        description:
+          "Validates the reset token and sets a new password. Revokes all active sessions for the user.",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["token", "newPassword"],
+                properties: {
+                  token: {
+                    type: "string" as const,
+                    description: "Raw reset token received via email",
+                  },
+                  newPassword: {
+                    type: "string" as const,
+                    description:
+                      "New password (min 8 chars, uppercase, lowercase, number, special char)",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Password reset successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/auth/change-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Change password (authenticated)",
+        operationId: "changePassword",
+        description:
+          "Changes the password for the authenticated user. Requires current password verification. Revokes all active sessions after success.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["currentPassword", "newPassword"],
+                properties: {
+                  currentPassword: {
+                    type: "string" as const,
+                    description: "Current password for verification",
+                  },
+                  newPassword: {
+                    type: "string" as const,
+                    description:
+                      "New password (min 8 chars, uppercase, lowercase, number, special char)",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Password changed successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
         },
       },
     },
