@@ -68,6 +68,18 @@ export interface EntryRepository {
   updateTopic(entryId: string, topicId: string | null): Promise<void>;
 
   /**
+   * Clears topic assignment for all entries pointing to a deleted topic.
+   * Used by topic deletion to keep entries in "No topic" state.
+   */
+  clearTopicFromEntries(topicId: string): Promise<void>;
+
+  /**
+   * Returns the next available sortOrder for a user+date.
+   * If no entries exist for that day, returns 0.
+   */
+  getNextSortOrder(userId: string, date: string): Promise<number>;
+
+  /**
    * Bulk-updates sort_order for entries on a given user+date.
    * orderedIds[0] gets sortOrder=0, orderedIds[1] gets sortOrder=1, etc.
    */

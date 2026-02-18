@@ -45,11 +45,17 @@ export class CreateEntry {
     }
 
     const now = new Date();
+    const userId = input.userId.trim();
+
+    const nextSortOrder = await this.entryRepository.getNextSortOrder(
+      userId,
+      input.date,
+    );
 
     // Create entry entity (validates all fields)
     const entryResult = Entry.create({
       id: generateId(),
-      userId: input.userId.trim(),
+      userId,
       date: input.date,
       type: input.type,
       title: input.title,
@@ -57,6 +63,7 @@ export class CreateEntry {
       topicId: input.topicId ?? null,
       completed,
       version: 1,
+      sortOrder: nextSortOrder,
       createdAt: now,
       updatedAt: now,
     });

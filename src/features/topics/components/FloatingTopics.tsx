@@ -1758,7 +1758,7 @@ export function FloatingTopics({
     <div
       className="absolute inset-0 pointer-events-none landscape-mobile-hidden"
       aria-label="Topics floating layer"
-      style={{ zIndex: 15 }}
+      style={{ zIndex: 15, isolation: "isolate" }}
     >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg

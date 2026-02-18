@@ -2,18 +2,43 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ProcessReminderJob } from "./ProcessReminderJob";
 import { InMemoryReminderRepository } from "../../test/InMemoryReminderRepository";
 import { InMemoryNotificationRepository } from "../../test/InMemoryNotificationRepository";
+import { InMemoryEntryRepository } from "../../test/InMemoryEntryRepository";
 import { FakeAutomationPort } from "../../test/FakeAutomationPort";
 import { Reminder } from "../../../domain/entities/Reminder";
+import { Entry } from "../../../domain/entities/Entry";
 
 describe("ProcessReminderJob", () => {
   let reminderRepository: InMemoryReminderRepository;
   let notificationRepository: InMemoryNotificationRepository;
+  let entryRepository: InMemoryEntryRepository;
   let automationPort: FakeAutomationPort;
   let processJob: ProcessReminderJob;
 
   const userId = "user-123";
   const reminderId = "rem-123";
+  const entryId = "entry-123";
   const originalScheduledAt = "2026-02-05T18:30:00.000Z";
+
+  const createTestEntry = async (
+    overrides: { summary?: string | null } = {},
+  ) => {
+    const entryResult = Entry.create({
+      id: entryId,
+      userId,
+      date: "2026-02-05",
+      type: "task",
+      title: "My important task",
+      content: { type: "doc", content: [] },
+      topicId: null,
+      completed: false,
+      version: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      summary: overrides.summary ?? null,
+    });
+    await entryRepository.save(entryResult.value);
+    return entryResult.value;
+  };
 
   const createTestReminder = async (
     status: string = "pending",
@@ -23,7 +48,7 @@ describe("ProcessReminderJob", () => {
     const reminderResult = Reminder.create({
       id: reminderId,
       userId,
-      entryId: "entry-123",
+      entryId,
       scheduledAt,
       channel,
       message: "Test reminder",
@@ -38,17 +63,20 @@ describe("ProcessReminderJob", () => {
   beforeEach(() => {
     reminderRepository = new InMemoryReminderRepository();
     notificationRepository = new InMemoryNotificationRepository();
+    entryRepository = new InMemoryEntryRepository();
     automationPort = new FakeAutomationPort();
     processJob = new ProcessReminderJob(
       reminderRepository,
       notificationRepository,
       automationPort,
+      entryRepository,
       () => "notif-test-id",
     );
   });
 
   describe("successful processing", () => {
     it("should process pending reminder and mark as sent", async () => {
+      await createTestEntry();
       await createTestReminder();
 
       const result = await processJob.execute({
@@ -64,6 +92,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should update reminder status to sent", async () => {
+      await createTestEntry();
       await createTestReminder();
 
       await processJob.execute({
@@ -76,6 +105,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should call automation service with correct payload", async () => {
+      await createTestEntry();
       await createTestReminder();
 
       await processJob.execute({
@@ -90,7 +120,60 @@ describe("ProcessReminderJob", () => {
       expect(payload?.channel).toBe("whatsapp");
     });
 
+    it("should include entryTitle in automation payload", async () => {
+      await createTestEntry();
+      await createTestReminder();
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      const payload = automationPort.getLastSentPayload();
+      expect(payload?.entryTitle).toBe("My important task");
+    });
+
+    it("should include entrySummary when entry has a summary", async () => {
+      await createTestEntry({ summary: "This is a brief summary of the task" });
+      await createTestReminder();
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      const payload = automationPort.getLastSentPayload();
+      expect(payload?.entrySummary).toBe("This is a brief summary of the task");
+    });
+
+    it("should send entrySummary as null when entry has no summary", async () => {
+      await createTestEntry({ summary: null });
+      await createTestReminder();
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      const payload = automationPort.getLastSentPayload();
+      expect(payload?.entrySummary).toBeNull();
+    });
+
+    it("should send 'Untitled' as entryTitle when entry is not found", async () => {
+      await createTestReminder();
+
+      await processJob.execute({
+        reminderId,
+        originalScheduledAt,
+      });
+
+      const payload = automationPort.getLastSentPayload();
+      expect(payload?.entryTitle).toBe("Untitled");
+      expect(payload?.entrySummary).toBeNull();
+    });
+
     it("should create REMINDER_SENT notification", async () => {
+      await createTestEntry();
       await createTestReminder();
 
       await processJob.execute({
@@ -107,6 +190,7 @@ describe("ProcessReminderJob", () => {
 
   describe("automation failure", () => {
     it("should mark reminder as failed when automation fails", async () => {
+      await createTestEntry();
       await createTestReminder();
       automationPort.setShouldSucceed(false);
       automationPort.setErrorMessage("Service unavailable");
@@ -125,6 +209,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should update reminder status to failed", async () => {
+      await createTestEntry();
       await createTestReminder();
       automationPort.setShouldSucceed(false);
 
@@ -138,6 +223,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should create REMINDER_FAILED notification", async () => {
+      await createTestEntry();
       await createTestReminder();
       automationPort.setShouldSucceed(false);
 
@@ -196,6 +282,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should still call automation for email channel", async () => {
+      await createTestEntry();
       await createTestReminder("pending", originalScheduledAt, "email");
 
       await processJob.execute({
@@ -208,6 +295,7 @@ describe("ProcessReminderJob", () => {
     });
 
     it("should still call automation for whatsapp channel", async () => {
+      await createTestEntry();
       await createTestReminder("pending", originalScheduledAt, "whatsapp");
 
       await processJob.execute({

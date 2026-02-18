@@ -1405,6 +1405,43 @@ const spec = {
     // Reminders
     // =====================================================================
     "/api/reminders": {
+      get: {
+        tags: ["Reminders"],
+        summary: "List pending reminders for an entry",
+        operationId: "listPendingReminders",
+        description:
+          "Returns all pending reminders for the specified entry owned by the authenticated user.",
+        parameters: [
+          {
+            name: "entryId",
+            in: "query" as const,
+            required: true,
+            schema: { type: "string" as const, format: "uuid" },
+            description: "The entry ID to filter reminders by",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "List of pending reminders",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["reminders"],
+                  properties: {
+                    reminders: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Reminder" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
       post: {
         tags: ["Reminders"],
         summary: "Create a reminder",

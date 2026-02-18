@@ -163,6 +163,21 @@ export class PrismaEntryRepository implements EntryRepository {
     });
   }
 
+  async clearTopicFromEntries(topicId: string): Promise<void> {
+    await prisma.entry.updateMany({
+      where: { topicId },
+      data: { topicId: null },
+    });
+  }
+
+  async getNextSortOrder(userId: string, date: string): Promise<number> {
+    const result = await prisma.entry.aggregate({
+      where: { userId, date },
+      _max: { sortOrder: true },
+    });
+    return (result._max.sortOrder ?? -1) + 1;
+  }
+
   async reorderEntries(
     userId: string,
     date: string,

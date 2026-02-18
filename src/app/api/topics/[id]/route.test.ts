@@ -10,6 +10,9 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    entry: {
+      updateMany: vi.fn(),
+    },
   },
 }));
 
@@ -293,6 +296,7 @@ describe("DELETE /api/topics/:id", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    vi.mocked(prisma.entry.updateMany).mockResolvedValue({ count: 2 });
     vi.mocked(prisma.topic.delete).mockResolvedValue({
       id: "topic-123",
       userId: "user-123",
@@ -308,6 +312,10 @@ describe("DELETE /api/topics/:id", () => {
     const response = await DELETE(request, createContext("topic-123"));
 
     expect(response.status).toBe(204);
+    expect(prisma.entry.updateMany).toHaveBeenCalledWith({
+      where: { topicId: "topic-123" },
+      data: { topicId: null },
+    });
     expect(prisma.topic.delete).toHaveBeenCalledWith({
       where: { id: "topic-123" },
     });

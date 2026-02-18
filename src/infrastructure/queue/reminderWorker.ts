@@ -4,6 +4,7 @@ import IORedis from "ioredis";
 import { ProcessReminderJob } from "../../application/use-cases/reminders/ProcessReminderJob";
 import { PrismaReminderRepository } from "../persistence/PrismaReminderRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
+import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
 import { N8NClient } from "../automation/N8NClient";
 import { logger, withJobContext } from "../logging/logger";
 import {
@@ -37,11 +38,13 @@ async function startWorker() {
   // Create dependencies
   const reminderRepository = new PrismaReminderRepository();
   const notificationRepository = new PrismaNotificationRepository();
+  const entryRepository = new PrismaEntryRepository();
   const automationPort = new N8NClient();
   const processReminderJob = new ProcessReminderJob(
     reminderRepository,
     notificationRepository,
     automationPort,
+    entryRepository,
   );
 
   // Create worker

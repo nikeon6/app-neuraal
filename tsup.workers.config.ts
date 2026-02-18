@@ -14,4 +14,6 @@ export default defineConfig({
   clean: true,
   splitting: false,
   treeshake: true,
+  // dotenv uses require('fs') internally; bundling it breaks in ESM
+  external: ["dotenv", "dotenv/config"],
 });
