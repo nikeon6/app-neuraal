@@ -13,7 +13,7 @@ import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery } from "@/shared/api/queries";
 import type { TopicNodeCenter, TaskCenter } from "@/features/topics/types";
 import { clamp, median, quadPath, cn } from "@/shared/lib";
-// Default anchor positions for topic bubbles (cycled for > 6 topics)
+// Default anchor positions for topic bubbles (max 12 topics)
 const DEFAULT_ANCHORS = [
   { xPct: 0.2, yPct: 0.25 },
   { xPct: 0.35, yPct: 0.4 },
@@ -21,6 +21,12 @@ const DEFAULT_ANCHORS = [
   { xPct: 0.25, yPct: 0.65 },
   { xPct: 0.65, yPct: 0.35 },
   { xPct: 0.45, yPct: 0.7 },
+  { xPct: 0.75, yPct: 0.55 },
+  { xPct: 0.15, yPct: 0.45 },
+  { xPct: 0.6, yPct: 0.7 },
+  { xPct: 0.3, yPct: 0.15 },
+  { xPct: 0.7, yPct: 0.2 },
+  { xPct: 0.55, yPct: 0.15 },
 ] as const;
 
 // ============================================================================
@@ -1752,7 +1758,7 @@ export function FloatingTopics({
     <div
       className="absolute inset-0 pointer-events-none landscape-mobile-hidden"
       aria-label="Topics floating layer"
-      style={{ zIndex: 15 }}
+      style={{ zIndex: 15, isolation: "isolate" }}
     >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg

@@ -178,7 +178,7 @@ function ScrollPicker({
         <div
           className={cn(
             "absolute bottom-full mb-1 left-1/2 -translate-x-1/2",
-            "w-14 max-h-[160px] overflow-y-auto custom-scrollbar",
+            "w-14 max-h-[280px] overflow-y-auto custom-scrollbar",
             "bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
             "py-1 z-10",
           )}

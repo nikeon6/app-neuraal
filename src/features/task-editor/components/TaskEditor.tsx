@@ -108,7 +108,9 @@ function getTopicDisplayInfo(
 ): { name: string; color: string } {
   if (selectedTopicId === AUTO_TOPIC) return { name: "Auto", color: "#8b5cf6" };
   if (selectedTopicId === null) return { name: "No topic", color: "#6b7280" };
-  return topicMap.get(selectedTopicId) ?? { name: "Unknown", color: "#6b7280" };
+  return (
+    topicMap.get(selectedTopicId) ?? { name: "No topic", color: "#6b7280" }
+  );
 }
 
 /**
@@ -761,6 +763,15 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     (topicId: string | null) => {
       setSelectedTopicId(topicId);
       setUIState((prev) => ({ ...prev, isTopicMenuOpen: false }));
+
+      // Optimistic update: reflect topic immediately in FloatingTopics bubbles
+      const optimisticTopicId = topicId === AUTO_TOPIC ? null : topicId;
+      queryClient.setQueryData<ApiEntry[]>(entriesQueryKey(dateKey), (old) =>
+        old?.map((en) =>
+          en.id === entry.id ? { ...en, topicId: optimisticTopicId } : en,
+        ),
+      );
+
       // If the user explicitly picks "Auto", allow auto-topic to run
       // even if title hasn't been edited (they're opting in intentionally)
       if (topicId === AUTO_TOPIC && title.trim().length > 0) {
@@ -768,7 +779,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       }
       triggerAutoSave();
     },
-    [title, triggerAutoSave],
+    [title, triggerAutoSave, queryClient, dateKey, entry.id],
   );
 
   const handleEntryTypeToggle = useCallback(() => {

@@ -371,7 +371,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List pending reminders for an entry
+     * @description Returns all pending reminders for the specified entry owned by the authenticated user.
+     */
+    get: operations["listPendingReminders"];
     put?: never;
     /**
      * Create a reminder
@@ -1670,6 +1674,33 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  listPendingReminders: {
+    parameters: {
+      query: {
+        /** @description The entry ID to filter reminders by */
+        entryId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of pending reminders */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            reminders: components["schemas"]["Reminder"][];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
     };
   };
   createReminder: {

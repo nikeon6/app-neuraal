@@ -1,5 +1,6 @@
 import { Result, ok, err } from "@/domain/core/Result";
 import type { TopicRepository } from "../../ports/TopicRepository";
+import type { EntryRepository } from "../../ports/EntryRepository";
 import type { UseCaseError } from "../../core/UseCaseError";
 import { validationError, notFoundError } from "../../core/UseCaseError";
 
@@ -17,7 +18,10 @@ export interface DeleteTopicInput {
  * Returns NOT_FOUND for both non-existent and unauthorized topics (security).
  */
 export class DeleteTopic {
-  constructor(private readonly topicRepository: TopicRepository) {}
+  constructor(
+    private readonly topicRepository: TopicRepository,
+    private readonly entryRepository: EntryRepository,
+  ) {}
 
   async execute(input: DeleteTopicInput): Promise<Result<void, UseCaseError>> {
     // Validate userId
@@ -37,9 +41,12 @@ export class DeleteTopic {
     const existingTopic = await this.topicRepository.findById(topicId);
 
     // Check existence and ownership (return NOT_FOUND for both to not leak info)
-    if (!existingTopic || existingTopic.userId !== userId) {
+    if (existingTopic?.userId !== userId) {
       return err(notFoundError("Topic not found"));
     }
+
+    // Reassign entries that pointed to this topic back to "No topic" (null).
+    await this.entryRepository.clearTopicFromEntries(topicId);
 
     // Delete from repository
     await this.topicRepository.delete(topicId);

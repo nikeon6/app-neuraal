@@ -91,6 +91,56 @@ async function guardWhatsappReminder(
 }
 
 /**
+ * GET /api/reminders?entryId=<uuid>
+ * Returns pending reminders for an entry owned by the authenticated user.
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const authResult = await getAuthUserId(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: authResult.error }, { status: 401 });
+  }
+
+  const { userId } = authResult;
+  const { searchParams } = new URL(request.url);
+  const entryId = searchParams.get("entryId");
+
+  if (!entryId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "entryId query parameter is required",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const reminderRepository = new PrismaReminderRepository();
+  const reminders = await reminderRepository.listPendingByEntry(
+    userId,
+    entryId,
+  );
+
+  const dtos = reminders.map((r) => {
+    const json = r.toJSON();
+    return {
+      id: json.id,
+      userId: json.userId,
+      entryId: json.entryId,
+      scheduledAt: json.scheduledAt,
+      channel: json.channel,
+      message: json.message,
+      status: json.status,
+      createdAt: json.createdAt.toISOString(),
+      updatedAt: json.updatedAt.toISOString(),
+    };
+  });
+
+  return NextResponse.json({ reminders: dtos }, { status: 200 });
+}
+
+/**
  * POST /api/reminders
  * Creates a new reminder for an entry.
  * If channel is "whatsapp", AI guardrails are enforced (rate limit, quota, concurrency).

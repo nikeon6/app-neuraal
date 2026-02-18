@@ -5,12 +5,26 @@
  * Types are derived from the OpenAPI spec, never hand-crafted.
  */
 
-import { post, patch } from "../apiClient";
+import { get, post, patch } from "../apiClient";
 import type {
   ApiReminder,
   CreateReminderBody,
   UpdateReminderBody,
 } from "./types";
+
+// ---------------------------------------------------------------------------
+// Read
+// ---------------------------------------------------------------------------
+
+/** GET /api/reminders?entryId=<uuid> — returns pending reminders for an entry. */
+export async function listPendingReminders(
+  entryId: string,
+): Promise<ApiReminder[]> {
+  const data = await get<{ reminders: ApiReminder[] }>(
+    `/api/reminders?entryId=${encodeURIComponent(entryId)}`,
+  );
+  return data.reminders;
+}
 
 // ---------------------------------------------------------------------------
 // Create

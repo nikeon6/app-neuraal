@@ -8,6 +8,8 @@ export interface ReminderPayload {
   scheduledAt: string;
   channel: string;
   message: string | null;
+  entryTitle: string;
+  entrySummary: string | null;
 }
 
 /**

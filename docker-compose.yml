@@ -237,10 +237,15 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Authentication
+      SERVER_URL: "http://localhost:8080"
+      WEBSOCKET_ENABLED: "true"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: "POST,GET,PUT,DELETE"
+      CORS_CREDENTIALS: "true"
+      LOG_LEVEL: "DEBUG"
+
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
 
-      # Database (PostgreSQL) — shared Postgres instance, dedicated "evolution" database
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://neuraal:neuraal_password@postgres:5432/evolution
@@ -253,12 +258,50 @@ services:
       DATABASE_SAVE_DATA_LABELS: "true"
       DATABASE_SAVE_DATA_HISTORIC: "true"
 
-      # Cache Redis — shared Redis instance with dedicated prefix
       CACHE_REDIS_ENABLED: "true"
       CACHE_REDIS_URI: redis://redis:6379
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_REDIS_SAVE_INSTANCES: "false"
-      CACHE_LOCAL_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "false"  
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1028355510"
+    # environment:
+    #   # Authentication
+    #   AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+
+    #   SERVER_URL: http://localhost:8080
+    #   # Database (PostgreSQL) — shared Postgres instance, dedicated "evolution" database
+    #   DATABASE_ENABLED: "true"
+    #   DATABASE_PROVIDER: postgresql
+    #   DATABASE_CONNECTION_URI: postgresql://neuraal:neuraal_password@postgres:5432/evolution
+    #   DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+    #   DATABASE_SAVE_DATA_INSTANCE: "true"
+    #   DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+    #   DATABASE_SAVE_MESSAGE_UPDATE: "true"
+    #   DATABASE_SAVE_DATA_CONTACTS: "true"
+    #   DATABASE_SAVE_DATA_CHATS: "true"
+    #   DATABASE_SAVE_DATA_LABELS: "true"
+    #   DATABASE_SAVE_DATA_HISTORIC: "true"
+
+    #   # QR Code
+    #   QRCODE_LIMIT: "30"
+    #   QRCODE_COLOR: "#198754"
+
+    #   # Configuración de la instancia
+    #   DEL_INSTANCE: "false"
+
+    #   # Provider (necesario en v2)
+    #   PROVIDER_ENABLED: "false"
+    #   LOG_LEVEL: "DEBUG"
+    #   LOG_COLOR: "true"
+    #   LOG_BAILEYS: "error"
+
+
+    #   # Cache Redis — shared Redis instance with dedicated prefix
+    #   CACHE_REDIS_ENABLED: "false"
+    #   CACHE_REDIS_URI: redis://redis:6379
+    #   CACHE_REDIS_PREFIX_KEY: evolution_v2
+    #   CACHE_REDIS_SAVE_INSTANCES: "false"
+    #   CACHE_LOCAL_ENABLED: "false"
     volumes:
       - neuraal_evolution_instances:/evolution/instances
 
