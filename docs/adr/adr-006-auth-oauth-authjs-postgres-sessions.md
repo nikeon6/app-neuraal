@@ -1,12 +1,11 @@
 # ADR-006: Authentication: OAuth with Auth.js (NextAuth) + Postgres Sessions
 
-- **Status:** Proposed
+- **Status:** Superseded by ADR-004
 - **Date:** 2026-01-28
 - **Deciders:** Project maintainer(s)
 - **Technical Story:** Neuraal (TFM) — architecture decision
 
 ---
-
 
 ## Context
 
@@ -15,6 +14,7 @@ The system must be secure by default and avoid custom credential handling when n
 We also want the authentication layer to integrate well with Next.js and the chosen persistence layer (Postgres).
 
 Key requirements:
+
 - OAuth sign-in (e.g., Google/GitHub)
 - Server-side enforcement of authorization (per user/tenant ownership)
 - Session management that works in a Next.js environment
@@ -32,17 +32,20 @@ Use **Auth.js (NextAuth)** for OAuth authentication with a **Postgres-backed ses
   - `sessions` (active sessions)
 
 Authorization rules:
+
 - Enforce access control in server routes/handlers for every protected action.
 - All user-owned entities (e.g., tasks, topics, attachments, AI jobs) must include `ownerId` (or `tenantId`) and be filtered/checked server-side.
 
 ## Consequences
 
 ### Positive
+
 - Proven OAuth and session management, less custom security code.
 - Session invalidation and server-side control via database sessions.
 - Easier multi-device support.
 
 ### Negative / Trade-offs
+
 - Requires DB connectivity for session checks.
 - Some framework conventions to learn (callbacks, adapters).
 

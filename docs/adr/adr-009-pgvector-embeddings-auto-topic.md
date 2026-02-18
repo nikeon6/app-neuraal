@@ -12,6 +12,7 @@
 Neuraal allows users to organize entries (tasks/notes) into Topics (user-defined categories). Manually assigning a topic to every entry adds friction. We want an **AI-assisted auto-classification** feature that suggests or assigns the most relevant topic based on the entry's text content.
 
 Requirements:
+
 - Must work locally without external API keys (privacy, cost, offline).
 - Must scale to a moderate number of topics and entries per user.
 - Similarity search should be fast and done in the database, not in application code.
@@ -52,12 +53,14 @@ Adopt a **local embedding + vector similarity** approach using:
 ## Consequences
 
 ### Positive
+
 - Fully local: no external API costs or data leaving the server.
 - Fast: Ollama embedding + pgvector search is sub-second for typical workloads.
 - Extensible: same infrastructure supports future semantic search, duplicate detection, etc.
 - Clean Architecture: threshold logic in Application layer, vector search in Infrastructure layer.
 
 ### Negative / Trade-offs
+
 - Requires Ollama running alongside the app (Docker resource usage).
 - Short topic names produce weaker embeddings (low similarity scores); richer topic descriptions would improve accuracy.
 - Raw SQL needed for pgvector operations (Prisma doesn't natively support `vector` type).

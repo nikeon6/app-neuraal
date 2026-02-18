@@ -1,8 +1,8 @@
-import type { User } from "@/domain/entities/User";
+import { User } from "@/domain/entities/User";
 import type { UserRepository } from "../ports/UserRepository";
 
 export class InMemoryUserRepository implements UserRepository {
-  private users: Map<string, User> = new Map();
+  private readonly users: Map<string, User> = new Map();
 
   async findByEmail(email: string): Promise<User | null> {
     const normalized = email.toLowerCase().trim();
@@ -20,6 +20,26 @@ export class InMemoryUserRepository implements UserRepository {
 
   async create(user: User): Promise<void> {
     this.users.set(user.id, user);
+  }
+
+  async updatePasswordHash(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: newPasswordHash,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
   }
 
   // Test helper

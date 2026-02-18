@@ -48,6 +48,7 @@ The webhook receives this JSON body:
 ```
 
 Plus HMAC headers:
+
 - `X-Timestamp`: Unix timestamp (ms)
 - `X-Signature`: HMAC-SHA256 of `{timestamp}.{body}` with N8N_WEBHOOK_SECRET
 
@@ -56,14 +57,17 @@ Plus HMAC headers:
 You can use any transcription service. Popular options:
 
 #### Option A: Supadata (free tier available)
+
 - API: `POST https://api.supadata.ai/v1/youtube/transcript`
 - Body: `{ "url": "{{youtubeUrl}}", "lang": "en" }`
 - Header: `x-api-key: YOUR_SUPADATA_KEY`
 
 #### Option B: AssemblyAI
+
 - Upload audio → transcribe → poll until done
 
 #### Option C: Custom Whisper endpoint
+
 - Extract audio from YouTube → send to Whisper API
 
 ### 4. Format Response
@@ -89,8 +93,8 @@ Process the API response to extract clean transcription text.
 You need to compute the HMAC signature. Use a Code node before the callback:
 
 ```javascript
-const crypto = require('crypto');
-const secret = 'dev_secret_change_me_in_production'; // N8N_WEBHOOK_SECRET
+const crypto = require("crypto");
+const secret = "dev_secret_change_me_in_production"; // N8N_WEBHOOK_SECRET
 
 const body = JSON.stringify({
   requestId: $json.requestId,
@@ -102,9 +106,9 @@ const body = JSON.stringify({
 
 const timestamp = Date.now().toString();
 const signature = crypto
-  .createHmac('sha256', secret)
+  .createHmac("sha256", secret)
   .update(`${timestamp}.${body}`)
-  .digest('hex');
+  .digest("hex");
 
 return {
   body,
@@ -114,6 +118,7 @@ return {
 ```
 
 Then in the HTTP Request node:
+
 - **URL:** `{{callbackUrl}}`
 - **Method:** POST
 - **Headers:**

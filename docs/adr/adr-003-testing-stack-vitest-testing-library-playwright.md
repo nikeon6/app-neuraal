@@ -7,10 +7,10 @@
 
 ---
 
-
 ## Context
 
 The project needs a CI-friendly testing stack that supports:
+
 - Fast unit tests for domain/application logic
 - Component tests for feature UI
 - A small number of stable end-to-end tests for critical flows
@@ -26,6 +26,7 @@ Use the following tools:
 - **E2E:** Playwright
 
 Adopt a pyramid strategy:
+
 1. Many unit tests (pure logic, reducers, utilities)
 2. Some integration tests (feature components + providers)
 3. Few E2E tests (critical journeys)
@@ -33,11 +34,13 @@ Adopt a pyramid strategy:
 ## Consequences
 
 ### Positive
+
 - Fast feedback locally and in CI.
 - Great DX in TypeScript.
 - Strong E2E reliability with Playwright.
 
 ### Negative / Trade-offs
+
 - Two different test runners (Vitest vs Playwright).
 - Requires discipline to keep E2E tests minimal and stable.
 

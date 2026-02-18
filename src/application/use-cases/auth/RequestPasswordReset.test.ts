@@ -3,15 +3,18 @@ import { RequestPasswordReset } from "./RequestPasswordReset";
 import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { InMemoryPasswordResetTokenRepository } from "../../test/InMemoryPasswordResetTokenRepository";
 import { FakeRefreshTokenService } from "../../test/FakeRefreshTokenService";
+import { FakeEmailService } from "../../test/FakeEmailService";
 import { FakeClock } from "../../test/FakeClock";
 import { User } from "@/domain/entities/User";
 
 const RESET_TTL_MINUTES = 60;
+const APP_BASE_URL = "https://app.test";
 
 describe("RequestPasswordReset", () => {
   let userRepository: InMemoryUserRepository;
   let passwordResetTokenRepository: InMemoryPasswordResetTokenRepository;
   let refreshTokenService: FakeRefreshTokenService;
+  let emailService: FakeEmailService;
   let clock: FakeClock;
   let requestPasswordReset: RequestPasswordReset;
 
@@ -19,6 +22,7 @@ describe("RequestPasswordReset", () => {
     userRepository = new InMemoryUserRepository();
     passwordResetTokenRepository = new InMemoryPasswordResetTokenRepository();
     refreshTokenService = new FakeRefreshTokenService();
+    emailService = new FakeEmailService();
     clock = new FakeClock(new Date("2026-02-11T12:00:00Z"));
     requestPasswordReset = new RequestPasswordReset(
       userRepository,
@@ -26,6 +30,8 @@ describe("RequestPasswordReset", () => {
       refreshTokenService,
       clock,
       RESET_TTL_MINUTES,
+      emailService,
+      APP_BASE_URL,
     );
   });
 
@@ -78,6 +84,32 @@ describe("RequestPasswordReset", () => {
       expect(result.error.code).toBe("VALIDATION_ERROR");
       expect(result.error.message).toContain("Email");
     }
+  });
+
+  it("should send reset email to existing user", async () => {
+    const userResult = User.create({
+      id: "user-1",
+      email: "test@example.com",
+      passwordHash: "hashed:password",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    if (userResult.isOk()) {
+      await userRepository.create(userResult.value);
+    }
+
+    await requestPasswordReset.execute({ email: "test@example.com" });
+
+    expect(emailService.sent).toHaveLength(1);
+    expect(emailService.sent[0].to).toBe("test@example.com");
+    expect(emailService.sent[0].subject).toContain("Reset your password");
+    expect(emailService.sent[0].html).toContain(APP_BASE_URL);
+  });
+
+  it("should not send email for non-existing user", async () => {
+    await requestPasswordReset.execute({ email: "unknown@example.com" });
+
+    expect(emailService.sent).toHaveLength(0);
   });
 
   it("should create token with correct expiry", async () => {

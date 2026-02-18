@@ -79,8 +79,7 @@ export function AiUsagePanel() {
 
   return (
     <div className="space-y-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-300">Monthly Usage</h3>
+      <div className="mb-1 flex justify-end">
         <span className="text-xs text-zinc-500">{data.month}</span>
       </div>
 

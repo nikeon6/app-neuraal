@@ -38,13 +38,22 @@ export interface DashboardHeaderProps {
 // Constants
 // ============================================================================
 
-/** Section labels - reusable for kicker, title, and nav */
+/** Section labels - used for kicker and nav tabs */
 const SECTION_LABELS: Record<DashboardSection, string> = {
   daily: "Daily Log",
   weeklyRecap: "Weekly Recap",
   stickies: "Stickies",
   topics: "Topics",
   settings: "Settings",
+};
+
+/** Display titles - large heading text (can differ from tab labels) */
+const SECTION_TITLES: Record<DashboardSection, string> = {
+  daily: "Daily Log",
+  weeklyRecap: "Weekly Recap",
+  stickies: "Brainstorm Board",
+  topics: "Neural Paths",
+  settings: "Usage & Settings",
 };
 
 /** Navigation tabs configuration */
@@ -214,7 +223,7 @@ export function DashboardHeader({
         )}
         {!isDaily && !isWeekly && (
           <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
-            {currentLabel}
+            {SECTION_TITLES[section]}
           </h1>
         )}
       </motion.div>

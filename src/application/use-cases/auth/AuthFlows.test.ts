@@ -11,11 +11,13 @@ import { InMemoryPasswordResetTokenRepository } from "../../test/InMemoryPasswor
 import { FakePasswordHasher } from "../../test/FakePasswordHasher";
 import { FakeJwtService } from "../../test/FakeJwtService";
 import { FakeRefreshTokenService } from "../../test/FakeRefreshTokenService";
+import { FakeEmailService } from "../../test/FakeEmailService";
 import { FakeClock } from "../../test/FakeClock";
 
 const ACCESS_TTL = 900;
 const REFRESH_TTL_DAYS = 30;
 const RESET_TTL_MINUTES = 30;
+const APP_BASE_URL = "https://app.test";
 
 const VALID_EMAIL = "user@example.com";
 const VALID_PASSWORD = "SecurePass1!";
@@ -86,6 +88,8 @@ describe("AuthFlows (integration)", () => {
       tokenService,
       clock,
       RESET_TTL_MINUTES,
+      new FakeEmailService(),
+      APP_BASE_URL,
     );
   });
 

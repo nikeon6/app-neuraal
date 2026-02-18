@@ -103,9 +103,49 @@ export interface paths {
     put?: never;
     /**
      * Request password reset
-     * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).
+     * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created and a reset email is sent (when SMTP is configured).
      */
     post: operations["requestPasswordReset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/reset-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Confirm password reset
+     * @description Validates the reset token and sets a new password. Revokes all active sessions for the user.
+     */
+    post: operations["confirmPasswordReset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/change-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change password (authenticated)
+     * @description Changes the password for the authenticated user. Requires current password verification. Revokes all active sessions after success.
+     */
+    post: operations["changePassword"];
     delete?: never;
     options?: never;
     head?: never;
@@ -982,6 +1022,72 @@ export interface operations {
         };
       };
       400: components["responses"]["BadRequest"];
+    };
+  };
+  confirmPasswordReset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Raw reset token received via email */
+          token: string;
+          /** @description New password (min 8 chars, uppercase, lowercase, number, special char) */
+          newPassword: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Password reset successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Current password for verification */
+          currentPassword: string;
+          /** @description New password (min 8 chars, uppercase, lowercase, number, special char) */
+          newPassword: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Password changed successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
     };
   };
   listTopics: {

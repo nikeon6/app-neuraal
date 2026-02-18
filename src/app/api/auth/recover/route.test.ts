@@ -16,6 +16,14 @@ vi.mock("@/application/use-cases/auth/RequestPasswordReset", () => ({
 vi.mock("@/infrastructure/auth/AuthConfig", () => ({
   getAuthConfig: mocks.getAuthConfig,
 }));
+vi.mock("@/infrastructure/email/EmailConfig", () => ({
+  getEmailConfig: () => {
+    throw new Error("No email config");
+  },
+}));
+vi.mock("@/infrastructure/email/SmtpEmailService", () => ({
+  SmtpEmailService: class {},
+}));
 
 import { POST } from "./route";
 

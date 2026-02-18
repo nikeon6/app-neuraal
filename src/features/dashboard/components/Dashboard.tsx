@@ -23,8 +23,7 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
 import { WeeklyRecap } from "@/features/weekly-recap";
-import { AiUsagePanel } from "@/features/settings/components/AiUsagePanel";
-import { StorageUsagePanel } from "@/features/settings/components/StorageUsagePanel";
+import { SettingsPanel } from "@/features/settings";
 import "@/features/tasks-container/styles/scrollbar.css";
 
 /*
@@ -198,14 +197,7 @@ export function Dashboard() {
       case "topics":
         return <TopicsSection />;
       case "settings":
-        return (
-          <div className="h-full overflow-y-auto pr-1 tasks-scrollbar tasks-scroll-fade">
-            <div className="max-w-xl mx-auto py-4 space-y-6">
-              <StorageUsagePanel />
-              <AiUsagePanel />
-            </div>
-          </div>
-        );
+        return <SettingsPanel />;
       default:
         return <TasksContainer />;
     }

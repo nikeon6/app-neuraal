@@ -230,11 +230,11 @@ describe("DashboardHeader", () => {
       );
     });
 
-    it("displays section label when section is not 'daily'", () => {
+    it("displays section title when section is not 'daily'", () => {
       renderHeader({ section: "topics" });
 
       const heading = screen.getByRole("heading", { level: 1 });
-      expect(heading).toHaveTextContent("Topics");
+      expect(heading).toHaveTextContent("Neural Paths");
     });
 
     it("displays dynamic week date range for weeklyRecap section", () => {
