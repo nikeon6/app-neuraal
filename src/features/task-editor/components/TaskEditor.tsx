@@ -885,7 +885,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     handleCreateReminder,
     handleRescheduleReminder,
     handleCancelReminder,
-  } = useReminderActions(entry.id, queryClient);
+  } = useReminderActions(entry.id, queryClient, isExpanded);
 
   const handleEditorClick = useCallback(() => {
     // Only expand if not already expanded — avoids scroll jump

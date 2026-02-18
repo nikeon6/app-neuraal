@@ -68,10 +68,11 @@ export interface EntryRepository {
   updateTopic(entryId: string, topicId: string | null): Promise<void>;
 
   /**
-   * Clears topic assignment for all entries pointing to a deleted topic.
+   * Clears topic assignment for all entries owned by userId that point to topicId.
    * Used by topic deletion to keep entries in "No topic" state.
+   * Scoped to userId to prevent cross-tenant data mutation.
    */
-  clearTopicFromEntries(topicId: string): Promise<void>;
+  clearTopicFromEntries(userId: string, topicId: string): Promise<void>;
 
   /**
    * Returns the next available sortOrder for a user+date.
