@@ -246,6 +246,31 @@
   margin: 1rem 0;
 }
 
+/* ---- Links ---- */
+.tiptap-editor .tiptap a.tiptap-link {
+  color: hsl(217, 91%, 65%);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: hsl(217, 91%, 65%, 0.5);
+  cursor: text; /* keep text cursor while editing */
+  transition:
+    color 120ms,
+    text-decoration-color 120ms;
+}
+
+.tiptap-editor .tiptap a.tiptap-link:hover {
+  color: hsl(217, 91%, 78%);
+  text-decoration-color: hsl(217, 91%, 78%, 0.7);
+}
+
+/* Hint that Ctrl/Cmd+click opens the link */
+.tiptap-editor .tiptap a.tiptap-link:hover::after {
+  content: " ↗";
+  font-size: 0.7em;
+  opacity: 0.5;
+  vertical-align: super;
+}
+
 /* ---- Bold / Italic / Strike / Underline ---- */
 .tiptap-editor .tiptap strong {
   color: rgba(255, 255, 255, 0.95);

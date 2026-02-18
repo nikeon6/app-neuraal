@@ -10,6 +10,7 @@ import React, {
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Link from "@tiptap/extension-link";
 import { common, createLowlight } from "lowlight";
 import { cn } from "@/shared/lib";
 import { CodeBlockWithLineNumbers } from "../extensions/CodeBlockWithLineNumbers";
@@ -173,6 +174,49 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     return false;
   }, []);
 
+  /**
+   * Handle file drop from external sources (e.g. OS file explorer, another browser window).
+   * The `moved` flag is true for internal ProseMirror node drags — those are left
+   * untouched so the editor's native drag behaviour continues to work correctly.
+   */
+  const handleDrop = useCallback(
+    (_view: unknown, event: DragEvent, _slice: unknown, moved: boolean) => {
+      // Internal node drag (e.g. reordering inside the editor) — let ProseMirror handle it
+      if (moved) return false;
+
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return false;
+
+      const imageFiles: File[] = [];
+      const otherFiles: File[] = [];
+
+      for (const file of files) {
+        if (file.type.startsWith("image/")) {
+          imageFiles.push(file);
+        } else {
+          otherFiles.push(file);
+        }
+      }
+
+      // Handle dropped images
+      if (imageFiles.length > 0 && onImagePasteRef.current) {
+        event.preventDefault();
+        onImagePasteRef.current(imageFiles);
+        return true;
+      }
+
+      // Handle dropped non-image files
+      if (otherFiles.length > 0 && onFilePasteRef.current) {
+        event.preventDefault();
+        onFilePasteRef.current(otherFiles);
+        return true;
+      }
+
+      return false;
+    },
+    [],
+  );
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
@@ -187,6 +231,18 @@ export const TiptapEditor = React.memo(function TiptapEditor({
         lowlight,
         defaultLanguage: null,
         languageClassPrefix: "language-",
+      }),
+      Link.configure({
+        // Don't open on simple click (user may be editing).
+        // Use Ctrl/Cmd + click to open links in a new tab.
+        openOnClick: false,
+        // Automatically detect and linkify URLs as the user types.
+        autolink: true,
+        HTMLAttributes: {
+          class: "tiptap-link",
+          rel: "noopener noreferrer",
+          target: "_blank",
+        },
       }),
       ImageAttachment.configure({
         inline: false,
@@ -206,14 +262,35 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     [placeholder],
   );
 
+  /**
+   * Open links with Ctrl/Cmd + click so the editor can remain editable on
+   * plain click (selecting, positioning cursor, etc.).
+   */
+  const handleClick = useCallback(
+    (_view: unknown, _pos: number, event: MouseEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        const target = event.target as HTMLElement;
+        const anchor = target.closest("a");
+        if (anchor?.href) {
+          window.open(anchor.href, "_blank", "noopener,noreferrer");
+          return true;
+        }
+      }
+      return false;
+    },
+    [],
+  );
+
   const editorProps = useMemo(
     () => ({
       attributes: {
         class: "tiptap",
       },
       handlePaste,
+      handleDrop,
+      handleClick,
     }),
-    [handlePaste],
+    [handlePaste, handleDrop, handleClick],
   );
 
   const editor = useEditor(

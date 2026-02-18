@@ -46,7 +46,7 @@ const MIN_TRUNK = 32;
 const DIR_HYSTERESIS = 10;
 const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
-const NODE_SCALE_STACK = 0.59; // Scale factor for topic nodes in mobile stack mode
+const NODE_SCALE_STACK = 0.62; // Scale factor for topic nodes in mobile stack mode
 
 // Junction dot (neuron point) parameters
 const DOT_RADIUS_BASE = 4.5;
@@ -821,8 +821,9 @@ export function FloatingTopics({
     for (let idx = 0; idx < activeTopics.length; idx++) {
       const id = activeTopics[idx];
       const count = topicCounts[id] ?? 0;
-      // Scale radius down in mobile stack mode for smaller bubbles
-      const baseR = Math.min(65, 20 + count * 8);
+      // Keep the same minimum size (28 for count=1), cap at 72,
+      // and spread growth across 9 distinct sizes.
+      const baseR = Math.min(72, 28 + (count - 1) * 5.5);
       const r = isStackLayout ? baseR * NODE_SCALE_STACK : baseR;
 
       // Cycle through default anchors for positioning
@@ -1570,6 +1571,16 @@ export function FloatingTopics({
       const container = containerRef?.current;
       const node = nodePosRef.current[id];
       if (!container || !node) return;
+
+      // On touch devices, the previously focused editor/input can keep focus
+      // after the keyboard is dismissed. Blur it before handling the bubble tap
+      // to prevent mobile browsers from reopening the keyboard.
+      if (e.pointerType === "touch") {
+        const activeEl = document.activeElement;
+        if (activeEl instanceof HTMLElement && activeEl !== e.currentTarget) {
+          activeEl.blur();
+        }
+      }
 
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
