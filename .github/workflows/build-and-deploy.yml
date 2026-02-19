@@ -53,6 +53,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
+            export TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+            export GHCR_PULL_USER="${{ secrets.GHCR_PULL_USER }}"
+            export GHCR_PULL_TOKEN="${{ secrets.GHCR_PULL_TOKEN }}"
             set -euo pipefail
 
             cd /srv/neuraal
