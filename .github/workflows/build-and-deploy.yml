@@ -57,28 +57,142 @@ jobs:
 
             cd /srv/neuraal
 
-            # 1) Use workflow_run head SHA when available, otherwise push SHA
+            COMPOSE='docker compose -f docker-compose.prod.yml --env-file .env.prod'
+
+            # ---------- helpers ----------
+            get_env_tag() {
+              grep -E '^APP_IMAGE_TAG=' .env.prod 2>/dev/null | head -n1 | cut -d= -f2- || true
+            }
+
+            set_env_tag() {
+              local tag="$1"
+              if grep -q '^APP_IMAGE_TAG=' .env.prod 2>/dev/null; then
+                sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$tag/" .env.prod
+              else
+                echo "APP_IMAGE_TAG=$tag" >> .env.prod
+              fi
+            }
+
+            healthcheck() {
+              # Check via local Caddy (no depende de DNS externo)
+              # -k: ignora verificación TLS al usar 127.0.0.1
+              # Host header: para que Caddy sirva el vhost correcto
+              curl -kfsS https://127.0.0.1/api/health -H 'Host: neuraal.app' >/dev/null
+            }
+
+            # ---------- 0) TAGS ----------
+            OLD_TAG="$(get_env_tag)"
             TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+
             echo "Deploying tag: $TAG"
+            echo "Previous tag: ${OLD_TAG:-"(none)"}"
 
-            # 2) Persist selected tag for docker compose image reference
-            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
-              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
-            else
-              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
-            fi
+            # Guardamos "attempted" lo antes posible
+            echo "$TAG" > .last_deploy_tag
 
-            # 3) Login to GHCR (private registry)
+            # Set new tag in env
+            set_env_tag "$TAG"
+
+            # ---------- 1) GHCR LOGIN ----------
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_PULL_USER }}" --password-stdin
 
-            # 4) Pull exact tag + migrate + up
-            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
-            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            # ---------- 2) BACKUP DB (antes de migrar) ----------
+            mkdir -p backups/postgres
 
-            # 5) Guardamos el último deploy (útil para rollback rápido)
-            echo "$TAG" > .last_deploy_tag
-            echo "Last deploy tag saved: $TAG"
+            STAMP="$(date -u +'%Y%m%dT%H%M%SZ')"
+            BACKUP_FILE="backups/postgres/neuraal_${STAMP}_${TAG}.dump.gz"
+            echo "Creating DB backup: $BACKUP_FILE"
+
+            # pg_dump desde el contenedor de postgres (salida al host) + gzip en el host
+            $COMPOSE exec -T postgres sh -lc '
+              set -e
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              pg_dump -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc
+            ' | gzip -9 > "$BACKUP_FILE"
+
+            # Verificación rápida del gzip
+            gzip -t "$BACKUP_FILE"
+            echo "$BACKUP_FILE" > .last_backup_file
+            echo "DB backup OK"
+
+            # ---------- 3) PULL + MIGRATE + UP ----------
+            echo "Pulling images..."
+            $COMPOSE pull
+
+            echo "Running migrations..."
+            if ! $COMPOSE run --rm app pnpm prisma migrate deploy; then
+              echo "❌ Migrations FAILED for tag $TAG"
+
+              # revert env tag to OLD_TAG if we have it, then ensure stack is up
+              if [ -n "${OLD_TAG:-}" ]; then
+                echo "Reverting APP_IMAGE_TAG to previous tag: $OLD_TAG"
+                set_env_tag "$OLD_TAG"
+                $COMPOSE pull || true
+                $COMPOSE up -d --remove-orphans || true
+              fi
+
+              exit 1
+            fi
+
+            echo "Starting services..."
+            $COMPOSE up -d --remove-orphans
+
+            # ---------- 4) HEALTHCHECK + MARK GOOD or ROLLBACK ----------
+            echo "Waiting for health..."
+            OK=0
+            for i in $(seq 1 30); do
+              if healthcheck; then
+                OK=1
+                break
+              fi
+              sleep 2
+            done
+
+            if [ "$OK" -eq 1 ]; then
+              echo "✅ Health OK"
+              echo "$TAG" > .last_good_tag
+              echo "Last good tag saved: $TAG"
+              exit 0
+            fi
+
+            echo "❌ Health FAILED after deploy tag $TAG"
+            echo "Attempting rollback..."
+
+            ROLLBACK_TAG="$(cat .last_good_tag 2>/dev/null || true)"
+            if [ -z "${ROLLBACK_TAG:-}" ]; then
+              # fallback: if no last_good_tag yet, rollback to OLD_TAG if exists
+              ROLLBACK_TAG="${OLD_TAG:-}"
+            fi
+
+            if [ -z "${ROLLBACK_TAG:-}" ]; then
+              echo "No rollback tag available (.last_good_tag missing and OLD_TAG empty). Manual intervention required."
+              exit 2
+            fi
+
+            echo "Rolling back to tag: $ROLLBACK_TAG"
+            set_env_tag "$ROLLBACK_TAG"
+
+            $COMPOSE pull || true
+            $COMPOSE up -d --remove-orphans || true
+
+            echo "Waiting for health after rollback..."
+            OK2=0
+            for i in $(seq 1 30); do
+              if healthcheck; then
+                OK2=1
+                break
+              fi
+              sleep 2
+            done
+
+            if [ "$OK2" -eq 1 ]; then
+              echo "✅ Rollback succeeded. Stack is healthy on tag: $ROLLBACK_TAG"
+              # Importante: hacemos fallar el job para que te enteres en GitHub Actions
+              exit 1
+            fi
+
+            echo "❌ Rollback FAILED too. Manual intervention required."
+            exit 3
 
   build-and-push-main:
     name: Build & Push (main after CI)
