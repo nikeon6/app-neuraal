@@ -175,4 +175,35 @@ describe("POST /api/automations/entry-transcript/callback", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
   });
+
+  it("accepts legacy 'transcription' field for backwards compatibility", async () => {
+    mocks.execute.mockResolvedValue(ok({ success: true }));
+    const payload = {
+      requestId: "r1",
+      userId: "u1",
+      entryId: "e1",
+      transcription: "legacy transcript body",
+    };
+    const rawBody = JSON.stringify(payload);
+    const timestamp = "123";
+    const signature = sign(
+      process.env.N8N_WEBHOOK_SECRET ?? "",
+      timestamp,
+      rawBody,
+    );
+    const req = new NextRequest(
+      "http://localhost:3000/api/automations/entry-transcript/callback",
+      {
+        method: "POST",
+        headers: {
+          "x-timestamp": timestamp,
+          "x-signature": signature,
+          "Content-Type": "application/json",
+        },
+        body: rawBody,
+      },
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+  });
 });

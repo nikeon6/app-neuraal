@@ -11,7 +11,8 @@ export interface TranscriptCallbackPayload {
   requestId: string;
   userId: string;
   entryId: string;
-  transcriptText: string;
+  transcriptText?: string;
+  transcription?: string;
   format?: string;
   usage?: {
     promptTokens?: number;
@@ -33,7 +34,8 @@ export class HandleEntryTranscriptCallback {
   async execute(
     payload: TranscriptCallbackPayload,
   ): Promise<Result<void, UseCaseError>> {
-    const { requestId, userId, entryId, transcriptText } = payload;
+    const { requestId, userId, entryId } = payload;
+    const transcriptText = payload.transcriptText ?? payload.transcription;
 
     if (!requestId || !transcriptText) {
       return err(validationError("requestId and transcriptText are required"));

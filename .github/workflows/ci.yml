@@ -141,7 +141,6 @@ jobs:
           AUTH_JWT_SECRET: ci-test-secret-at-least-32-characters-long
           E2E_USER_EMAIL: test@neuraal.dev
           E2E_USER_PASSWORD: TestPassword1!
-          NODE_ENV: production
 
       - uses: actions/upload-artifact@v4
         if: failure()
