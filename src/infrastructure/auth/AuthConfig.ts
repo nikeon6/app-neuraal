@@ -62,7 +62,7 @@ export function getAuthConfig(): AuthConfig {
   }
 
   const appBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    process.env.APP_BASE_URL ?? "http://localhost:3000"
   ).replace(/\/+$/, "");
 
   if (
@@ -70,7 +70,7 @@ export function getAuthConfig(): AuthConfig {
     appBaseUrl.includes("localhost")
   ) {
     throw new Error(
-      "NEXT_PUBLIC_APP_URL must be set to a public URL in production (currently resolves to localhost)",
+      "APP_BASE_URL must be set to a public URL in production (currently resolves to localhost)",
     );
   }
 
