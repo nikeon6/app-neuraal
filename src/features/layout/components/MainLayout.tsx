@@ -82,8 +82,8 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Main Content Area */}
       <main className="flex-1 relative z-10 flex flex-col overflow-hidden">
-        {/* Top Bar (Minimal) */}
-        <div className="absolute top-6 right-6 z-50">
+        {/* Top Bar (Minimal) — mobile: aligned with nav tabs row; md+: top-right corner */}
+        <div className="absolute top-3 right-3 z-50 md:top-6 md:right-6">
           <button
             onClick={handleLogout}
             className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-all"

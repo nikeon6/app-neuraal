@@ -15,6 +15,7 @@ export class PrismaUserRepository implements UserRepository {
       email: record.email,
       passwordHash: record.passwordHash,
       phoneNumber: record.phoneNumber,
+      emailVerified: record.emailVerified,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });
@@ -34,6 +35,7 @@ export class PrismaUserRepository implements UserRepository {
       email: record.email,
       passwordHash: record.passwordHash,
       phoneNumber: record.phoneNumber,
+      emailVerified: record.emailVerified,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });
@@ -59,6 +61,13 @@ export class PrismaUserRepository implements UserRepository {
     await prisma.user.update({
       where: { id: userId },
       data: { passwordHash: newPasswordHash },
+    });
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true },
     });
   }
 }

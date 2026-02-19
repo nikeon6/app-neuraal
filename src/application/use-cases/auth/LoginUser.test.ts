@@ -1,15 +1,32 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { LoginUser } from "./LoginUser";
-import { RegisterUser } from "./RegisterUser";
 import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { InMemoryRefreshTokenRepository } from "../../test/InMemoryRefreshTokenRepository";
 import { FakePasswordHasher } from "../../test/FakePasswordHasher";
 import { FakeJwtService } from "../../test/FakeJwtService";
 import { FakeRefreshTokenService } from "../../test/FakeRefreshTokenService";
 import { FakeClock } from "../../test/FakeClock";
+import { User } from "@/domain/entities/User";
 
 const VALID_EMAIL = "user@example.com";
 const VALID_PASSWORD = "SecurePass1!";
+
+async function seedVerifiedUser(
+  repo: InMemoryUserRepository,
+  hasher: FakePasswordHasher,
+  overrides: { emailVerified?: boolean } = {},
+) {
+  const hash = await hasher.hash(VALID_PASSWORD);
+  const result = User.create({
+    id: "user-1",
+    email: VALID_EMAIL,
+    passwordHash: hash,
+    emailVerified: overrides.emailVerified ?? true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  if (result.isOk()) await repo.create(result.value);
+}
 
 describe("LoginUser", () => {
   let userRepository: InMemoryUserRepository;
@@ -19,7 +36,6 @@ describe("LoginUser", () => {
   let refreshTokenService: FakeRefreshTokenService;
   let clock: FakeClock;
   let loginUser: LoginUser;
-  let registerUser: RegisterUser;
 
   beforeEach(() => {
     userRepository = new InMemoryUserRepository();
@@ -38,23 +54,10 @@ describe("LoginUser", () => {
       900,
       7,
     );
-    registerUser = new RegisterUser(
-      userRepository,
-      refreshTokenRepository,
-      passwordHasher,
-      jwtService,
-      refreshTokenService,
-      clock,
-      900,
-      7,
-    );
   });
 
   it("should login successfully with correct credentials", async () => {
-    await registerUser.execute({
-      email: VALID_EMAIL,
-      password: VALID_PASSWORD,
-    });
+    await seedVerifiedUser(userRepository, passwordHasher);
 
     const result = await loginUser.execute({
       email: VALID_EMAIL,
@@ -69,10 +72,7 @@ describe("LoginUser", () => {
   });
 
   it("should return tokens on success", async () => {
-    await registerUser.execute({
-      email: VALID_EMAIL,
-      password: VALID_PASSWORD,
-    });
+    await seedVerifiedUser(userRepository, passwordHasher);
 
     const result = await loginUser.execute({
       email: VALID_EMAIL,
@@ -104,10 +104,7 @@ describe("LoginUser", () => {
   });
 
   it("should reject wrong password (generic error)", async () => {
-    await registerUser.execute({
-      email: VALID_EMAIL,
-      password: VALID_PASSWORD,
-    });
+    await seedVerifiedUser(userRepository, passwordHasher);
 
     const result = await loginUser.execute({
       email: VALID_EMAIL,
@@ -144,5 +141,35 @@ describe("LoginUser", () => {
     if (result.isErr()) {
       expect(result.error.code).toBe("VALIDATION_ERROR");
     }
+  });
+
+  it("should reject login for unverified email", async () => {
+    await seedVerifiedUser(userRepository, passwordHasher, {
+      emailVerified: false,
+    });
+
+    const result = await loginUser.execute({
+      email: VALID_EMAIL,
+      password: VALID_PASSWORD,
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe("EMAIL_NOT_VERIFIED");
+      expect(result.error.message).toContain("verify");
+    }
+  });
+
+  it("should allow login for verified users", async () => {
+    await seedVerifiedUser(userRepository, passwordHasher, {
+      emailVerified: true,
+    });
+
+    const result = await loginUser.execute({
+      email: VALID_EMAIL,
+      password: VALID_PASSWORD,
+    });
+
+    expect(result.isOk()).toBe(true);
   });
 });

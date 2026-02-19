@@ -6,6 +6,7 @@ export type UseCaseErrorCode =
   | "DUPLICATE_ERROR"
   | "NOT_FOUND"
   | "UNAUTHORIZED"
+  | "EMAIL_NOT_VERIFIED"
   | "CONFLICT"
   | "QUOTA_EXCEEDED"
   | "RATE_LIMITED"
@@ -95,4 +96,11 @@ export function concurrencyLimitError(message: string): UseCaseError {
  */
 export function inputTooLargeError(message: string): UseCaseError {
   return { code: "INPUT_TOO_LARGE", message };
+}
+
+/**
+ * Creates an email-not-verified error (user must confirm email before proceeding).
+ */
+export function emailNotVerifiedError(message: string): UseCaseError {
+  return { code: "EMAIL_NOT_VERIFIED", message };
 }

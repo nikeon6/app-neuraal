@@ -13,7 +13,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Register a new user */
+    /**
+     * Register a new user
+     * @description Creates a user with emailVerified=false and sends a verification email. No auth cookies are set until the user verifies their email and logs in.
+     */
     post: operations["registerUser"];
     delete?: never;
     options?: never;
@@ -32,6 +35,46 @@ export interface paths {
     put?: never;
     /** Log in with email and password */
     post: operations["loginUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/verify-email": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Verify email address
+     * @description Validates the verification token from the email link and marks the user as verified. Redirects to /login on success or failure.
+     */
+    get: operations["verifyEmail"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/resend-verification": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resend verification email
+     * @description Sends a new verification email if the user exists and is not yet verified. Always returns 200 to prevent email enumeration.
+     */
+    post: operations["resendVerificationEmail"];
     delete?: never;
     options?: never;
     head?: never;
@@ -883,14 +926,15 @@ export interface operations {
       };
     };
     responses: {
-      /** @description User registered. Auth cookies set. */
-      200: {
+      /** @description User registered. Verification email sent. No auth cookies set. */
+      201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": {
             user: components["schemas"]["UserResponse"];
+            message: string;
           };
         };
       };
@@ -928,6 +972,66 @@ export interface operations {
       };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
+      /** @description Email not verified. User must confirm email first. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  verifyEmail: {
+    parameters: {
+      query: {
+        token: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Redirects to /login?verified=true on success or /login?verify-error=expired|invalid on failure. */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+    };
+  };
+  resendVerificationEmail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Always returns ok (prevents email enumeration). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
     };
   };
   refreshSession: {

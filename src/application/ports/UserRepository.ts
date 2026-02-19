@@ -8,4 +8,5 @@ export interface UserRepository {
   findById(userId: string): Promise<User | null>;
   create(user: User): Promise<void>;
   updatePasswordHash(userId: string, newPasswordHash: string): Promise<void>;
+  markEmailVerified(userId: string): Promise<void>;
 }

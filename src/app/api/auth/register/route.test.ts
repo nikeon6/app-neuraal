@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
-  setAuthCookies: vi.fn(),
   getAuthConfig: vi.fn(),
 }));
 
@@ -14,11 +13,13 @@ vi.mock("@/application/use-cases/auth/RegisterUser", () => ({
     }
   },
 }));
-vi.mock("@/infrastructure/auth/AuthCookies", () => ({
-  setAuthCookies: mocks.setAuthCookies,
-}));
 vi.mock("@/infrastructure/auth/AuthConfig", () => ({
   getAuthConfig: mocks.getAuthConfig,
+}));
+vi.mock("@/infrastructure/email/EmailConfig", () => ({
+  getEmailConfig: () => {
+    throw new Error("SMTP not configured");
+  },
 }));
 
 import { POST } from "./route";
@@ -38,6 +39,7 @@ describe("POST /api/auth/register", () => {
       jwtSecret: "secret",
       accessTtlSeconds: 3600,
       refreshTtlDays: 7,
+      verificationTtlHours: 24,
     });
   });
 
@@ -72,11 +74,11 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(409);
   });
 
-  it("returns 200 and sets auth cookies on success", async () => {
+  it("returns 201 with user and message on success (no auth cookies)", async () => {
     mocks.execute.mockResolvedValue(
       ok({
         user: { id: "u1", email: "a@a.com" },
-        tokens: { accessToken: "a", refreshToken: "r" },
+        message: "Please check your email to verify your account",
       }),
     );
     const req = new NextRequest("http://localhost:3000/api/auth/register", {
@@ -85,7 +87,13 @@ describe("POST /api/auth/register", () => {
       headers: { "Content-Type": "application/json" },
     });
     const res = await POST(req);
-    expect(res.status).toBe(200);
-    expect(mocks.setAuthCookies).toHaveBeenCalled();
+    expect(res.status).toBe(201);
+
+    const json = await res.json();
+    expect(json.user).toBeDefined();
+    expect(json.message).toBeDefined();
+
+    const setCookieHeader = res.headers.get("set-cookie");
+    expect(setCookieHeader).toBeNull();
   });
 });

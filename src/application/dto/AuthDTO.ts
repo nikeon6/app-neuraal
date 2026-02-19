@@ -12,3 +12,8 @@ export interface AuthResultDTO {
   user: UserDTO;
   tokens: AuthTokensDTO;
 }
+
+export interface RegisterResultDTO {
+  user: UserDTO;
+  message: string;
+}

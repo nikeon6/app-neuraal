@@ -7,6 +7,7 @@ export interface UserProps {
   email: string;
   passwordHash: string;
   phoneNumber?: string | null;
+  emailVerified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ export class User {
   readonly email: Email;
   readonly passwordHash: PasswordHash;
   readonly phoneNumber: string | null;
+  readonly emailVerified: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -24,6 +26,7 @@ export class User {
     email: Email,
     passwordHash: PasswordHash,
     phoneNumber: string | null,
+    emailVerified: boolean,
     createdAt: Date,
     updatedAt: Date,
   ) {
@@ -31,6 +34,7 @@ export class User {
     this.email = email;
     this.passwordHash = passwordHash;
     this.phoneNumber = phoneNumber;
+    this.emailVerified = emailVerified;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -56,6 +60,7 @@ export class User {
         emailResult.value,
         hashResult.value,
         props.phoneNumber ?? null,
+        props.emailVerified ?? false,
         props.createdAt,
         props.updatedAt,
       ),
@@ -67,6 +72,7 @@ export class User {
     email: string;
     passwordHash: string;
     phoneNumber: string | null;
+    emailVerified: boolean;
     createdAt: Date;
     updatedAt: Date;
   } {
@@ -75,6 +81,7 @@ export class User {
       email: this.email.toString(),
       passwordHash: this.passwordHash.toString(),
       phoneNumber: this.phoneNumber,
+      emailVerified: this.emailVerified,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

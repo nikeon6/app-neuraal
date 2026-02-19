@@ -15,6 +15,7 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     VALIDATION_ERROR: 400,
     DUPLICATE_ERROR: 409,
     UNAUTHORIZED: 401,
+    EMAIL_NOT_VERIFIED: 403,
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,

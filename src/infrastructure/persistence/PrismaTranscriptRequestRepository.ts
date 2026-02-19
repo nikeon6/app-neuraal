@@ -5,6 +5,9 @@ import type {
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
+const PENDING_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SUBMITTED_ACTIVE_TTL_MS = 60 * 60 * 1000; // 60 minutes
+
 function toData(record: {
   id: string;
   userId: string;
@@ -34,6 +37,35 @@ function toData(record: {
 }
 
 export class PrismaTranscriptRequestRepository implements TranscriptRequestRepository {
+  private buildActiveWhere() {
+    const now = Date.now();
+    const pendingCutoff = new Date(now - PENDING_ACTIVE_TTL_MS);
+    const submittedCutoff = new Date(now - SUBMITTED_ACTIVE_TTL_MS);
+
+    // Defensive TTL to avoid "zombie" pending/submitted requests blocking users forever
+    // when worker/callback failures leave stale states behind.
+    return {
+      OR: [
+        {
+          status: "pending",
+          createdAt: { gte: pendingCutoff },
+        },
+        {
+          status: "submitted",
+          OR: [
+            { submittedAt: { gte: submittedCutoff } },
+            {
+              AND: [
+                { submittedAt: null },
+                { updatedAt: { gte: submittedCutoff } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
   async create(
     data: Omit<
       TranscriptRequestData,
@@ -66,7 +98,7 @@ export class PrismaTranscriptRequestRepository implements TranscriptRequestRepos
     const record = await prisma.transcriptionRequest.findFirst({
       where: {
         entryId,
-        status: { in: ["pending", "submitted"] },
+        ...this.buildActiveWhere(),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -77,7 +109,7 @@ export class PrismaTranscriptRequestRepository implements TranscriptRequestRepos
     return prisma.transcriptionRequest.count({
       where: {
         userId,
-        status: { in: ["pending", "submitted"] },
+        ...this.buildActiveWhere(),
       },
     });
   }

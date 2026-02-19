@@ -26,10 +26,12 @@ async function main() {
       where: { email: E2E_USER_EMAIL },
       update: {
         passwordHash,
+        emailVerified: true,
       },
       create: {
         email: E2E_USER_EMAIL,
         passwordHash,
+        emailVerified: true,
       },
     });
 
