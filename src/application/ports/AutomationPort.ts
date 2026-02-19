@@ -10,6 +10,8 @@ export interface ReminderPayload {
   message: string | null;
   entryTitle: string;
   entrySummary: string | null;
+  userEmail: string;
+  userPhoneNumber: string | null;
 }
 
 /**

@@ -5,6 +5,7 @@ import { ProcessReminderJob } from "../../application/use-cases/reminders/Proces
 import { PrismaReminderRepository } from "../persistence/PrismaReminderRepository";
 import { PrismaNotificationRepository } from "../persistence/PrismaNotificationRepository";
 import { PrismaEntryRepository } from "../persistence/PrismaEntryRepository";
+import { PrismaUserRepository } from "../persistence/PrismaUserRepository";
 import { N8NClient } from "../automation/N8NClient";
 import { logger, withJobContext } from "../logging/logger";
 import {
@@ -39,12 +40,14 @@ async function startWorker() {
   const reminderRepository = new PrismaReminderRepository();
   const notificationRepository = new PrismaNotificationRepository();
   const entryRepository = new PrismaEntryRepository();
+  const userRepository = new PrismaUserRepository();
   const automationPort = new N8NClient();
   const processReminderJob = new ProcessReminderJob(
     reminderRepository,
     notificationRepository,
     automationPort,
     entryRepository,
+    userRepository,
   );
 
   // Create worker

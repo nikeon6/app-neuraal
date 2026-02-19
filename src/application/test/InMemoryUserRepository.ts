@@ -33,6 +33,7 @@ export class InMemoryUserRepository implements UserRepository {
       id: existing.id,
       email: existing.email.toString(),
       passwordHash: newPasswordHash,
+      phoneNumber: existing.phoneNumber,
       createdAt: existing.createdAt,
       updatedAt: new Date(),
     });

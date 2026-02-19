@@ -14,6 +14,7 @@ export class PrismaUserRepository implements UserRepository {
       id: record.id,
       email: record.email,
       passwordHash: record.passwordHash,
+      phoneNumber: record.phoneNumber,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });
@@ -32,6 +33,7 @@ export class PrismaUserRepository implements UserRepository {
       id: record.id,
       email: record.email,
       passwordHash: record.passwordHash,
+      phoneNumber: record.phoneNumber,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });
@@ -45,6 +47,7 @@ export class PrismaUserRepository implements UserRepository {
         id: user.id,
         email: user.email.toString(),
         passwordHash: user.passwordHash.toString(),
+        phoneNumber: user.phoneNumber,
       },
     });
   }
