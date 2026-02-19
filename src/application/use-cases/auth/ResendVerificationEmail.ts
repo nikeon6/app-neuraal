@@ -65,6 +65,7 @@ export class ResendVerificationEmail {
           html: buildVerificationEmailHtml(
             verifyUrl,
             this.verificationTtlHours,
+            this.appBaseUrl,
           ),
           text: buildVerificationEmailText(
             verifyUrl,

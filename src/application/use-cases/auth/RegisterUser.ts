@@ -95,6 +95,7 @@ export class RegisterUser {
           html: buildVerificationEmailHtml(
             verifyUrl,
             this.verificationTtlHours,
+            this.appBaseUrl,
           ),
           text: buildVerificationEmailText(
             verifyUrl,
