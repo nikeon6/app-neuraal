@@ -33,6 +33,7 @@ describe("POST /api/auth/resend-verification", () => {
     vi.clearAllMocks();
     mocks.getAuthConfig.mockReturnValue({
       verificationTtlHours: 24,
+      appBaseUrl: "https://app.test",
     });
   });
 

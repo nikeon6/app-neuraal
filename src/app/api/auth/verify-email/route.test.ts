@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
+  getAuthConfig: vi.fn(),
 }));
 
 vi.mock("@/application/use-cases/auth/VerifyEmail", () => ({
@@ -11,6 +12,9 @@ vi.mock("@/application/use-cases/auth/VerifyEmail", () => ({
       return mocks.execute(...args);
     }
   },
+}));
+vi.mock("@/infrastructure/auth/AuthConfig", () => ({
+  getAuthConfig: mocks.getAuthConfig,
 }));
 
 import { GET } from "./route";
@@ -26,6 +30,9 @@ function err(code: string, message: string) {
 describe("GET /api/auth/verify-email", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getAuthConfig.mockReturnValue({
+      appBaseUrl: "http://localhost:3000",
+    });
   });
 
   it("should redirect to /login?verified=true on success", async () => {

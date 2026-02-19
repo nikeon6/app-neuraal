@@ -40,6 +40,7 @@ describe("POST /api/auth/register", () => {
       accessTtlSeconds: 3600,
       refreshTtlDays: 7,
       verificationTtlHours: 24,
+      appBaseUrl: "https://app.test",
     });
   });
 

@@ -6,6 +6,7 @@ export interface AuthConfig {
   cookieSameSite: "lax" | "strict" | "none";
   resetTtlMinutes: number;
   verificationTtlHours: number;
+  appBaseUrl: string;
 }
 
 let cachedConfig: AuthConfig | null = null;
@@ -60,6 +61,19 @@ export function getAuthConfig(): AuthConfig {
     throw new Error("AUTH_VERIFICATION_TTL_HOURS must be a positive integer");
   }
 
+  const appBaseUrl = (
+    process.env.APP_BASE_URL ?? "http://localhost:3000"
+  ).replace(/\/+$/, "");
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    appBaseUrl.includes("localhost")
+  ) {
+    throw new Error(
+      "APP_BASE_URL must be set to a public URL in production (currently resolves to localhost)",
+    );
+  }
+
   cachedConfig = {
     jwtSecret,
     accessTtlSeconds,
@@ -68,6 +82,7 @@ export function getAuthConfig(): AuthConfig {
     cookieSameSite,
     resetTtlMinutes,
     verificationTtlHours,
+    appBaseUrl,
   };
 
   return cachedConfig;

@@ -4,6 +4,7 @@ import { PrismaUserRepository } from "@/infrastructure/persistence/PrismaUserRep
 import { PrismaEmailVerificationTokenRepository } from "@/infrastructure/persistence/PrismaEmailVerificationTokenRepository";
 import { CryptoRefreshTokenService } from "@/infrastructure/auth/CryptoRefreshTokenService";
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
+import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 
 /**
  * GET /api/auth/verify-email?token=xxx
@@ -24,9 +25,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const appBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-  ).replace(/\/+$/, "");
+  const { appBaseUrl } = getAuthConfig();
 
   const useCase = new VerifyEmail(
     new PrismaUserRepository(),

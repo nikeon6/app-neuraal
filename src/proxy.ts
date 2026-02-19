@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/register",
   "/recover",
+  "/reset-password",
   "/api/auth/",
   "/api/automations/",
   "/api/openapi.json",
