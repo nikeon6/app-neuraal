@@ -7,6 +7,7 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
     topic: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
     },
@@ -41,6 +42,7 @@ function createRequest(
 describe("GET /api/topics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
   });
 
   it("should return 401 when x-user-id header is missing", async () => {
@@ -118,6 +120,7 @@ describe("GET /api/topics", () => {
 describe("POST /api/topics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
   });
 
   it("should return 401 when x-user-id header is missing", async () => {

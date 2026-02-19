@@ -79,8 +79,28 @@ vi.mock("framer-motion", () => ({
       { children, ...props }: React.HTMLAttributes<HTMLDivElement>,
       ref: React.Ref<HTMLDivElement>,
     ) {
+      const {
+        layout: _layout,
+        layoutId: _layoutId,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
+        whileHover: _whileHover,
+        whileTap: _whileTap,
+        ...domProps
+      } = props as React.HTMLAttributes<HTMLDivElement> & {
+        layout?: unknown;
+        layoutId?: unknown;
+        initial?: unknown;
+        animate?: unknown;
+        exit?: unknown;
+        transition?: unknown;
+        whileHover?: unknown;
+        whileTap?: unknown;
+      };
       return (
-        <div ref={ref} {...props}>
+        <div ref={ref} {...domProps}>
           {children}
         </div>
       );

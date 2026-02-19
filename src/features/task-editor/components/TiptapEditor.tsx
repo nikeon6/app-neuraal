@@ -222,6 +222,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       StarterKit.configure({
         // Disable the built-in codeBlock in favour of CodeBlockLowlight
         codeBlock: false,
+        // We configure Link explicitly below; disable StarterKit's copy
+        // to avoid duplicate extension registration warnings in tests/runtime.
+        link: false,
       }),
       // Note: Underline is included in StarterKit v3, no need to add separately
       Placeholder.configure({
