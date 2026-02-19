@@ -22,9 +22,24 @@ export async function register() {
  */
 export const onRequestError = async (
   error: unknown,
-  request: { path: string; method: string },
-  context: { routerKind: string; routePath: string },
+  request: {
+    path: string;
+    method: string;
+    headers?: Record<string, string | string[] | undefined>;
+  },
+  context: { routerKind: string; routePath: string; routeType?: string },
 ) => {
   const { captureRequestError } = await import("@sentry/nextjs");
-  captureRequestError(error, request, context);
+  captureRequestError(
+    error,
+    {
+      ...request,
+      // Next/Sentry type requires headers in RequestInfo.
+      headers: request.headers ?? {},
+    },
+    {
+      ...context,
+      routeType: context.routeType ?? "route",
+    },
+  );
 };
