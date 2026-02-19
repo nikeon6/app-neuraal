@@ -5,6 +5,14 @@ import "@testing-library/jest-dom/vitest";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { Dashboard } from "./Dashboard";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
 type DashboardSection =
   | "daily"
   | "weeklyRecap"

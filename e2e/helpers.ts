@@ -9,7 +9,7 @@ export async function loginViaApi(
   email = process.env.E2E_USER_EMAIL ?? "test@neuraal.dev",
   password = process.env.E2E_USER_PASSWORD ?? "TestPassword1!",
 ) {
-  const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:5173";
 
   const response = await page.request.post(`${baseUrl}/api/auth/login`, {
     data: { email, password },

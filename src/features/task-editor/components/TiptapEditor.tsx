@@ -222,6 +222,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       StarterKit.configure({
         // Disable the built-in codeBlock in favour of CodeBlockLowlight
         codeBlock: false,
+        // We configure Link explicitly below; disable StarterKit's copy
+        // to avoid duplicate extension registration warnings in tests/runtime.
+        link: false,
       }),
       // Note: Underline is included in StarterKit v3, no need to add separately
       Placeholder.configure({
@@ -402,8 +405,20 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       const pageX = window.scrollX;
       const pageY = window.scrollY;
 
-      // Let ProseMirror scroll within the editor itself
-      originalScroll();
+      // Let ProseMirror scroll within the editor itself.
+      // In jsdom-based tests, ProseMirror can throw when selection targets do
+      // not implement getClientRects; skip only that known non-browser case.
+      try {
+        originalScroll();
+      } catch (error) {
+        if (
+          error instanceof TypeError &&
+          String(error.message).includes("getClientRects")
+        ) {
+          return;
+        }
+        throw error;
+      }
 
       // Restore ancestor scroll positions to prevent layout shift
       for (const s of savedScrolls) {

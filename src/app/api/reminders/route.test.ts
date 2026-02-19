@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   guardExecute: vi.fn(),
   consumeExecute: vi.fn(),
   countPendingWhatsapp: vi.fn(),
+  listPendingByEntry: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/auth/getAuthUserId", () => ({
@@ -67,6 +68,9 @@ vi.mock("@/infrastructure/persistence/PrismaReminderRepository", () => ({
     countPendingWhatsappByUserId(...args: unknown[]) {
       return mocks.countPendingWhatsapp(...args);
     }
+    listPendingByEntry(...args: unknown[]) {
+      return mocks.listPendingByEntry(...args);
+    }
   },
 }));
 vi.mock("@/infrastructure/persistence/PrismaEntryRepository", () => ({
@@ -93,7 +97,7 @@ vi.mock("@/infrastructure/auth/SystemClock", () => ({
   },
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 function ok<T>(value: T) {
   return { isErr: () => false, value };
@@ -101,6 +105,70 @@ function ok<T>(value: T) {
 function err(code: string, message: string) {
   return { isErr: () => true, error: { code, message } };
 }
+
+describe("GET /api/reminders", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: false, error: "Unauthorized" });
+    const req = new NextRequest(
+      "http://localhost:3000/api/reminders?entryId=e1",
+    );
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 when entryId is missing", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const req = new NextRequest("http://localhost:3000/api/reminders");
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 200 with mapped reminder DTOs", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const createdAt = new Date("2026-02-19T10:00:00.000Z");
+    const updatedAt = new Date("2026-02-19T10:05:00.000Z");
+    mocks.listPendingByEntry.mockResolvedValue([
+      {
+        toJSON: () => ({
+          id: "r1",
+          userId: "u1",
+          entryId: "e1",
+          scheduledAt: "2026-02-20T10:00:00.000Z",
+          channel: "email",
+          message: null,
+          status: "pending",
+          createdAt,
+          updatedAt,
+        }),
+      },
+    ]);
+    const req = new NextRequest(
+      "http://localhost:3000/api/reminders?entryId=e1",
+    );
+
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mocks.listPendingByEntry).toHaveBeenCalledWith("u1", "e1");
+    expect(body.reminders).toHaveLength(1);
+    expect(body.reminders[0]).toEqual(
+      expect.objectContaining({
+        id: "r1",
+        createdAt: createdAt.toISOString(),
+        updatedAt: updatedAt.toISOString(),
+      }),
+    );
+  });
+});
 
 describe("POST /api/reminders", () => {
   beforeEach(() => {
