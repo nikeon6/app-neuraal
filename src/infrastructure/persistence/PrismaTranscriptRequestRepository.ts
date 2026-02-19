@@ -63,7 +63,7 @@ export class PrismaTranscriptRequestRepository implements TranscriptRequestRepos
           ],
         },
       ],
-    } as const;
+    };
   }
 
   async create(
