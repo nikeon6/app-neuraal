@@ -5,6 +5,7 @@ export interface AuthConfig {
   cookieSecure: boolean;
   cookieSameSite: "lax" | "strict" | "none";
   resetTtlMinutes: number;
+  verificationTtlHours: number;
 }
 
 let cachedConfig: AuthConfig | null = null;
@@ -51,6 +52,14 @@ export function getAuthConfig(): AuthConfig {
     throw new Error("AUTH_RESET_TTL_MINUTES must be a positive integer");
   }
 
+  const verificationTtlHours = parseInt(
+    process.env.AUTH_VERIFICATION_TTL_HOURS || "24",
+    10,
+  );
+  if (isNaN(verificationTtlHours) || verificationTtlHours <= 0) {
+    throw new Error("AUTH_VERIFICATION_TTL_HOURS must be a positive integer");
+  }
+
   cachedConfig = {
     jwtSecret,
     accessTtlSeconds,
@@ -58,6 +67,7 @@ export function getAuthConfig(): AuthConfig {
     cookieSecure,
     cookieSameSite,
     resetTtlMinutes,
+    verificationTtlHours,
   };
 
   return cachedConfig;

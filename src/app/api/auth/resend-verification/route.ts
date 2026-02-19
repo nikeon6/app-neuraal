@@ -1,32 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
+import { ResendVerificationEmail } from "@/application/use-cases/auth/ResendVerificationEmail";
 import { PrismaUserRepository } from "@/infrastructure/persistence/PrismaUserRepository";
 import { PrismaEmailVerificationTokenRepository } from "@/infrastructure/persistence/PrismaEmailVerificationTokenRepository";
-import { BcryptPasswordHasher } from "@/infrastructure/auth/BcryptPasswordHasher";
 import { CryptoRefreshTokenService } from "@/infrastructure/auth/CryptoRefreshTokenService";
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
 import { SmtpEmailService } from "@/infrastructure/email/SmtpEmailService";
 import { getEmailConfig } from "@/infrastructure/email/EmailConfig";
 import type { EmailServicePort } from "@/application/ports/EmailServicePort";
-import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
-
-function errorCodeToStatus(code: UseCaseErrorCode): number {
-  const map: Record<UseCaseErrorCode, number> = {
-    VALIDATION_ERROR: 400,
-    DUPLICATE_ERROR: 409,
-    UNAUTHORIZED: 401,
-    EMAIL_NOT_VERIFIED: 403,
-    NOT_FOUND: 404,
-    CONFLICT: 409,
-    QUOTA_EXCEEDED: 429,
-    RATE_LIMITED: 429,
-    CONCURRENCY_LIMIT: 429,
-    INPUT_TOO_LARGE: 413,
-    INTERNAL_ERROR: 500,
-  };
-  return map[code] ?? 500;
-}
 
 function tryBuildEmailService(): EmailServicePort | null {
   try {
@@ -38,12 +19,12 @@ function tryBuildEmailService(): EmailServicePort | null {
 }
 
 /**
- * POST /api/auth/register
- * Registers a new user and sends a verification email.
- * Returns 201 with a message to check email.
+ * POST /api/auth/resend-verification
+ * Resends the email verification link.
+ * Always returns 200 to prevent email enumeration.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  let body: { email?: string; password?: string };
+  let body: { email?: string };
   try {
     body = await request.json();
   } catch {
@@ -53,14 +34,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (!body.email || !body.password) {
+  if (!body.email || typeof body.email !== "string") {
     return NextResponse.json(
-      {
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "email and password are required",
-        },
-      },
+      { error: { code: "VALIDATION_ERROR", message: "email is required" } },
       { status: 400 },
     );
   }
@@ -70,28 +46,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
   ).replace(/\/+$/, "");
 
-  const useCase = new RegisterUser(
+  const useCase = new ResendVerificationEmail(
     new PrismaUserRepository(),
-    new BcryptPasswordHasher(),
+    new PrismaEmailVerificationTokenRepository(),
     new CryptoRefreshTokenService(),
     new SystemClock(),
-    new PrismaEmailVerificationTokenRepository(),
+    config.verificationTtlHours,
     tryBuildEmailService(),
     appBaseUrl,
-    config.verificationTtlHours,
   );
 
-  const result = await useCase.execute({
-    email: body.email,
-    password: body.password,
-  });
+  const result = await useCase.execute({ email: body.email });
 
   if (result.isErr()) {
     const { code, message } = result.error;
-    const status = errorCodeToStatus(code);
-    return NextResponse.json({ error: { code, message } }, { status });
+    if (code === "VALIDATION_ERROR") {
+      return NextResponse.json({ error: { code, message } }, { status: 400 });
+    }
+    return NextResponse.json({ error: { code, message } }, { status: 500 });
   }
 
-  const { user, message } = result.value;
-  return NextResponse.json({ user, message }, { status: 201 });
+  return NextResponse.json({ ok: true }, { status: 200 });
 }

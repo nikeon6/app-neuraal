@@ -34,6 +34,7 @@ export class InMemoryUserRepository implements UserRepository {
       email: existing.email.toString(),
       passwordHash: newPasswordHash,
       phoneNumber: existing.phoneNumber,
+      emailVerified: existing.emailVerified,
       createdAt: existing.createdAt,
       updatedAt: new Date(),
     });
@@ -43,7 +44,25 @@ export class InMemoryUserRepository implements UserRepository {
     }
   }
 
-  // Test helper
+  async markEmailVerified(userId: string): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: existing.passwordHash.toString(),
+      phoneNumber: existing.phoneNumber,
+      emailVerified: true,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
+  }
+
   getAll(): User[] {
     return Array.from(this.users.values());
   }

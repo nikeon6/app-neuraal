@@ -388,6 +388,8 @@ const spec = {
       post: {
         tags: ["Auth"],
         summary: "Register a new user",
+        description:
+          "Creates a user with emailVerified=false and sends a verification email. No auth cookies are set until the user verifies their email and logs in.",
         operationId: "registerUser",
         security: [],
         requestBody: {
@@ -410,15 +412,17 @@ const spec = {
           },
         },
         responses: {
-          "200": {
-            description: "User registered. Auth cookies set.",
+          "201": {
+            description:
+              "User registered. Verification email sent. No auth cookies set.",
             content: {
               "application/json": {
                 schema: {
                   type: "object" as const,
-                  required: ["user"],
+                  required: ["user", "message"],
                   properties: {
                     user: { $ref: "#/components/schemas/UserResponse" },
+                    message: { type: "string" as const },
                   },
                 },
               },
@@ -468,6 +472,82 @@ const spec = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "Email not verified. User must confirm email first.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/auth/verify-email": {
+      get: {
+        tags: ["Auth"],
+        summary: "Verify email address",
+        description:
+          "Validates the verification token from the email link and marks the user as verified. Redirects to /login on success or failure.",
+        operationId: "verifyEmail",
+        security: [],
+        parameters: [
+          {
+            name: "token",
+            in: "query" as const,
+            required: true,
+            schema: { type: "string" as const },
+          },
+        ],
+        responses: {
+          "302": {
+            description:
+              "Redirects to /login?verified=true on success or /login?verify-error=expired|invalid on failure.",
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+        },
+      },
+    },
+
+    "/api/auth/resend-verification": {
+      post: {
+        tags: ["Auth"],
+        summary: "Resend verification email",
+        description:
+          "Sends a new verification email if the user exists and is not yet verified. Always returns 200 to prevent email enumeration.",
+        operationId: "resendVerificationEmail",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["email"],
+                properties: {
+                  email: { type: "string" as const, format: "email" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Always returns ok (prevents email enumeration).",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: {
+                    ok: { type: "boolean" as const },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
         },
       },
     },

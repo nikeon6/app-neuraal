@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, AlertTriangle, RotateCw } from "lucide-react";
 
 function isConnectionApiError(error: ApiError): boolean {
   if (error.status >= 500) return true;
@@ -27,17 +27,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const { login, user } = useStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Redirect if already authenticated
+  const verified = searchParams.get("verified");
+  const verifyError = searchParams.get("verify-error");
+
   useEffect(() => {
     if (user) {
       router.push("/");
       return;
     }
 
-    // Also check server-side auth state
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => {
         if (res.ok) return res.json();
@@ -55,14 +60,31 @@ export default function LoginPage() {
           router.push("/");
         }
       })
-      .catch(() => {
-        // Not authenticated, stay on login
-      });
+      .catch(() => {});
   }, [user, login, router]);
+
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email to resend verification");
+      return;
+    }
+    setResendLoading(true);
+    setResendMessage("");
+    try {
+      await post("/api/auth/resend-verification", { email: email.trim() });
+      setResendMessage("Verification email sent! Check your inbox.");
+    } catch {
+      setResendMessage("Could not resend. Please try again later.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setEmailNotVerified(false);
+    setResendMessage("");
 
     if (!email.trim() || !password.trim()) {
       setError("Please enter email and password");
@@ -90,7 +112,10 @@ export default function LoginPage() {
         level: "warning",
       });
       if (err instanceof ApiError) {
-        if (err.status === 429) {
+        if (err.status === 403) {
+          setEmailNotVerified(true);
+          setError("Please verify your email before logging in.");
+        } else if (err.status === 429) {
           setError(
             err.message || "Too many attempts. Please wait a few minutes.",
           );
@@ -113,7 +138,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] animate-pulse" />
         <div
@@ -128,7 +152,6 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
-        {/* Header with lockup logo */}
         <div className="text-center mb-10">
           <div className="flex items-center justify-center">
             <Image
@@ -142,7 +165,30 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Login Form */}
+        {verified === "true" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-center text-sm mb-6 flex items-center justify-center gap-2"
+          >
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            Email verified successfully! You can now log in.
+          </motion.div>
+        )}
+
+        {verifyError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl px-4 py-3 text-center text-sm mb-6 flex items-center justify-center gap-2"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {verifyError === "expired"
+              ? "Verification link expired. Please request a new one."
+              : "Invalid verification link. Please try again."}
+          </motion.div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-6">
           {error && (
             <motion.div
@@ -152,6 +198,31 @@ export default function LoginPage() {
             >
               {error}
             </motion.div>
+          )}
+
+          {emailNotVerified && (
+            <div className="space-y-2">
+              {resendMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-center text-sm"
+                >
+                  {resendMessage}
+                </motion.div>
+              )}
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                className="w-full bg-white/5 border border-white/10 text-white/70 font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCw
+                  className={`w-3.5 h-3.5 ${resendLoading ? "animate-spin" : ""}`}
+                />
+                {resendLoading ? "Sending..." : "Resend verification email"}
+              </button>
+            </div>
           )}
 
           <div className="space-y-2">
@@ -202,7 +273,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Links */}
         <div className="mt-6 text-center space-y-2">
           <Link
             href="/register"

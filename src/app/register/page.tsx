@@ -7,7 +7,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, X, Mail, RotateCw } from "lucide-react";
 
 function isConnectionApiError(error: ApiError): boolean {
   if (error.status >= 500) return true;
@@ -45,7 +45,10 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, login } = useStore();
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
+  const { user } = useStore();
   const router = useRouter();
 
   const isAuthenticated = user !== null;
@@ -81,17 +84,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const data = await post<{ user: { id: string; email: string } }>(
+      await post<{ user: { id: string; email: string }; message: string }>(
         "/api/auth/register",
         { email: email.trim(), password },
       );
-
-      if (data?.user) {
-        login(data.user);
-        router.push("/");
-      } else {
-        setError("Registration failed");
-      }
+      setRegistrationSuccess(true);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("An account with this email already exists");
@@ -105,11 +102,84 @@ export default function RegisterPage() {
     }
   };
 
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMessage("");
+    try {
+      await post("/api/auth/resend-verification", { email: email.trim() });
+      setResendMessage("Verification email sent! Check your inbox.");
+    } catch {
+      setResendMessage("Could not resend. Please try again later.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   if (isAuthenticated) return null;
+
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] animate-pulse" />
+          <div
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] animate-pulse"
+            style={{ animationDelay: "1s" }}
+          />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4 text-center"
+        >
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+          </div>
+
+          <h2 className="text-xl font-semibold text-white mb-3">
+            Check your email
+          </h2>
+          <p className="text-white/60 text-sm mb-6 leading-relaxed">
+            We sent a verification link to{" "}
+            <span className="text-white font-medium">{email}</span>. Click the
+            link to activate your account.
+          </p>
+
+          {resendMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-center text-sm mb-4"
+            >
+              {resendMessage}
+            </motion.div>
+          )}
+
+          <button
+            onClick={handleResendVerification}
+            disabled={resendLoading}
+            className="w-full bg-white/5 border border-white/10 text-white/70 font-medium py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+          >
+            <RotateCw
+              className={`w-4 h-4 ${resendLoading ? "animate-spin" : ""}`}
+            />
+            {resendLoading ? "Sending..." : "Resend verification email"}
+          </button>
+
+          <Link href="/login" className="text-sm text-primary hover:underline">
+            Go to login
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] animate-pulse" />
         <div
@@ -124,7 +194,6 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-md relative z-10 mx-4"
       >
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-8">
             <Image

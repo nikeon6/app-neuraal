@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { RefreshSession } from "./RefreshSession";
-import { RegisterUser } from "./RegisterUser";
+import { LoginUser } from "./LoginUser";
 import { InMemoryUserRepository } from "../../test/InMemoryUserRepository";
 import { InMemoryRefreshTokenRepository } from "../../test/InMemoryRefreshTokenRepository";
 import { FakePasswordHasher } from "../../test/FakePasswordHasher";
 import { FakeJwtService } from "../../test/FakeJwtService";
 import { FakeRefreshTokenService } from "../../test/FakeRefreshTokenService";
 import { FakeClock } from "../../test/FakeClock";
+import { User } from "@/domain/entities/User";
 
 const VALID_EMAIL = "user@example.com";
 const VALID_PASSWORD = "SecurePass1!";
@@ -18,17 +19,18 @@ describe("RefreshSession", () => {
   let jwtService: FakeJwtService;
   let refreshTokenService: FakeRefreshTokenService;
   let clock: FakeClock;
-  let registerUser: RegisterUser;
+  let loginUser: LoginUser;
   let refreshSession: RefreshSession;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     userRepository = new InMemoryUserRepository();
     refreshTokenRepository = new InMemoryRefreshTokenRepository();
     passwordHasher = new FakePasswordHasher();
     jwtService = new FakeJwtService();
     refreshTokenService = new FakeRefreshTokenService();
     clock = new FakeClock(new Date("2026-02-11T12:00:00Z"));
-    registerUser = new RegisterUser(
+
+    loginUser = new LoginUser(
       userRepository,
       refreshTokenRepository,
       passwordHasher,
@@ -38,6 +40,7 @@ describe("RefreshSession", () => {
       900,
       7,
     );
+
     refreshSession = new RefreshSession(
       userRepository,
       refreshTokenRepository,
@@ -47,19 +50,30 @@ describe("RefreshSession", () => {
       900,
       7,
     );
+
+    const hash = await passwordHasher.hash(VALID_PASSWORD);
+    const userResult = User.create({
+      id: "user-1",
+      email: VALID_EMAIL,
+      passwordHash: hash,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    if (userResult.isOk()) await userRepository.create(userResult.value);
   });
 
-  async function registerAndGetRefreshToken(): Promise<string> {
-    const registerResult = await registerUser.execute({
+  async function loginAndGetRefreshToken(): Promise<string> {
+    const result = await loginUser.execute({
       email: VALID_EMAIL,
       password: VALID_PASSWORD,
     });
-    if (!registerResult.isOk()) throw new Error("Setup failed");
-    return registerResult.value.tokens.refreshToken;
+    if (!result.isOk()) throw new Error("Setup failed");
+    return result.value.tokens.refreshToken;
   }
 
   it("should refresh successfully with valid token", async () => {
-    const refreshToken = await registerAndGetRefreshToken();
+    const refreshToken = await loginAndGetRefreshToken();
 
     const result = await refreshSession.execute({ refreshToken });
 
@@ -75,7 +89,7 @@ describe("RefreshSession", () => {
   });
 
   it("should return new tokens on refresh", async () => {
-    const oldRefreshToken = await registerAndGetRefreshToken();
+    const oldRefreshToken = await loginAndGetRefreshToken();
 
     const result = await refreshSession.execute({
       refreshToken: oldRefreshToken,
@@ -89,7 +103,7 @@ describe("RefreshSession", () => {
   });
 
   it("should revoke old refresh token on rotation", async () => {
-    const oldRefreshToken = await registerAndGetRefreshToken();
+    const oldRefreshToken = await loginAndGetRefreshToken();
 
     await refreshSession.execute({ refreshToken: oldRefreshToken });
 
@@ -112,7 +126,7 @@ describe("RefreshSession", () => {
   });
 
   it("should reject revoked refresh token (token reuse attack)", async () => {
-    const refreshToken = await registerAndGetRefreshToken();
+    const refreshToken = await loginAndGetRefreshToken();
 
     await refreshSession.execute({ refreshToken });
 
@@ -126,7 +140,7 @@ describe("RefreshSession", () => {
   });
 
   it("should reject expired refresh token", async () => {
-    const refreshToken = await registerAndGetRefreshToken();
+    const refreshToken = await loginAndGetRefreshToken();
 
     clock.advance(8 * 24 * 60 * 60 * 1000);
 

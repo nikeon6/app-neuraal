@@ -43,6 +43,12 @@ Thumbs.db
 # Testing
 coverage
 .nyc_output
+playwright-report/
+test-results/
+
+# E2E / build artifacts
+.next-e2e/
+.artifacts/
 
 # Misc
 *.log
