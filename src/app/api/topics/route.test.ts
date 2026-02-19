@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+const mocks = vi.hoisted(() => ({
+  rebuildExecute: vi.fn(),
+}));
+
 // Mock Prisma client to avoid database connection
 vi.mock("@/infrastructure/persistence/prisma", () => ({
   prisma: {
@@ -8,9 +12,17 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      update: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
     },
+  },
+}));
+vi.mock("@/application/use-cases/topics/RebuildTopicEmbedding", () => ({
+  RebuildTopicEmbedding: class {
+    execute(...args: unknown[]) {
+      return mocks.rebuildExecute(...args);
+    }
   },
 }));
 
@@ -42,7 +54,19 @@ function createRequest(
 describe("GET /api/topics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rebuildExecute.mockResolvedValue(undefined);
     vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.topic.update).mockResolvedValue({
+      id: "topic-new",
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+      embedding: [],
+      embeddingModel: "qwen3-embedding:latest",
+      embeddingUpdatedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
   it("should return 401 when x-user-id header is missing", async () => {
@@ -120,7 +144,19 @@ describe("GET /api/topics", () => {
 describe("POST /api/topics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rebuildExecute.mockResolvedValue(undefined);
     vi.mocked(prisma.topic.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.topic.update).mockResolvedValue({
+      id: "topic-new",
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+      embedding: [],
+      embeddingModel: "qwen3-embedding:latest",
+      embeddingUpdatedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
   it("should return 401 when x-user-id header is missing", async () => {
@@ -305,5 +341,33 @@ describe("POST /api/topics", () => {
     expect(response.status).toBe(201);
     const data = await response.json();
     expect(data.topic.name).toBe("Work");
+  });
+
+  it("should keep 201 response when async embedding rebuild fails", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.mocked(prisma.topic.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.topic.create).mockResolvedValue({
+      id: "topic-new",
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mocks.rebuildExecute.mockRejectedValue(new Error("embedding failed"));
+
+    const request = createRequest(
+      "POST",
+      { name: "Work", color: "#3b82f6" },
+      { "x-user-id": "user-123" },
+    );
+    const response = await POST(request);
+    await Promise.resolve();
+
+    expect(response.status).toBe(201);
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 });
