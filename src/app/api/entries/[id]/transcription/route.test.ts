@@ -69,6 +69,34 @@ describe("POST /api/entries/[id]/transcription", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 when entry id is empty", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries//transcription",
+      {
+        method: "POST",
+        body: JSON.stringify({ youtubeUrl: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: " " }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when youtubeUrl is missing", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcription",
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+  });
+
   it("maps CONFLICT to 409", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.execute.mockResolvedValue(err("CONFLICT", "already processing"));
@@ -83,6 +111,36 @@ describe("POST /api/entries/[id]/transcription", () => {
     const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(409);
     expect(mocks.close).toHaveBeenCalled();
+  });
+
+  it("maps NOT_FOUND to 404", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.execute.mockResolvedValue(err("NOT_FOUND", "entry not found"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcription",
+      {
+        method: "POST",
+        body: JSON.stringify({ youtubeUrl: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(404);
+  });
+
+  it("maps unknown use-case errors to 400", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.execute.mockResolvedValue(err("VALIDATION_ERROR", "bad payload"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcription",
+      {
+        method: "POST",
+        body: JSON.stringify({ youtubeUrl: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
   });
 
   it("returns 202 on success", async () => {
@@ -102,5 +160,21 @@ describe("POST /api/entries/[id]/transcription", () => {
     expect(res.status).toBe(202);
     const body = await res.json();
     expect(body.requestId).toBe("r1");
+  });
+
+  it("returns 500 and handles queue close cleanup errors", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.execute.mockRejectedValue(new Error("queue crash"));
+    mocks.close.mockRejectedValue(new Error("close failed"));
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/transcription",
+      {
+        method: "POST",
+        body: JSON.stringify({ youtubeUrl: "https://youtube.com/watch?v=1" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(500);
   });
 });

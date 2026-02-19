@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -947,6 +947,34 @@ describe("TaskEditor", () => {
   });
 
   describe("Optimistic cache updates", () => {
+    it("should update cached title immediately when typing", async () => {
+      const user = userEvent.setup();
+      const qc = createQueryClient();
+      qc.setQueryData(["entries", "2024-01-15"], [createMockEntry()]);
+
+      renderEditorWithClient(qc);
+      const titleInput = screen.getByLabelText(/title/i);
+      await user.clear(titleInput);
+      await user.type(titleInput, "Renamed from optimistic test");
+
+      const cached = qc.getQueryData<ApiEntry[]>(["entries", "2024-01-15"]);
+      expect(cached?.[0]?.title).toBe("Renamed from optimistic test");
+    });
+
+    it("should update cached topic immediately on topic selection", async () => {
+      const user = userEvent.setup();
+      const qc = createQueryClient();
+      qc.setQueryData(["entries", "2024-01-15"], [createMockEntry()]);
+
+      renderEditorWithClient(qc);
+      await expandEditor(user);
+      await user.click(screen.getByRole("button", { name: /topic/i }));
+      await user.click(screen.getByRole("menuitemradio", { name: "Trabajo" }));
+
+      const cached = qc.getQueryData<ApiEntry[]>(["entries", "2024-01-15"]);
+      expect(cached?.[0]?.topicId).toBe("topic-work");
+    });
+
     it("should update cached entry type immediately on toggle", async () => {
       const user = userEvent.setup();
       const qc = createQueryClient();
@@ -974,6 +1002,21 @@ describe("TaskEditor", () => {
 
       const cached = qc.getQueryData<ApiEntry[]>(["entries", "2024-01-15"]);
       expect(cached?.[0]?.completed).toBe(true);
+    });
+
+    it("should flush pending autosave when clicking outside editor", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      const titleInput = screen.getByLabelText(/title/i);
+      await user.clear(titleInput);
+      await user.type(titleInput, "Trigger flush outside click");
+
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => {
+        expect(mockUpdateEntryAndInvalidate).toHaveBeenCalled();
+      });
     });
   });
 });

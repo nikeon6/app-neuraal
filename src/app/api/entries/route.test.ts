@@ -2,16 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // Mock Prisma client
-vi.mock("@/infrastructure/persistence/prisma", () => ({
-  prisma: {
-    entry: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-    },
+const prisma = vi.hoisted(() => ({
+  entry: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    aggregate: vi.fn(),
   },
 }));
 
-import { prisma } from "@/infrastructure/persistence/prisma";
+vi.mock("@/infrastructure/persistence/prisma", () => ({
+  prisma,
+}));
+
 import { GET, POST } from "./route";
 
 // Helper to create mock request
@@ -21,7 +23,7 @@ function createRequest(
   body?: Record<string, unknown>,
   headers?: Record<string, string>,
 ): NextRequest {
-  const init: RequestInit = {
+  const init: ConstructorParameters<typeof NextRequest>[1] = {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -144,6 +146,9 @@ describe("GET /api/entries", () => {
 describe("POST /api/entries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.entry.aggregate).mockResolvedValue({
+      _max: { sortOrder: 0 },
+    });
   });
 
   it("should return 401 when x-user-id header is missing", async () => {
