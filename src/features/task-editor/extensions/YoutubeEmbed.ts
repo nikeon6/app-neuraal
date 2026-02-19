@@ -73,6 +73,15 @@ export const YoutubeEmbed = Youtube.extend({
           return { "data-transcription": attributes.transcription };
         },
       },
+      transcriptionRequested: {
+        default: false,
+        parseHTML: (element: HTMLElement) =>
+          element.dataset.transcriptionRequested === "true",
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes.transcriptionRequested) return {};
+          return { "data-transcription-requested": "true" };
+        },
+      },
     };
   },
 
@@ -85,10 +94,15 @@ export const YoutubeEmbed = Youtube.extend({
   addNodeView() {
     return ({ node, editor, getPos }) => {
       let currentNode = node;
-      let transcribeState: "idle" | "loading" | "done" | "error" = node.attrs
-        .transcription
-        ? "done"
-        : "idle";
+      const hasInitialTranscription = Boolean(node.attrs.transcription);
+      const hasPendingRequest = Boolean(node.attrs.transcriptionRequested);
+      let transcribeState: "idle" | "loading" | "requested" | "done" | "error" =
+        "idle";
+      if (hasInitialTranscription) {
+        transcribeState = "done";
+      } else if (hasPendingRequest) {
+        transcribeState = "requested";
+      }
       let transcribeError = "";
       let expanded = false;
 
@@ -349,7 +363,7 @@ export const YoutubeEmbed = Youtube.extend({
         if (transcribeState === "loading") return;
 
         const entryId = (editor.storage as { youtube?: { entryId?: string } })
-          .youtube?.entryId as string | undefined;
+          .youtube?.entryId;
         const src = currentNode.attrs.src as string | undefined;
         if (!entryId || !src) return;
 
@@ -359,7 +373,8 @@ export const YoutubeEmbed = Youtube.extend({
 
         try {
           await entriesSdk.requestTranscription(entryId, src);
-          transcribeState = "done";
+          transcribeState = "requested";
+          persistTranscriptionRequested(true);
         } catch (error) {
           const message =
             error instanceof Error
@@ -369,6 +384,21 @@ export const YoutubeEmbed = Youtube.extend({
           transcribeState = "error";
         }
         refreshUI();
+      }
+
+      function persistTranscriptionRequested(requested: boolean): void {
+        const pos = getPos();
+        if (typeof pos !== "number") return;
+        editor
+          .chain()
+          .command(({ tr }) => {
+            tr.setNodeMarkup(pos, undefined, {
+              ...currentNode.attrs,
+              transcriptionRequested: requested,
+            });
+            return true;
+          })
+          .run();
       }
 
       function refreshUI() {
@@ -408,7 +438,9 @@ export const YoutubeEmbed = Youtube.extend({
 
         // Panels visibility
         requestedPanel.style.display =
-          transcribeState === "done" && !hasTranscription ? "block" : "none";
+          transcribeState === "requested" && !hasTranscription
+            ? "block"
+            : "none";
         resultPanel.style.display = hasTranscription ? "block" : "none";
         errorPanel.style.display =
           transcribeState === "error" && transcribeError ? "block" : "none";
@@ -435,6 +467,17 @@ export const YoutubeEmbed = Youtube.extend({
           // Update transcribeState if server pushed a transcription
           if (updatedNode.attrs.transcription && transcribeState !== "done") {
             transcribeState = "done";
+          } else if (
+            updatedNode.attrs.transcriptionRequested &&
+            transcribeState === "idle"
+          ) {
+            transcribeState = "requested";
+          }
+          if (
+            updatedNode.attrs.transcription &&
+            updatedNode.attrs.transcriptionRequested
+          ) {
+            persistTranscriptionRequested(false);
           }
           refreshUI();
           return true;
