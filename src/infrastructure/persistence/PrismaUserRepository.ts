@@ -47,6 +47,7 @@ export class PrismaUserRepository implements UserRepository {
         id: user.id,
         email: user.email.toString(),
         passwordHash: user.passwordHash.toString(),
+        phoneNumber: user.phoneNumber,
       },
     });
   }
