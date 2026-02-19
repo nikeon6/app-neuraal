@@ -116,6 +116,7 @@ describe("User", () => {
           id: "user-123",
           email: "user@example.com",
           passwordHash: "$2b$10$abcdefghijklmnopqrstuv",
+          phoneNumber: null,
           createdAt: validProps.createdAt,
           updatedAt: validProps.updatedAt,
         });
