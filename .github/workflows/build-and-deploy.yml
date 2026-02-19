@@ -139,16 +139,32 @@ jobs:
 
             # ---------- 4) HEALTHCHECK + MARK GOOD or ROLLBACK ----------
             echo "Waiting for health..."
-            OK=0
-            for i in $(seq 1 30); do
-              if healthcheck; then
-                OK=1
-                break
-              fi
-              sleep 2
-            done
 
-            if [ "$OK" -eq 1 ]; then
+            HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-180}"   # 3 min
+            HEALTH_INTERVAL_SECONDS="${HEALTH_INTERVAL_SECONDS:-5}"   # cada 5s
+
+            wait_health() {
+              local timeout="$1"
+              local interval="$2"
+              local deadline=$((SECONDS + timeout))
+
+              while [ $SECONDS -lt $deadline ]; do
+                if healthcheck; then
+                  return 0
+                fi
+
+                # (opcional) log corto para ver progreso sin spamear demasiado
+                if (( (deadline - SECONDS) % 30 == 0 )); then
+                  echo "Still waiting... $(docker ps --format '{{.Names}} {{.Status}}' | grep -E 'neuraal-(app|postgres|redis|minio|n8n|ollama|caddy)' || true)"
+                fi
+
+                sleep "$interval"
+              done
+
+              return 1
+            }
+
+            if wait_health "$HEALTH_TIMEOUT_SECONDS" "$HEALTH_INTERVAL_SECONDS"; then
               echo "✅ Health OK"
               echo "$TAG" > .last_good_tag
               echo "Last good tag saved: $TAG"
@@ -157,6 +173,7 @@ jobs:
 
             echo "❌ Health FAILED after deploy tag $TAG"
             echo "Attempting rollback..."
+
 
             ROLLBACK_TAG="$(cat .last_good_tag 2>/dev/null || true)"
             if [ -z "${ROLLBACK_TAG:-}" ]; then
@@ -176,18 +193,8 @@ jobs:
             $COMPOSE up -d --remove-orphans || true
 
             echo "Waiting for health after rollback..."
-            OK2=0
-            for i in $(seq 1 30); do
-              if healthcheck; then
-                OK2=1
-                break
-              fi
-              sleep 2
-            done
-
-            if [ "$OK2" -eq 1 ]; then
+            if wait_health "$HEALTH_TIMEOUT_SECONDS" "$HEALTH_INTERVAL_SECONDS"; then
               echo "✅ Rollback succeeded. Stack is healthy on tag: $ROLLBACK_TAG"
-              # Importante: hacemos fallar el job para que te enteres en GitHub Actions
               exit 1
             fi
 
