@@ -42,9 +42,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const authConfig = getAuthConfig();
-  const appBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-  ).replace(/\/+$/, "");
 
   const useCase = new RequestPasswordReset(
     new PrismaUserRepository(),
@@ -53,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     new SystemClock(),
     authConfig.resetTtlMinutes,
     tryBuildEmailService(),
-    appBaseUrl,
+    authConfig.appBaseUrl,
   );
 
   const result = await useCase.execute({ email: body.email });

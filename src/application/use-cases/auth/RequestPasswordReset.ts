@@ -55,7 +55,11 @@ export class RequestPasswordReset {
           await this.emailService.send({
             to: emailResult.value.toString(),
             subject: "Reset your password — Neuraal",
-            html: buildResetEmailHtml(resetUrl, this.resetTtlMinutes),
+            html: buildResetEmailHtml(
+              resetUrl,
+              this.resetTtlMinutes,
+              this.appBaseUrl,
+            ),
             text: buildResetEmailText(resetUrl, this.resetTtlMinutes),
           });
         } catch {
@@ -68,9 +72,18 @@ export class RequestPasswordReset {
   }
 }
 
-function buildResetEmailHtml(resetUrl: string, ttlMinutes: number): string {
+function buildResetEmailHtml(
+  resetUrl: string,
+  ttlMinutes: number,
+  appBaseUrl: string,
+): string {
+  const logoUrl = `${appBaseUrl}/branding/lockups/Neuraal_Negro_Logotipo.svg`;
+
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${logoUrl}" alt="Neuraal" width="160" height="auto" style="display: inline-block; max-width: 160px; height: auto;" />
+      </div>
       <h2 style="color: #1a1a2e; margin-bottom: 16px;">Reset your password</h2>
       <p style="color: #555; line-height: 1.6;">
         We received a request to reset your password. Click the button below to choose a new one.
