@@ -117,6 +117,7 @@ export class GuardAiAction {
     if (activeUser >= this.config.maxActivePerUser) {
       return concurrencyLimitError(
         `Maximum concurrent ${actionStr} requests reached. Wait for the current one to finish.`,
+        { scope: "USER" },
       );
     }
 
@@ -130,6 +131,7 @@ export class GuardAiAction {
       if (activeEntry) {
         return concurrencyLimitError(
           `A ${actionStr} request is already in progress for this entry.`,
+          { scope: "ENTRY", entryId },
         );
       }
     }

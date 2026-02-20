@@ -87,8 +87,11 @@ export function rateLimitedError(
 /**
  * Creates a concurrency limit error (e.g. max active requests).
  */
-export function concurrencyLimitError(message: string): UseCaseError {
-  return { code: "CONCURRENCY_LIMIT", message };
+export function concurrencyLimitError(
+  message: string,
+  details?: unknown,
+): UseCaseError {
+  return { code: "CONCURRENCY_LIMIT", message, details };
 }
 
 /**

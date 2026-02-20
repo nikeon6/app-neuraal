@@ -120,7 +120,7 @@ function getEntryId(notification: ApiNotification): string | undefined {
  */
 export function NotificationCenter({
   onNavigateToEntry,
-}: NotificationCenterProps) {
+}: Readonly<NotificationCenterProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -200,6 +200,13 @@ export function NotificationCenter({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  // Toggle a body class while notifications are open so other layered effects
+  // (like masked scroll fades) can avoid compositor artifacts under this panel.
+  useEffect(() => {
+    document.body.classList.toggle("notifications-open", isOpen);
+    return () => document.body.classList.remove("notifications-open");
+  }, [isOpen]);
+
   const handleMarkRead = useCallback(
     (id: string) => {
       markReadMutation.mutate(id);
@@ -233,6 +240,8 @@ export function NotificationCenter({
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
   }, [notifications]);
+  const notificationsAriaLabel =
+    unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications";
 
   return (
     <div className="relative">
@@ -240,7 +249,7 @@ export function NotificationCenter({
       <button
         ref={buttonRef}
         type="button"
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-label={notificationsAriaLabel}
         aria-expanded={isOpen}
         aria-haspopup="true"
         onClick={() => setIsOpen((v) => !v)}

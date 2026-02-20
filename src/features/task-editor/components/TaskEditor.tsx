@@ -46,6 +46,7 @@ import * as entriesSdk from "@/shared/api/sdk/entries";
 import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
 import { cn } from "@/shared/lib";
+import { extractPlainText } from "@/shared/lib/extractPlainText";
 import { ConfirmDialog } from "@/shared/ui";
 import { ReminderDialog } from "./ReminderDialog";
 import { AttachmentPanel } from "@/features/attachments";
@@ -863,6 +864,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     entry.summaryUpdatedAt,
     dateKey,
     queryClient,
+    extractPlainText(contentJson).length > 0,
     onClose,
   );
 

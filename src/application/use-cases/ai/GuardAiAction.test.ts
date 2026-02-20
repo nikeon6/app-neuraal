@@ -107,6 +107,7 @@ describe("GuardAiAction", () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.code).toBe("CONCURRENCY_LIMIT");
+      expect(result.error.details).toEqual({ scope: "USER" });
     }
   });
 
@@ -125,6 +126,10 @@ describe("GuardAiAction", () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.code).toBe("CONCURRENCY_LIMIT");
+      expect(result.error.details).toEqual({
+        scope: "ENTRY",
+        entryId: "entry-1",
+      });
     }
   });
 
