@@ -118,7 +118,7 @@ export function DashboardHeader({
   onChangeSection,
   selectedDate,
   notificationSlot,
-}: DashboardHeaderProps) {
+}: Readonly<DashboardHeaderProps>) {
   const isDaily = section === "daily";
   const isWeekly = section === "weeklyRecap";
   const isStickies = section === "stickies";
@@ -132,12 +132,22 @@ export function DashboardHeader({
   }
   const motionKey = getMotionKey();
 
+  React.useEffect(() => {
+    return () => {
+      document.body.classList.remove("dashboard-nav-hover");
+    };
+  }, []);
+
   return (
     <header className="relative mb-2 lg:mb-6 landscape-compact-header">
       {/* Navigation tabs - horizontal scroll on mobile */}
       <nav
         className="flex items-center gap-1.5 lg:gap-2 mb-2 lg:mb-4 overflow-x-auto scrollbar-hide pb-1 lg:pb-2 -mx-1 px-1"
         aria-label="Dashboard navigation"
+        onMouseEnter={() => document.body.classList.add("dashboard-nav-hover")}
+        onMouseLeave={() =>
+          document.body.classList.remove("dashboard-nav-hover")
+        }
       >
         {NAV_TABS.map((tab) => {
           const isActive = section === tab.id;

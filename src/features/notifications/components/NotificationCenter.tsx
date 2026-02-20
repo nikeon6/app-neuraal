@@ -294,7 +294,7 @@ export function NotificationCenter({
                 }}
                 className={cn(
                   "bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
-                  "overflow-hidden",
+                  "overflow-hidden isolate",
                 )}
               >
                 {/* Header */}
@@ -325,7 +325,7 @@ export function NotificationCenter({
 
                 {/* List */}
                 <div
-                  className="max-h-[360px] overflow-y-auto custom-scrollbar"
+                  className="max-h-[360px] overflow-y-auto custom-scrollbar isolate"
                   aria-label="Notifications list"
                   aria-busy={isLoading}
                 >
@@ -350,7 +350,7 @@ export function NotificationCenter({
                       <div
                         key={n.id}
                         className={cn(
-                          "flex gap-3 px-4 py-3 border-b border-white/5 transition-colors",
+                          "flex gap-3 px-4 py-3 border-b border-white/5 transition-colors [backface-visibility:hidden]",
                           isUnread
                             ? "bg-sky-500/5 hover:bg-sky-500/10"
                             : "hover:bg-white/5",
