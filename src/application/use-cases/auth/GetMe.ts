@@ -24,6 +24,7 @@ export class GetMe {
     return ok({
       id: user.id,
       email: user.email.toString(),
+      phoneNumber: user.phoneNumber,
     });
   }
 }

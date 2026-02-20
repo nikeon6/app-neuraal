@@ -64,6 +64,16 @@ export class PrismaUserRepository implements UserRepository {
     });
   }
 
+  async updatePhoneNumber(
+    userId: string,
+    phoneNumber: string | null,
+  ): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { phoneNumber },
+    });
+  }
+
   async markEmailVerified(userId: string): Promise<void> {
     await prisma.user.update({
       where: { id: userId },

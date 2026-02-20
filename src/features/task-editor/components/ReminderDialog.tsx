@@ -10,6 +10,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/shared/lib";
 
@@ -38,6 +39,8 @@ export interface ReminderDialogProps {
   hasActiveReminder: boolean;
   /** Whether a save operation is in progress */
   isSaving: boolean;
+  /** User's phone number — when null/undefined, phone-based channels are disabled */
+  userPhoneNumber?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +413,11 @@ function DateTimePicker({
  * parent transforms (Framer Motion). Uses a custom calendar picker
  * that matches the dark theme.
  */
+const PHONE_REQUIRED_CHANNELS: ReadonlySet<ReminderChannel> = new Set([
+  "whatsapp",
+  "sms",
+]);
+
 export function ReminderDialog({
   open,
   onClose,
@@ -418,6 +426,7 @@ export function ReminderDialog({
   onCancel,
   hasActiveReminder,
   isSaving,
+  userPhoneNumber,
 }: Readonly<ReminderDialogProps>) {
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [hour, setHour] = useState(9);
@@ -426,6 +435,8 @@ export function ReminderDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
   // Message kept as internal state for future use (field hidden in MVP)
   const message = "";
+
+  const hasPhone = Boolean(userPhoneNumber);
 
   const handleCreate = useCallback(() => {
     if (isInThePast(selectedDate, hour, minute)) {
@@ -527,26 +538,48 @@ export function ReminderDialog({
             </div>
 
             {/* Channel selector */}
-            <label className="block mb-5">
+            <div className="block mb-5">
               <span className="text-xs text-white/50 mb-1 block">Channel</span>
               <div className="flex gap-1.5 flex-wrap">
-                {CHANNELS.map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => setChannel(ch.id)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-                      channel === ch.id
-                        ? "bg-sky-500/20 border-sky-400/30 text-sky-300"
-                        : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/70",
-                    )}
-                  >
-                    {ch.label}
-                  </button>
-                ))}
+                {CHANNELS.map((ch) => {
+                  const needsPhone = PHONE_REQUIRED_CHANNELS.has(ch.id);
+                  const disabled = needsPhone && !hasPhone;
+
+                  const activeStyle =
+                    channel === ch.id
+                      ? "bg-sky-500/20 border-sky-400/30 text-sky-300"
+                      : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/70";
+
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => !disabled && setChannel(ch.id)}
+                      disabled={disabled}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                        disabled
+                          ? "bg-white/[0.02] border-white/5 text-white/20 cursor-not-allowed"
+                          : activeStyle,
+                      )}
+                    >
+                      {ch.label}
+                    </button>
+                  );
+                })}
               </div>
-            </label>
+
+              {!hasPhone && (
+                <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                    WhatsApp requires a phone number. Configure it in{" "}
+                    <strong className="text-amber-300">Settings</strong> to
+                    enable this channel.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Validation error */}
             {validationError && (

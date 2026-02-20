@@ -168,6 +168,54 @@ describe("ReminderDialog", () => {
         screen.queryByPlaceholderText("Reminder message..."),
       ).not.toBeInTheDocument();
     });
+
+    it("disables WhatsApp when no phone number is configured", () => {
+      renderDialog({ userPhoneNumber: null });
+
+      const whatsappBtn = screen.getByText("WhatsApp");
+      expect(whatsappBtn).toBeDisabled();
+    });
+
+    it("shows a warning about phone number when none is configured", () => {
+      renderDialog({ userPhoneNumber: null });
+
+      expect(
+        screen.getByText(/WhatsApp requires a phone number/i),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Settings/i)).toBeInTheDocument();
+    });
+
+    it("enables WhatsApp when a phone number is configured", async () => {
+      const user = userEvent.setup();
+      renderDialog({ userPhoneNumber: "+34612345678" });
+
+      const whatsappBtn = screen.getByText("WhatsApp");
+      expect(whatsappBtn).not.toBeDisabled();
+
+      await user.click(whatsappBtn);
+      expect(whatsappBtn.className).toContain("sky");
+    });
+
+    it("does not show the phone warning when phone is configured", () => {
+      renderDialog({ userPhoneNumber: "+34612345678" });
+
+      expect(
+        screen.queryByText(/WhatsApp requires a phone number/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("prevents selecting WhatsApp by clicking when disabled", async () => {
+      const user = userEvent.setup();
+      renderDialog({ userPhoneNumber: null });
+
+      const whatsappBtn = screen.getByText("WhatsApp");
+      await user.click(whatsappBtn);
+
+      // Push should still be selected (not WhatsApp)
+      const pushBtn = screen.getByText("Push");
+      expect(pushBtn.className).toContain("sky");
+      expect(whatsappBtn.className).not.toContain("sky");
+    });
   });
 
   // --------------------------------------------------------------------------

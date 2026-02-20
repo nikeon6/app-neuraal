@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import {
@@ -67,20 +67,31 @@ export function YoutubeEmbedComponent({
 
   const embedUrl = toEmbedUrl(src as string);
 
-  // Transcription state
+  // Transcription state — "waiting" keeps the button blocked until the async
+  // transcription result arrives (mirrors the Summarize button pattern).
   const [transcribeState, setTranscribeState] = useState<
-    "idle" | "loading" | "done" | "error"
+    "idle" | "loading" | "waiting" | "done" | "error"
   >(transcription ? "done" : "idle");
   const [transcribeError, setTranscribeError] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const isTranscribing =
+    transcribeState === "loading" || transcribeState === "waiting";
+
+  // Transition from "waiting" → "done" when the transcription text arrives
+  useEffect(() => {
+    if (transcription && transcribeState === "waiting") {
+      setTranscribeState("done");
+    }
+  }, [transcription, transcribeState]);
 
   const handleTranscribe = useCallback(
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      if (transcribeState === "loading") return;
+      if (isTranscribing) return;
 
       const entryId = (editor.storage as { youtube?: { entryId?: string } })
         .youtube?.entryId as string | undefined;
@@ -95,7 +106,7 @@ export function YoutubeEmbedComponent({
           entryId,
           src as string,
         );
-        setTranscribeState("done");
+        setTranscribeState("waiting");
       } catch (error) {
         const message =
           error instanceof Error
@@ -105,7 +116,7 @@ export function YoutubeEmbedComponent({
         setTranscribeState("error");
       }
     },
-    [transcribeState, editor, src, queryClient],
+    [isTranscribing, editor, src, queryClient],
   );
 
   const handleCopy = useCallback(
@@ -138,18 +149,18 @@ export function YoutubeEmbedComponent({
 
   const getTranscribeLabel = (): string => {
     if (hasTranscription) return "Transcribed";
-    if (transcribeState === "loading") return "Transcribing...";
+    if (isTranscribing) return "Transcribing...";
     return "Transcribe";
   };
 
   const getTranscribeTitle = (): string => {
     if (hasTranscription) return "Transcription available";
-    if (transcribeState === "loading") return "Transcription in progress...";
+    if (isTranscribing) return "Transcription in progress...";
     return "Transcribe video with AI";
   };
 
   const getTranscribeButtonClass = (): string => {
-    if (transcribeState === "loading") {
+    if (isTranscribing) {
       return "bg-sky-500/20 text-sky-300 cursor-wait";
     }
     if (hasTranscription) {
@@ -176,13 +187,15 @@ export function YoutubeEmbedComponent({
             style={{ border: "none" }}
           />
 
-          {/* Loading overlay */}
-          {transcribeState === "loading" && (
+          {/* Loading / waiting overlay */}
+          {isTranscribing && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg backdrop-blur-[2px]">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="w-7 h-7 text-sky-400 animate-spin" />
                 <span className="text-white/90 text-sm font-medium text-center px-4">
-                  Requesting transcription...
+                  {transcribeState === "loading"
+                    ? "Requesting transcription..."
+                    : "Waiting for transcription result..."}
                 </span>
               </div>
             </div>
@@ -196,10 +209,10 @@ export function YoutubeEmbedComponent({
             type="button"
             className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all ${getTranscribeButtonClass()}`}
             title={getTranscribeTitle()}
-            disabled={transcribeState === "loading"}
+            disabled={isTranscribing}
             onMouseDown={handleTranscribe}
           >
-            {transcribeState === "loading" ? (
+            {isTranscribing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <FileText className="w-3.5 h-3.5" />
@@ -224,7 +237,7 @@ export function YoutubeEmbedComponent({
         </div>
 
         {/* Transcription submitted (async — waiting for result) */}
-        {transcribeState === "done" && !hasTranscription && (
+        {transcribeState === "waiting" && !hasTranscription && (
           <div className="mt-1 rounded-lg bg-sky-500/[0.07] border border-sky-500/15 p-3">
             <div className="flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5 text-sky-400" />

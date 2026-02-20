@@ -60,6 +60,7 @@ vi.mock("@/shared/store", () => ({
 
 vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: () => ({ data: [], isPending: false }),
+  useUserProfileQuery: () => ({ data: undefined }),
   useEntryAttachmentsQuery: () => ({ data: [], isLoading: false }),
   entriesQueryKey: (dateKey: string) => ["entries", dateKey],
   attachmentsQueryKey: (entryId: string) => ["attachments", entryId],
