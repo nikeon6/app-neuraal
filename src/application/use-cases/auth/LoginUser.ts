@@ -84,7 +84,7 @@ export class LoginUser {
     });
 
     return ok({
-      user: { id: user.id, email },
+      user: { id: user.id, email, phoneNumber: user.phoneNumber },
       tokens: { accessToken, refreshToken: rawRefreshToken },
     });
   }

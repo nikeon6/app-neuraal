@@ -108,7 +108,11 @@ export class RegisterUser {
     }
 
     return ok({
-      user: { id: userId, email: emailResult.value.toString() },
+      user: {
+        id: userId,
+        email: emailResult.value.toString(),
+        phoneNumber: null,
+      },
       message:
         "Please check your email to verify your account before logging in",
     });
