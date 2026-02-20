@@ -1,4 +1,5 @@
 import { Result, ok, err } from "@/domain/core/Result";
+import { buildEmailDocument } from "./emailLayout";
 import { Email } from "@/domain/value-objects/Email";
 import type { UserRepository } from "../../ports/UserRepository";
 import type { PasswordResetTokenRepository } from "../../ports/PasswordResetTokenRepository";
@@ -79,28 +80,46 @@ function buildResetEmailHtml(
 ): string {
   const logoUrl = `${appBaseUrl}/branding/lockups/Neuraal_Negro_Logotipo.png`;
 
-  return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-      <div style="text-align: center; margin-bottom: 32px;">
-        <img src="${logoUrl}" alt="Neuraal" width="160" height="auto" style="display: inline-block; max-width: 160px; height: auto;" />
-      </div>
-      <h2 style="color: #1a1a2e; margin-bottom: 16px;">Reset your password</h2>
-      <p style="color: #555; line-height: 1.6;">
-        We received a request to reset your password. Click the button below to choose a new one.
-      </p>
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${resetUrl}"
-           style="display: inline-block; background: #6366f1; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
-          Reset password
-        </a>
-      </div>
-      <p style="color: #888; font-size: 13px; line-height: 1.5;">
-        This link expires in ${ttlMinutes} minutes. If you didn&rsquo;t request this, you can safely ignore this email.
-      </p>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-      <p style="color: #aaa; font-size: 12px;">Neuraal</p>
-    </div>
-  `.trim();
+  return buildEmailDocument(
+    "Reset your password",
+    `
+      <tr>
+        <td align="center" style="padding:32px 0 24px 0;">
+          <img src="${logoUrl}" alt="Neuraal" width="160" height="144" style="display:block;max-width:160px;height:auto;border:0;" />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 40px;">
+          <h2 style="color:#1a1a2e;margin:0 0 16px 0;font-size:22px;">Reset your password</h2>
+          <p style="color:#555555;line-height:1.6;margin:0 0 24px 0;font-size:15px;">
+            We received a request to reset your password. Click the button below to choose a new one.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="padding:8px 40px 32px 40px;">
+          <!--[if mso]>
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${resetUrl}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="25%" fillcolor="#6366f1">
+            <w:anchorlock/>
+            <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Reset password</center>
+          </v:roundrect>
+          <![endif]-->
+          <!--[if !mso]><!-->
+          <a href="${resetUrl}" style="display:inline-block;background-color:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:600;font-size:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;mso-hide:all;">
+            Reset password
+          </a>
+          <!--<![endif]-->
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 40px 32px 40px;">
+          <p style="color:#888888;font-size:13px;line-height:1.5;margin:0 0 24px 0;">
+            This link expires in ${ttlMinutes} minutes. If you didn&#8217;t request this, you can safely ignore this email.
+          </p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #eeeeee;padding-top:24px;"><p style="color:#aaaaaa;font-size:12px;margin:0;">Neuraal</p></td></tr></table>
+        </td>
+      </tr>`,
+  );
 }
 
 function buildResetEmailText(resetUrl: string, ttlMinutes: number): string {
