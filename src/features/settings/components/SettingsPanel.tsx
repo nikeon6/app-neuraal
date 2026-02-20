@@ -3,7 +3,8 @@
 import { StorageUsagePanel } from "./StorageUsagePanel";
 import { AiUsagePanel } from "./AiUsagePanel";
 import { ChangePasswordForm } from "./ChangePasswordForm";
-import { HardDrive, Sparkles, KeyRound } from "lucide-react";
+import { PhoneNumberForm } from "./PhoneNumberForm";
+import { HardDrive, Sparkles, KeyRound, Smartphone } from "lucide-react";
 
 function SectionCard({
   icon,
@@ -38,6 +39,14 @@ export function SettingsPanel() {
   return (
     <div className="h-full overflow-y-auto pr-1 tasks-scrollbar tasks-scroll-fade">
       <div className="max-w-xl mx-auto py-4 space-y-4">
+        <SectionCard
+          icon={<Smartphone className="w-4 h-4" />}
+          title="Phone number"
+          description="Used for Whatsapp reminders. Include your country prefix."
+        >
+          <PhoneNumberForm />
+        </SectionCard>
+
         <SectionCard
           icon={<KeyRound className="w-4 h-4" />}
           title="Change password"

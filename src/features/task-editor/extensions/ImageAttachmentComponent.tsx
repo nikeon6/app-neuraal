@@ -157,6 +157,9 @@ export function ImageAttachmentComponent({
     if (isProcessing && activeMode === "scan") {
       return "bg-sky-500/40 text-sky-200 cursor-wait";
     }
+    if (isProcessing && activeMode !== "scan") {
+      return "bg-sky-500/20 text-sky-200/40 cursor-not-allowed opacity-50";
+    }
     if (visionState === "done" && activeMode === "scan") {
       return "bg-emerald-500/30 text-emerald-300 hover:bg-emerald-500/40";
     }
@@ -167,6 +170,9 @@ export function ImageAttachmentComponent({
   const getDescribeButtonClass = (): string => {
     if (isProcessing && activeMode === "describe") {
       return "bg-violet-500/40 text-violet-200 cursor-wait";
+    }
+    if (isProcessing && activeMode !== "describe") {
+      return "bg-violet-500/20 text-violet-200/40 cursor-not-allowed opacity-50";
     }
     if (visionState === "done" && activeMode === "describe") {
       return "bg-emerald-500/30 text-emerald-300 hover:bg-emerald-500/40";

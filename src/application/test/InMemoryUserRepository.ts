@@ -44,6 +44,28 @@ export class InMemoryUserRepository implements UserRepository {
     }
   }
 
+  async updatePhoneNumber(
+    userId: string,
+    phoneNumber: string | null,
+  ): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: existing.passwordHash.toString(),
+      phoneNumber,
+      emailVerified: existing.emailVerified,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
+  }
+
   async markEmailVerified(userId: string): Promise<void> {
     const existing = this.users.get(userId);
     if (!existing) return;

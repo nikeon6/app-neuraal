@@ -4,8 +4,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { StickyNote, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/shared/lib";
-import { ConfirmDialog } from "@/shared/ui";
-import { MinimalTiptapEditor } from "@/shared/ui";
+import { ConfirmDialog, MinimalTiptapEditor } from "@/shared/ui";
+import type { MinimalTiptapEditorHandle } from "@/shared/ui";
 import {
   updateStickyAndInvalidate,
   deleteStickyAndInvalidate,
@@ -35,6 +35,7 @@ function defaultContent(
 
 export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
   const queryClient = useQueryClient();
+  const tiptapRef = useRef<MinimalTiptapEditorHandle>(null);
   const [title, setTitle] = useState(sticky.title);
   const [contentJson, setContentJson] = useState<Record<string, unknown>>(() =>
     defaultContent(sticky.content),
@@ -142,6 +143,12 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
         autoComplete="off"
         value={title}
         onChange={handleTitleChange}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            tiptapRef.current?.editor?.commands.focus();
+          }
+        }}
         placeholder="Title"
         maxLength={120}
         className="w-full bg-transparent border-none text-white font-semibold text-xl placeholder-white/30 focus:outline-none focus:ring-0 -mt-1 mb-0"
@@ -156,6 +163,7 @@ export function StickyEditor({ sticky, onClose }: StickyEditorProps) {
           isExpanded={isExpanded}
           editable={true}
           placeholder="Write something..."
+          editorRef={tiptapRef}
         />
       </div>
 

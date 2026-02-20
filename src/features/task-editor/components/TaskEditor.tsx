@@ -34,6 +34,7 @@ import type { EntryType } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 import {
   useTopicsQuery,
+  useUserProfileQuery,
   entriesQueryKey,
   attachmentsQueryKey,
 } from "@/shared/api/queries";
@@ -887,6 +888,8 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     handleCancelReminder,
   } = useReminderActions(entry.id, queryClient, isExpanded);
 
+  const { data: userProfile } = useUserProfileQuery(isReminderDialogOpen);
+
   const handleEditorClick = useCallback(() => {
     // Only expand if not already expanded — avoids scroll jump
     setUIState((prev) => {
@@ -1145,6 +1148,12 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
               autoComplete="off"
               value={title}
               onChange={handleTitleChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  tiptapRef.current?.editor?.commands.focus();
+                }
+              }}
               placeholder={entryType === "task" ? "Task title" : "Note title"}
               className={cn(
                 "w-full bg-transparent border-none outline-none text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
@@ -1416,6 +1425,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
         onCancel={handleCancelReminder}
         hasActiveReminder={!!activeReminderId}
         isSaving={isReminderSaving}
+        userPhoneNumber={userProfile?.phoneNumber}
       />
 
       {/* YouTube URL dialog */}

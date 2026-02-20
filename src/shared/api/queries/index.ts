@@ -22,3 +22,4 @@ export { useStickiesQuery, stickiesQueryKey } from "./stickies";
 export { useAiUsageOverviewQuery, aiUsageQueryKey } from "./aiUsage";
 export { useStorageUsageQuery, storageUsageQueryKey } from "./storageUsage";
 export { usePendingReminderQuery, pendingReminderQueryKey } from "./reminders";
+export { useUserProfileQuery, userProfileQueryKey } from "./userProfile";
