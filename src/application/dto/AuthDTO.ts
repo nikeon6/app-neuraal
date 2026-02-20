@@ -1,6 +1,7 @@
 export interface UserDTO {
   id: string;
   email: string;
+  phoneNumber: string | null;
 }
 
 export interface AuthTokensDTO {
@@ -11,4 +12,9 @@ export interface AuthTokensDTO {
 export interface AuthResultDTO {
   user: UserDTO;
   tokens: AuthTokensDTO;
+}
+
+export interface RegisterResultDTO {
+  user: UserDTO;
+  message: string;
 }

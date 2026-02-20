@@ -13,14 +13,25 @@ import { entriesQueryKey } from "./entries";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
+const NOTIFICATIONS_LOOKBACK_DAYS = 7;
+
+function getSinceDateDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 /**
- * Fetch all notifications with polling.
- * In MVP we fetch everything (no "since" optimisation).
+ * Fetch notifications from the last week with polling (every 5s).
  */
 export function useNotificationsQuery() {
   return useQuery({
     queryKey: notificationsQueryKey,
-    queryFn: () => sdk.listNotifications(),
+    queryFn: () =>
+      sdk.listNotifications({
+        since: getSinceDateDaysAgo(NOTIFICATIONS_LOOKBACK_DAYS),
+      }),
     staleTime: 2_000,
     refetchInterval: 5_000,
     refetchOnWindowFocus: true,

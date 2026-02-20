@@ -155,6 +155,83 @@ describe("CreateEntry", () => {
       }
     });
 
+    it("should assign sortOrder at end of existing entries for that day", async () => {
+      const r1 = await createEntry.execute({
+        userId: "user-123",
+        date: "2026-01-29",
+        type: "task",
+        title: "First",
+        content: {},
+        completed: false,
+      });
+
+      const r2 = await createEntry.execute({
+        userId: "user-123",
+        date: "2026-01-29",
+        type: "task",
+        title: "Second",
+        content: {},
+        completed: false,
+      });
+
+      const r3 = await createEntry.execute({
+        userId: "user-123",
+        date: "2026-01-29",
+        type: "task",
+        title: "Third",
+        content: {},
+        completed: false,
+      });
+
+      expect(r1.isOk() && r2.isOk() && r3.isOk()).toBe(true);
+      if (r1.isOk() && r2.isOk() && r3.isOk()) {
+        expect(r1.value.sortOrder).toBe(0);
+        expect(r2.value.sortOrder).toBe(1);
+        expect(r3.value.sortOrder).toBe(2);
+      }
+    });
+
+    it("should assign sortOrder 0 for a new day with no entries", async () => {
+      const result = await createEntry.execute({
+        userId: "user-123",
+        date: "2026-03-15",
+        type: "task",
+        title: "Only task",
+        content: {},
+        completed: false,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.sortOrder).toBe(0);
+      }
+    });
+
+    it("should isolate sortOrder per date", async () => {
+      await createEntry.execute({
+        userId: "user-123",
+        date: "2026-01-29",
+        type: "task",
+        title: "Day 29 task",
+        content: {},
+        completed: false,
+      });
+
+      const result = await createEntry.execute({
+        userId: "user-123",
+        date: "2026-01-30",
+        type: "task",
+        title: "Day 30 task",
+        content: {},
+        completed: false,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.sortOrder).toBe(0);
+      }
+    });
+
     it("should set createdAt and updatedAt", async () => {
       const before = new Date();
 

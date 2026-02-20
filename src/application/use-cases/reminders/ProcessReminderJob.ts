@@ -2,6 +2,8 @@ import { Result, ok } from "../../../domain/core/Result";
 import { Notification } from "../../../domain/entities/Notification";
 import { ReminderRepository } from "../../ports/ReminderRepository";
 import { NotificationRepository } from "../../ports/NotificationRepository";
+import { EntryRepository } from "../../ports/EntryRepository";
+import { UserRepository } from "../../ports/UserRepository";
 import { AutomationPort } from "../../ports/AutomationPort";
 import { UseCaseError } from "../../core/UseCaseError";
 
@@ -39,6 +41,8 @@ export class ProcessReminderJob {
     private readonly reminderRepository: ReminderRepository,
     private readonly notificationRepository: NotificationRepository,
     private readonly automationPort: AutomationPort,
+    private readonly entryRepository: EntryRepository,
+    private readonly userRepository: UserRepository,
     private readonly generateId: () => string = () => crypto.randomUUID(),
   ) {}
 
@@ -102,6 +106,13 @@ export class ProcessReminderJob {
     }
 
     // 6. External channels (email, whatsapp) → call automation service (n8n)
+    const [entry, user] = await Promise.all([
+      this.entryRepository.findById(reminder.entryId),
+      this.userRepository.findById(reminder.userId),
+    ]);
+    const entryTitle = entry?.title.toString() ?? "Untitled";
+    const entrySummary = entry?.summary ?? null;
+
     const automationResult = await this.automationPort.sendReminder({
       reminderId: reminder.id,
       userId: reminder.userId,
@@ -109,6 +120,10 @@ export class ProcessReminderJob {
       scheduledAt: reminder.scheduledAt.toString(),
       channel,
       message: reminder.message,
+      entryTitle,
+      entrySummary,
+      userEmail: user?.email.toString() ?? "",
+      userPhoneNumber: user?.phoneNumber ?? null,
     });
 
     if (automationResult.success) {

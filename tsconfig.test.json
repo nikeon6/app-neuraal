@@ -17,5 +17,5 @@
     "vitest.config.ts",
     "vitest.setup.ts"
   ],
-  "exclude": ["node_modules", "proyectos-base-ejemplo-mvps"]
+  "exclude": ["node_modules"]
 }

@@ -1,0 +1,17 @@
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - "@sentry/cli"
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - sharp
+  - unrs-resolver
+
+# ignoredBuiltDependencies:
+#   - '@prisma/engines'
+#   - '@sentry/cli'
+#   - esbuild
+#   - msgpackr-extract
+#   - prisma
+#   - sharp
+#   - unrs-resolver

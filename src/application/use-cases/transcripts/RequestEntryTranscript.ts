@@ -21,8 +21,55 @@ export interface RequestEntryTranscriptOutput {
   notificationId: string;
 }
 
-const YOUTUBE_REGEX =
-  /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
+function isSupportedYouTubeUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname;
+
+    const isYoutubeHost =
+      host === "youtu.be" ||
+      host === "www.youtu.be" ||
+      host === "youtube.com" ||
+      host === "www.youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "youtube-nocookie.com" ||
+      host === "www.youtube-nocookie.com";
+
+    if (!isYoutubeHost) {
+      return false;
+    }
+
+    // short link: https://youtu.be/<id>
+    if (host.includes("youtu.be")) {
+      return path.length > 1;
+    }
+
+    // watch link: /watch?v=<id>
+    const watchId = parsed.searchParams.get("v");
+    if (
+      path === "/watch" &&
+      typeof watchId === "string" &&
+      watchId.length > 0
+    ) {
+      return true;
+    }
+
+    // shorts link: /shorts/<id>
+    if (path.startsWith("/shorts/") && path.length > "/shorts/".length) {
+      return true;
+    }
+
+    // embed link: /embed/<id> (youtube + youtube-nocookie)
+    if (path.startsWith("/embed/") && path.length > "/embed/".length) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 export class RequestEntryTranscript {
   constructor(
@@ -39,9 +86,10 @@ export class RequestEntryTranscript {
     input: RequestEntryTranscriptInput,
   ): Promise<Result<RequestEntryTranscriptOutput, UseCaseError>> {
     const { userId, entryId, youtubeUrl } = input;
+    const normalizedUrl = youtubeUrl.trim();
 
     // Validate YouTube URL
-    if (!youtubeUrl || !YOUTUBE_REGEX.test(youtubeUrl.trim())) {
+    if (!normalizedUrl || !isSupportedYouTubeUrl(normalizedUrl)) {
       return err(
         validationError(
           "Invalid YouTube URL. Must be a youtube.com or youtu.be link.",
@@ -64,7 +112,7 @@ export class RequestEntryTranscript {
       id: requestId,
       userId,
       entryId,
-      youtubeUrl: youtubeUrl.trim(),
+      youtubeUrl: normalizedUrl,
       status: "pending",
       createdAt: now,
     });
@@ -99,7 +147,7 @@ export class RequestEntryTranscript {
         requestId,
         userId,
         entryId,
-        youtubeUrl: youtubeUrl.trim(),
+        youtubeUrl: normalizedUrl,
       });
     } catch (enqueueError) {
       // Revert usage increment

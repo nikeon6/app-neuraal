@@ -52,7 +52,7 @@ describe("StorageUsagePanel", () => {
 
     render(<StorageUsagePanel />);
 
-    expect(screen.getByText("Storage")).toBeInTheDocument();
+    expect(screen.getByText("Total storage")).toBeInTheDocument();
     expect(screen.getByText("1.5 KB / 3.0 KB")).toBeInTheDocument();
     expect(screen.getByText("50% used")).toBeInTheDocument();
     expect(screen.getByText("1.5 KB")).toBeInTheDocument();

@@ -7,10 +7,10 @@
 
 ---
 
-
 ## Context
 
 The project needs production-grade visibility into:
+
 - Unhandled errors (frontend and backend)
 - Performance bottlenecks and slow transactions
 - Optional session replay to debug UX issues
@@ -20,22 +20,26 @@ We want a tool with good Next.js support and minimal operational overhead.
 ## Decision
 
 Adopt **Sentry** for:
+
 - Error tracking
 - Performance monitoring (transactions/spans)
 - Optional session replay (with privacy controls)
 
 Integrate Sentry in:
+
 - Next.js app (client)
 - Next.js server routes / route handlers
 
 ## Consequences
 
 ### Positive
+
 - Faster debugging and improved reliability.
 - Visibility into real-user performance.
 - Centralized issue tracking.
 
 ### Negative / Trade-offs
+
 - Additional dependency and configuration.
 - Must ensure PII is not captured (scrubbing + privacy settings).
 

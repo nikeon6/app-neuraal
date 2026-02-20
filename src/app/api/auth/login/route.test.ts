@@ -90,6 +90,21 @@ describe("POST /api/auth/login", () => {
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("4");
   });
 
+  it("returns 403 for EMAIL_NOT_VERIFIED error", async () => {
+    mocks.execute.mockResolvedValue(
+      err("EMAIL_NOT_VERIFIED", "Please verify your email"),
+    );
+    const req = new NextRequest("http://localhost:3000/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "a@a.com", password: "Password123!" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error.code).toBe("EMAIL_NOT_VERIFIED");
+  });
+
   it("returns 200 and sets cookies on success", async () => {
     mocks.execute.mockResolvedValue(
       ok({

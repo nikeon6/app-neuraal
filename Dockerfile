@@ -1,15 +1,19 @@
 # ---------- deps ----------
     FROM node:20-alpine AS deps
     ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    ENV PNPM_DISABLE_SELF_UPDATE_CHECK=1
+    ENV NEXT_TELEMETRY_DISABLED=1
     WORKDIR /app
     RUN corepack enable
     
-    COPY package.json pnpm-lock.yaml ./
+    COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
     RUN pnpm install --frozen-lockfile --ignore-scripts=false
     
     # ---------- build ----------
     FROM node:20-alpine AS build
     ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    ENV PNPM_DISABLE_SELF_UPDATE_CHECK=1
+    ENV NEXT_TELEMETRY_DISABLED=1
     WORKDIR /app
     RUN corepack enable
     
@@ -23,6 +27,10 @@
     
     # Build Next
     RUN pnpm build
+
+    # Build workers
+    RUN pnpm build:workers
+
     
     # ---------- runtime ----------
     FROM node:20-alpine AS runtime
@@ -40,23 +48,19 @@
     COPY --from=build /app/package.json ./package.json
     COPY --from=build /app/node_modules ./node_modules
     COPY --from=build /app/.next ./.next
+    # Required for Next.js static assets (e.g. /public/branding logos)
+    COPY --from=build /app/public ./public
     COPY --from=build /app/prisma ./prisma
     COPY --from=build /app/src ./src
     COPY --from=build /app/tsconfig.json ./tsconfig.json
     COPY --from=build /app/prisma.config.ts ./prisma.config.ts
+    COPY --from=build /app/dist ./dist
 
     # IMPORTANTE: Prisma Client generado (en tu proyecto se genera en src/generated/prisma)
     COPY --from=build /app/src/generated ./src/generated
 
-    # Opcionales: public y next.config.*
-    # (Docker falla si haces COPY y no existen, así que lo hacemos condicional)
-    COPY --from=build /app /tmp/app
-    RUN set -eux; \
-        if [ -d /tmp/app/public ]; then cp -r /tmp/app/public /app/; fi; \
-        if [ -f /tmp/app/next.config.js ]; then cp /tmp/app/next.config.js /app/; fi; \
-        if [ -f /tmp/app/next.config.mjs ]; then cp /tmp/app/next.config.mjs /app/; fi; \
-        if [ -f /tmp/app/next.config.ts ]; then cp /tmp/app/next.config.ts /app/; fi; \
-        rm -rf /tmp/app
+    # Project-level Next runtime config used by next start
+    COPY --from=build /app/next.config.ts ./next.config.ts
     
     EXPOSE 3000
     CMD ["pnpm", "start"]

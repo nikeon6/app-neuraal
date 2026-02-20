@@ -26,6 +26,7 @@ import type {
 import { topicsQueryKey } from "./queries/topics";
 import { entriesQueryKey } from "./queries/entries";
 import { notificationsQueryKey } from "./queries/notifications";
+import { pendingReminderQueryKey } from "./queries/reminders";
 import { attachmentsQueryKey } from "./queries/attachments";
 import { stickiesQueryKey } from "./queries/stickies";
 
@@ -145,17 +146,28 @@ export async function createReminderAndInvalidate(
   input: CreateReminderBody,
 ) {
   const reminder = await remindersSdk.createReminder(input);
-  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] }),
+    queryClient.invalidateQueries({
+      queryKey: pendingReminderQueryKey(input.entryId),
+    }),
+  ]);
   return reminder;
 }
 
 export async function updateReminderAndInvalidate(
   queryClient: QueryClient,
   id: string,
+  entryId: string,
   patch: UpdateReminderBody,
 ) {
   const reminder = await remindersSdk.updateReminder(id, patch);
-  await queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: [...notificationsQueryKey] }),
+    queryClient.invalidateQueries({
+      queryKey: pendingReminderQueryKey(entryId),
+    }),
+  ]);
   return reminder;
 }
 

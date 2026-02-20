@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // Mock Prisma client
+const mocks = vi.hoisted(() => ({
+  rebuildExecute: vi.fn(),
+}));
+
 vi.mock("@/infrastructure/persistence/prisma", () => ({
   prisma: {
     topic: {
@@ -10,6 +14,16 @@ vi.mock("@/infrastructure/persistence/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    entry: {
+      updateMany: vi.fn(),
+    },
+  },
+}));
+vi.mock("@/application/use-cases/topics/RebuildTopicEmbedding", () => ({
+  RebuildTopicEmbedding: class {
+    execute(...args: unknown[]) {
+      return mocks.rebuildExecute(...args);
+    }
   },
 }));
 
@@ -46,6 +60,7 @@ const createContext = (id: string) => ({
 describe("PATCH /api/topics/:id", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rebuildExecute.mockResolvedValue(undefined);
   });
 
   it("should return 401 when x-user-id header is missing", async () => {
@@ -120,6 +135,37 @@ describe("PATCH /api/topics/:id", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.topic.name).toBe("Updated");
+  });
+
+  it("should still return 200 when embedding rebuild fails asynchronously", async () => {
+    mocks.rebuildExecute.mockRejectedValue(new Error("embedding failed"));
+    vi.mocked(prisma.topic.findUnique).mockResolvedValue({
+      id: "topic-123",
+      userId: "user-123",
+      name: "Work",
+      color: "#3b82f6",
+      createdAt: new Date("2026-01-29T10:00:00Z"),
+      updatedAt: new Date(),
+    });
+    vi.mocked(prisma.topic.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.topic.update).mockResolvedValue({
+      id: "topic-123",
+      userId: "user-123",
+      name: "Updated",
+      color: "#3b82f6",
+      createdAt: new Date("2026-01-29T10:00:00Z"),
+      updatedAt: new Date(),
+    });
+
+    const request = createRequest(
+      "PATCH",
+      { name: "Updated" },
+      { "x-user-id": "user-123" },
+    );
+    const response = await PATCH(request, createContext("topic-123"));
+    await Promise.resolve();
+
+    expect(response.status).toBe(200);
   });
 
   it("should return 200 on successful color update", async () => {
@@ -293,6 +339,7 @@ describe("DELETE /api/topics/:id", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    vi.mocked(prisma.entry.updateMany).mockResolvedValue({ count: 2 });
     vi.mocked(prisma.topic.delete).mockResolvedValue({
       id: "topic-123",
       userId: "user-123",
@@ -308,6 +355,10 @@ describe("DELETE /api/topics/:id", () => {
     const response = await DELETE(request, createContext("topic-123"));
 
     expect(response.status).toBe(204);
+    expect(prisma.entry.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-123", topicId: "topic-123" },
+      data: { topicId: null },
+    });
     expect(prisma.topic.delete).toHaveBeenCalledWith({
       where: { id: "topic-123" },
     });

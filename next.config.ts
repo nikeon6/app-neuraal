@@ -23,6 +23,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   // Keep runtime-focused logging/telemetry deps external in server builds.
   // This avoids Turbopack traversing non-runtime files inside these packages.
   serverExternalPackages: [

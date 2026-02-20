@@ -1,8 +1,8 @@
-import type { User } from "@/domain/entities/User";
+import { User } from "@/domain/entities/User";
 import type { UserRepository } from "../ports/UserRepository";
 
 export class InMemoryUserRepository implements UserRepository {
-  private users: Map<string, User> = new Map();
+  private readonly users: Map<string, User> = new Map();
 
   async findByEmail(email: string): Promise<User | null> {
     const normalized = email.toLowerCase().trim();
@@ -22,7 +22,69 @@ export class InMemoryUserRepository implements UserRepository {
     this.users.set(user.id, user);
   }
 
-  // Test helper
+  async updatePasswordHash(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: newPasswordHash,
+      phoneNumber: existing.phoneNumber,
+      emailVerified: existing.emailVerified,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
+  }
+
+  async updatePhoneNumber(
+    userId: string,
+    phoneNumber: string | null,
+  ): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: existing.passwordHash.toString(),
+      phoneNumber,
+      emailVerified: existing.emailVerified,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    const existing = this.users.get(userId);
+    if (!existing) return;
+
+    const rebuilt = User.create({
+      id: existing.id,
+      email: existing.email.toString(),
+      passwordHash: existing.passwordHash.toString(),
+      phoneNumber: existing.phoneNumber,
+      emailVerified: true,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    });
+
+    if (rebuilt.isOk()) {
+      this.users.set(userId, rebuilt.value);
+    }
+  }
+
   getAll(): User[] {
     return Array.from(this.users.values());
   }

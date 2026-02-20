@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   createReminderAndInvalidate,
   updateReminderAndInvalidate,
 } from "@/shared/api/mutations";
+import { usePendingReminderQuery } from "@/shared/api/queries";
 import { ApiError } from "@/shared/api/apiClient";
 
 /**
@@ -19,12 +20,37 @@ function isReminderAlreadyProcessed(error: unknown): boolean {
 /**
  * Hook encapsulating reminder state and actions (create / reschedule / cancel).
  *
- * Extracted from TaskEditor to reduce its Cognitive Complexity.
+ * The pending-reminder query is deferred until the TaskEditor is expanded
+ * or the reminder dialog is opened, avoiding an N+1 fetch on day load.
+ * Once fetched, the result is cached by TanStack Query (30s stale time).
  */
-export function useReminderActions(entryId: string, queryClient: QueryClient) {
+export function useReminderActions(
+  entryId: string,
+  queryClient: QueryClient,
+  isExpanded: boolean,
+) {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [activeReminderId, setActiveReminderId] = useState<string | null>(null);
   const [isReminderSaving, setIsReminderSaving] = useState(false);
+
+  // Latch: once activated, stay activated so we don't lose cached data on collapse
+  const hasActivated = useRef(false);
+  if (isExpanded || isReminderDialogOpen) {
+    hasActivated.current = true;
+  }
+
+  const { data: pendingReminder } = usePendingReminderQuery(
+    entryId,
+    hasActivated.current,
+  );
+
+  useEffect(() => {
+    if (pendingReminder) {
+      setActiveReminderId(pendingReminder.id);
+    } else if (pendingReminder === null) {
+      setActiveReminderId(null);
+    }
+  }, [pendingReminder]);
 
   const handleCreateReminder = useCallback(
     async (
@@ -57,9 +83,12 @@ export function useReminderActions(entryId: string, queryClient: QueryClient) {
       if (!activeReminderId) return;
       setIsReminderSaving(true);
       try {
-        await updateReminderAndInvalidate(queryClient, activeReminderId, {
-          scheduledAt,
-        });
+        await updateReminderAndInvalidate(
+          queryClient,
+          activeReminderId,
+          entryId,
+          { scheduledAt },
+        );
         setIsReminderDialogOpen(false);
         console.info("[TaskEditor] Reminder rescheduled.");
       } catch (error) {
@@ -76,16 +105,19 @@ export function useReminderActions(entryId: string, queryClient: QueryClient) {
         setIsReminderSaving(false);
       }
     },
-    [queryClient, activeReminderId],
+    [queryClient, activeReminderId, entryId],
   );
 
   const handleCancelReminder = useCallback(async () => {
     if (!activeReminderId) return;
     setIsReminderSaving(true);
     try {
-      await updateReminderAndInvalidate(queryClient, activeReminderId, {
-        status: "canceled",
-      });
+      await updateReminderAndInvalidate(
+        queryClient,
+        activeReminderId,
+        entryId,
+        { status: "canceled" },
+      );
       setActiveReminderId(null);
       setIsReminderDialogOpen(false);
       console.info("[TaskEditor] Reminder canceled.");
@@ -102,7 +134,7 @@ export function useReminderActions(entryId: string, queryClient: QueryClient) {
     } finally {
       setIsReminderSaving(false);
     }
-  }, [queryClient, activeReminderId]);
+  }, [queryClient, activeReminderId, entryId]);
 
   return {
     isReminderDialogOpen,

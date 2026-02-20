@@ -23,8 +23,8 @@ import { VerticalCalendar } from "@/features/calendar/components/VerticalCalenda
 import { DashboardHeader } from "./DashboardHeader";
 import { NotificationCenter } from "@/features/notifications";
 import { WeeklyRecap } from "@/features/weekly-recap";
-import { AiUsagePanel } from "@/features/settings/components/AiUsagePanel";
-import { StorageUsagePanel } from "@/features/settings/components/StorageUsagePanel";
+import { SettingsPanel } from "@/features/settings";
+import "@/features/tasks-container/styles/scrollbar.css";
 
 /*
  * LAYOUT RESPONSIVE (2 breakpoints):
@@ -88,6 +88,8 @@ export function Dashboard() {
 
   // Virtual keyboard detection — hides bubbles lane & calendar on mobile when keyboard is open
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  // Mobile portrait detection — used to hide bubbles lane in specific sections.
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
   // FIX ANDROID: Use visualViewport to get real viewport height
   // Also detect virtual keyboard open (viewport significantly shorter than screen)
@@ -128,6 +130,21 @@ export function Dashboard() {
       }
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
+  // Detect mobile portrait layout to apply section-specific lane visibility rules.
+  useEffect(() => {
+    const mobilePortraitMql = matchMedia(
+      "(max-width: 1023px) and (orientation: portrait)",
+    );
+    const updateMobilePortrait = () => {
+      setIsMobilePortrait(mobilePortraitMql.matches);
+    };
+    updateMobilePortrait();
+    mobilePortraitMql.addEventListener("change", updateMobilePortrait);
+    return () => {
+      mobilePortraitMql.removeEventListener("change", updateMobilePortrait);
     };
   }, []);
 
@@ -182,8 +199,14 @@ export function Dashboard() {
     [selectedTopicIds, expandedDayKeys, clearSelection],
   );
 
-  // When stickies section: hide topics lane and use 2-col layout (content + calendar)
-  const showTopicsLane = dashboardSection !== "stickies";
+  // Hide topics lane:
+  // - Always in stickies (all breakpoints)
+  // - In mobile portrait for weekly recap and settings
+  const hideTopicsLaneInMobilePortrait =
+    isMobilePortrait &&
+    (dashboardSection === "weeklyRecap" || dashboardSection === "settings");
+  const showTopicsLane =
+    dashboardSection !== "stickies" && !hideTopicsLaneInMobilePortrait;
 
   // Render content based on active section
   const renderContent = () => {
@@ -197,14 +220,7 @@ export function Dashboard() {
       case "topics":
         return <TopicsSection />;
       case "settings":
-        return (
-          <div className="h-full overflow-y-auto pr-1 scrollbar-thin">
-            <div className="max-w-xl mx-auto py-4 space-y-6">
-              <StorageUsagePanel />
-              <AiUsagePanel />
-            </div>
-          </div>
-        );
+        return <SettingsPanel />;
       default:
         return <TasksContainer />;
     }

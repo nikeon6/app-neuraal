@@ -540,6 +540,10 @@ export function VerticalCalendar({
               const isSelected: boolean = isSameDay(day, selectedDate);
               const isCurrentDay: boolean = isToday(day);
               const hasEntries: boolean = dayEntries.length > 0;
+              let mobileDayDotClass = "invisible";
+              if (hasEntries) {
+                mobileDayDotClass = isSelected ? "bg-white/60" : "bg-primary";
+              }
 
               return (
                 <button
@@ -562,12 +566,13 @@ export function VerticalCalendar({
                     {format(day, "EEE")}
                   </span>
                   <span className="text-lg font-bold">{format(day, "d")}</span>
-                  {hasEntries && !isSelected && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-0.5" />
-                  )}
-                  {hasEntries && isSelected && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/60 mt-0.5" />
-                  )}
+                  <div
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-0.5",
+                      mobileDayDotClass,
+                    )}
+                    aria-hidden="true"
+                  />
                 </button>
               );
             })}

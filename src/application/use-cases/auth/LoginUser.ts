@@ -8,7 +8,11 @@ import type { RefreshTokenServicePort } from "../../ports/RefreshTokenServicePor
 import type { ClockPort } from "../../ports/ClockPort";
 import type { AuthResultDTO } from "../../dto/AuthDTO";
 import type { UseCaseError } from "../../core/UseCaseError";
-import { validationError, unauthorizedError } from "../../core/UseCaseError";
+import {
+  validationError,
+  unauthorizedError,
+  emailNotVerifiedError,
+} from "../../core/UseCaseError";
 
 const INVALID_CREDENTIALS_MSG = "Invalid email or password";
 
@@ -46,7 +50,6 @@ export class LoginUser {
       return err(unauthorizedError(INVALID_CREDENTIALS_MSG));
     }
 
-    // Verify password
     const isValid = await this.passwordHasher.verify(
       input.password,
       user.passwordHash.toString(),
@@ -55,7 +58,12 @@ export class LoginUser {
       return err(unauthorizedError(INVALID_CREDENTIALS_MSG));
     }
 
-    // Generate tokens
+    if (!user.emailVerified) {
+      return err(
+        emailNotVerifiedError("Please verify your email before logging in"),
+      );
+    }
+
     const now = this.clock.now();
     const accessToken = await this.jwtService.sign(
       { sub: user.id, email },
@@ -76,7 +84,7 @@ export class LoginUser {
     });
 
     return ok({
-      user: { id: user.id, email },
+      user: { id: user.id, email, phoneNumber: user.phoneNumber },
       tokens: { accessToken, refreshToken: rawRefreshToken },
     });
   }

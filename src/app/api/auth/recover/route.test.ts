@@ -16,6 +16,14 @@ vi.mock("@/application/use-cases/auth/RequestPasswordReset", () => ({
 vi.mock("@/infrastructure/auth/AuthConfig", () => ({
   getAuthConfig: mocks.getAuthConfig,
 }));
+vi.mock("@/infrastructure/email/EmailConfig", () => ({
+  getEmailConfig: () => {
+    throw new Error("No email config");
+  },
+}));
+vi.mock("@/infrastructure/email/SmtpEmailService", () => ({
+  SmtpEmailService: class {},
+}));
 
 import { POST } from "./route";
 
@@ -29,7 +37,10 @@ function err(code: string, message: string) {
 describe("POST /api/auth/recover", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getAuthConfig.mockReturnValue({ resetTtlMinutes: 30 });
+    mocks.getAuthConfig.mockReturnValue({
+      resetTtlMinutes: 30,
+      appBaseUrl: "https://app.test",
+    });
   });
 
   it("returns 400 for invalid JSON", async () => {

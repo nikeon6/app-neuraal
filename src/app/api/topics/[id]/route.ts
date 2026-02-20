@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { UpdateTopic } from "@/application/use-cases/topics/UpdateTopic";
 import { DeleteTopic } from "@/application/use-cases/topics/DeleteTopic";
 import { RebuildTopicEmbedding } from "@/application/use-cases/topics/RebuildTopicEmbedding";
+import { PrismaEntryRepository } from "@/infrastructure/persistence/PrismaEntryRepository";
 import { PrismaTopicRepository } from "@/infrastructure/persistence/PrismaTopicRepository";
 import { OllamaEmbeddingProvider } from "@/infrastructure/embedding/OllamaEmbeddingProvider";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
@@ -131,8 +132,9 @@ export async function DELETE(
   }
 
   // Execute use case
-  const repository = new PrismaTopicRepository();
-  const deleteTopic = new DeleteTopic(repository);
+  const topicRepository = new PrismaTopicRepository();
+  const entryRepository = new PrismaEntryRepository();
+  const deleteTopic = new DeleteTopic(topicRepository, entryRepository);
   const result = await deleteTopic.execute({ userId, topicId });
 
   if (result.isErr()) {

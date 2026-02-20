@@ -30,6 +30,33 @@ describe("User", () => {
       }
     });
 
+    it("should default emailVerified to false when not provided", () => {
+      const result = User.create(validProps);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.emailVerified).toBe(false);
+      }
+    });
+
+    it("should accept emailVerified=true", () => {
+      const result = User.create({ ...validProps, emailVerified: true });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.emailVerified).toBe(true);
+      }
+    });
+
+    it("should accept emailVerified=false explicitly", () => {
+      const result = User.create({ ...validProps, emailVerified: false });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.emailVerified).toBe(false);
+      }
+    });
+
     it("should trim id when creating", () => {
       const result = User.create({ ...validProps, id: "  user-456  " });
 
@@ -116,6 +143,8 @@ describe("User", () => {
           id: "user-123",
           email: "user@example.com",
           passwordHash: "$2b$10$abcdefghijklmnopqrstuv",
+          phoneNumber: null,
+          emailVerified: false,
           createdAt: validProps.createdAt,
           updatedAt: validProps.updatedAt,
         });

@@ -190,7 +190,7 @@ export function WeeklyRecap() {
   }
 
   return (
-    <div className="space-y-4 pb-6 overflow-y-auto custom-scrollbar max-h-full">
+    <div className="space-y-4 py-4 overflow-y-auto custom-scrollbar tasks-scroll-fade max-h-full">
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <TopicBubbleChart data={topicData} />

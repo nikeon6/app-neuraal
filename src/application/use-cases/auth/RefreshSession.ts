@@ -95,7 +95,11 @@ export class RefreshSession {
     );
 
     return ok({
-      user: { id: user.id, email: user.email.toString() },
+      user: {
+        id: user.id,
+        email: user.email.toString(),
+        phoneNumber: user.phoneNumber,
+      },
       tokens: { accessToken, refreshToken: rawRefreshToken },
     });
   }

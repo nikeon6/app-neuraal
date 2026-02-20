@@ -14,12 +14,14 @@ jobs:
   lint-and-typecheck:
     name: Lint & Typecheck
     runs-on: ubuntu-latest
+    env:
+      # Prisma CLI loads config at generate time and requires DATABASE_URL.
+      # Lint/typecheck do not connect to DB, so a dummy URL is enough here.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neuraal_ci
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.29.3
 
       - uses: actions/setup-node@v4
         with:
@@ -28,19 +30,23 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
+      - run: mkdir -p .artifacts
       - run: pnpm lint
+      - run: pnpm exec eslint src --format json -o .artifacts/eslint-report.json
+      - run: pnpm metrics:report:ci
       - run: pnpm typecheck
 
   unit-tests:
     name: Unit, Integration & Coverage Gate
     runs-on: ubuntu-latest
     needs: lint-and-typecheck
+    env:
+      # Same rationale as lint job: required by prisma generate only.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neuraal_ci
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.29.3
 
       - uses: actions/setup-node@v4
         with:
@@ -49,9 +55,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
-      - run: pnpm test:coverage
+      - run: mkdir -p .artifacts
+      - name: Run tests with coverage
+        run: |
+          set -o pipefail
+          pnpm test:coverage 2>&1 | tee .artifacts/test-coverage.log
         env:
           NODE_OPTIONS: --max_old_space_size=4096
+      - run: pnpm metrics:report:ci
 
   # E2E job:
   # - Uses CI_POSTGRES_* variables/secrets when available.
@@ -92,8 +103,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.29.3
 
       - uses: actions/setup-node@v4
         with:
@@ -132,7 +141,6 @@ jobs:
           AUTH_JWT_SECRET: ci-test-secret-at-least-32-characters-long
           E2E_USER_EMAIL: test@neuraal.dev
           E2E_USER_PASSWORD: TestPassword1!
-          NODE_ENV: production
 
       - uses: actions/upload-artifact@v4
         if: failure()

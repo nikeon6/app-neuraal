@@ -97,6 +97,25 @@ export class InMemoryEntryRepository implements EntryRepository {
     }
   }
 
+  async clearTopicFromEntries(userId: string, topicId: string): Promise<void> {
+    for (let i = 0; i < this.entries.length; i++) {
+      const entry = this.entries[i];
+      if (entry.userId !== userId || entry.topicId !== topicId) continue;
+      const updated = entry.withUpdates({ topicId: null });
+      if (updated.isOk()) {
+        this.entries[i] = updated.value;
+      }
+    }
+  }
+
+  async getNextSortOrder(userId: string, date: string): Promise<number> {
+    const entries = this.entries.filter(
+      (e) => e.userId === userId && e.date.toString() === date,
+    );
+    if (entries.length === 0) return 0;
+    return Math.max(...entries.map((e) => e.sortOrder)) + 1;
+  }
+
   async reorderEntries(
     userId: string,
     date: string,

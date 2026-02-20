@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GetMe } from "@/application/use-cases/auth/GetMe";
+import { UpdatePhoneNumber } from "@/application/use-cases/auth/UpdatePhoneNumber";
 import { PrismaUserRepository } from "@/infrastructure/persistence/PrismaUserRepository";
 import { getAuthUserId } from "@/infrastructure/auth/getAuthUserId";
 import { withApiContext } from "@/infrastructure/http/withApiContext";
@@ -10,6 +11,7 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     VALIDATION_ERROR: 400,
     DUPLICATE_ERROR: 409,
     UNAUTHORIZED: 401,
+    EMAIL_NOT_VERIFIED: 403,
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,
@@ -42,4 +44,42 @@ export const GET = withApiContext(async (request: NextRequest) => {
   }
 
   return NextResponse.json({ user: result.value }, { status: 200 });
+});
+
+/**
+ * PATCH /api/auth/me
+ * Updates the authenticated user's profile (phone number).
+ */
+export const PATCH = withApiContext(async (request: NextRequest) => {
+  const authResult = await getAuthUserId(request);
+
+  if (!authResult.ok) {
+    return NextResponse.json({ error: authResult.error }, { status: 401 });
+  }
+
+  let body: { phoneNumber?: string | null };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" } },
+      { status: 400 },
+    );
+  }
+
+  const phoneNumber = body.phoneNumber === undefined ? null : body.phoneNumber;
+
+  const useCase = new UpdatePhoneNumber(new PrismaUserRepository());
+  const result = await useCase.execute({
+    userId: authResult.userId,
+    phoneNumber,
+  });
+
+  if (result.isErr()) {
+    const { code, message } = result.error;
+    const status = errorCodeToStatus(code);
+    return NextResponse.json({ error: { code, message } }, { status });
+  }
+
+  return NextResponse.json(result.value, { status: 200 });
 });

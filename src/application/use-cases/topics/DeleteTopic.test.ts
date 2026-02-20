@@ -1,16 +1,19 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DeleteTopic } from "./DeleteTopic";
 import { CreateTopic } from "./CreateTopic";
 import { InMemoryTopicRepository } from "../../test/InMemoryTopicRepository";
+import { InMemoryEntryRepository } from "../../test/InMemoryEntryRepository";
 
 describe("DeleteTopic", () => {
   let repository: InMemoryTopicRepository;
+  let entryRepository: InMemoryEntryRepository;
   let deleteTopic: DeleteTopic;
   let createTopic: CreateTopic;
 
   beforeEach(async () => {
     repository = new InMemoryTopicRepository();
-    deleteTopic = new DeleteTopic(repository);
+    entryRepository = new InMemoryEntryRepository();
+    deleteTopic = new DeleteTopic(repository, entryRepository);
     createTopic = new CreateTopic(repository);
   });
 
@@ -57,6 +60,18 @@ describe("DeleteTopic", () => {
       const remaining = await repository.findByUserId("user-123");
       expect(remaining).toHaveLength(1);
       expect(remaining[0].id).toBe(topic2.id);
+    });
+
+    it("should clear topic from related entries before deleting", async () => {
+      const topic = await createTestTopic("user-123", "Work", "#3b82f6");
+      const clearSpy = vi.spyOn(entryRepository, "clearTopicFromEntries");
+
+      await deleteTopic.execute({
+        userId: "user-123",
+        topicId: topic.id,
+      });
+
+      expect(clearSpy).toHaveBeenCalledWith("user-123", topic.id);
     });
   });
 

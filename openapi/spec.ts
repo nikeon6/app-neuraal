@@ -34,7 +34,7 @@ const spec = {
     {
       name: "Auth",
       description:
-        "Authentication endpoints (register, login, refresh, logout, me, recover)",
+        "Authentication endpoints (register, login, refresh, logout, me, recover, reset-password, change-password)",
     },
     { name: "Topics", description: "User topic/category management" },
     { name: "Entries", description: "Task and note entries" },
@@ -388,6 +388,8 @@ const spec = {
       post: {
         tags: ["Auth"],
         summary: "Register a new user",
+        description:
+          "Creates a user with emailVerified=false and sends a verification email. No auth cookies are set until the user verifies their email and logs in.",
         operationId: "registerUser",
         security: [],
         requestBody: {
@@ -410,15 +412,17 @@ const spec = {
           },
         },
         responses: {
-          "200": {
-            description: "User registered. Auth cookies set.",
+          "201": {
+            description:
+              "User registered. Verification email sent. No auth cookies set.",
             content: {
               "application/json": {
                 schema: {
                   type: "object" as const,
-                  required: ["user"],
+                  required: ["user", "message"],
                   properties: {
                     user: { $ref: "#/components/schemas/UserResponse" },
+                    message: { type: "string" as const },
                   },
                 },
               },
@@ -468,6 +472,82 @@ const spec = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
+          "403": {
+            description: "Email not verified. User must confirm email first.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/auth/verify-email": {
+      get: {
+        tags: ["Auth"],
+        summary: "Verify email address",
+        description:
+          "Validates the verification token from the email link and marks the user as verified. Redirects to /login on success or failure.",
+        operationId: "verifyEmail",
+        security: [],
+        parameters: [
+          {
+            name: "token",
+            in: "query" as const,
+            required: true,
+            schema: { type: "string" as const },
+          },
+        ],
+        responses: {
+          "302": {
+            description:
+              "Redirects to /login?verified=true on success or /login?verify-error=expired|invalid on failure.",
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+        },
+      },
+    },
+
+    "/api/auth/resend-verification": {
+      post: {
+        tags: ["Auth"],
+        summary: "Resend verification email",
+        description:
+          "Sends a new verification email if the user exists and is not yet verified. Always returns 200 to prevent email enumeration.",
+        operationId: "resendVerificationEmail",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["email"],
+                properties: {
+                  email: { type: "string" as const, format: "email" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Always returns ok (prevents email enumeration).",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: {
+                    ok: { type: "boolean" as const },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
         },
       },
     },
@@ -541,7 +621,7 @@ const spec = {
         summary: "Request password reset",
         operationId: "requestPasswordReset",
         description:
-          "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).",
+          "Always returns 200 to prevent email enumeration. If the email exists, a reset token is created and a reset email is sent (when SMTP is configured).",
         security: [],
         requestBody: {
           required: true,
@@ -571,6 +651,103 @@ const spec = {
             },
           },
           "400": { $ref: "#/components/responses/BadRequest" },
+        },
+      },
+    },
+
+    "/api/auth/reset-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Confirm password reset",
+        operationId: "confirmPasswordReset",
+        description:
+          "Validates the reset token and sets a new password. Revokes all active sessions for the user.",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["token", "newPassword"],
+                properties: {
+                  token: {
+                    type: "string" as const,
+                    description: "Raw reset token received via email",
+                  },
+                  newPassword: {
+                    type: "string" as const,
+                    description:
+                      "New password (min 8 chars, uppercase, lowercase, number, special char)",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Password reset successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+
+    "/api/auth/change-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Change password (authenticated)",
+        operationId: "changePassword",
+        description:
+          "Changes the password for the authenticated user. Requires current password verification. Revokes all active sessions after success.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object" as const,
+                required: ["currentPassword", "newPassword"],
+                properties: {
+                  currentPassword: {
+                    type: "string" as const,
+                    description: "Current password for verification",
+                  },
+                  newPassword: {
+                    type: "string" as const,
+                    description:
+                      "New password (min 8 chars, uppercase, lowercase, number, special char)",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Password changed successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" as const } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
         },
       },
     },
@@ -1405,6 +1582,43 @@ const spec = {
     // Reminders
     // =====================================================================
     "/api/reminders": {
+      get: {
+        tags: ["Reminders"],
+        summary: "List pending reminders for an entry",
+        operationId: "listPendingReminders",
+        description:
+          "Returns all pending reminders for the specified entry owned by the authenticated user.",
+        parameters: [
+          {
+            name: "entryId",
+            in: "query" as const,
+            required: true,
+            schema: { type: "string" as const, format: "uuid" },
+            description: "The entry ID to filter reminders by",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "List of pending reminders",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object" as const,
+                  required: ["reminders"],
+                  properties: {
+                    reminders: {
+                      type: "array" as const,
+                      items: { $ref: "#/components/schemas/Reminder" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
       post: {
         tags: ["Reminders"],
         summary: "Create a reminder",

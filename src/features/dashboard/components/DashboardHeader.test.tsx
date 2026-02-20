@@ -55,12 +55,52 @@ vi.mock("date-fns", () => ({
 // ============================================================================
 vi.mock("framer-motion", () => ({
   motion: {
-    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-      <div {...props}>{children}</div>
-    ),
-    span: ({ children, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
-      <span {...props}>{children}</span>
-    ),
+    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+      const {
+        layout: _layout,
+        layoutId: _layoutId,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
+        whileHover: _whileHover,
+        whileTap: _whileTap,
+        ...domProps
+      } = props as React.HTMLAttributes<HTMLDivElement> & {
+        layout?: unknown;
+        layoutId?: unknown;
+        initial?: unknown;
+        animate?: unknown;
+        exit?: unknown;
+        transition?: unknown;
+        whileHover?: unknown;
+        whileTap?: unknown;
+      };
+      return <div {...domProps}>{children}</div>;
+    },
+    span: ({ children, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
+      const {
+        layout: _layout,
+        layoutId: _layoutId,
+        initial: _initial,
+        animate: _animate,
+        exit: _exit,
+        transition: _transition,
+        whileHover: _whileHover,
+        whileTap: _whileTap,
+        ...domProps
+      } = props as React.HTMLAttributes<HTMLSpanElement> & {
+        layout?: unknown;
+        layoutId?: unknown;
+        initial?: unknown;
+        animate?: unknown;
+        exit?: unknown;
+        transition?: unknown;
+        whileHover?: unknown;
+        whileTap?: unknown;
+      };
+      return <span {...domProps}>{children}</span>;
+    },
   },
 }));
 
@@ -230,11 +270,11 @@ describe("DashboardHeader", () => {
       );
     });
 
-    it("displays section label when section is not 'daily'", () => {
+    it("displays section title when section is not 'daily'", () => {
       renderHeader({ section: "topics" });
 
       const heading = screen.getByRole("heading", { level: 1 });
-      expect(heading).toHaveTextContent("Topics");
+      expect(heading).toHaveTextContent("Neural Paths");
     });
 
     it("displays dynamic week date range for weeklyRecap section", () => {

@@ -10,6 +10,7 @@
 ## Context
 
 Neuraal requires asynchronous workflows such as:
+
 - Scheduled notifications/messages at a user-defined `sendAt` time.
 - Long-running AI tasks (e.g., LLM-generated summaries) where results arrive later.
 - Background processing (retries, callbacks, status updates).
@@ -35,6 +36,7 @@ Two dedicated queues and workers are now active:
    - n8n calls back to the app with results (HMAC-signed callback).
 
 Workers implement:
+
 - `QueuePort` interface in Application layer (clean architecture boundary).
 - `BullMQAdapter` in Infrastructure layer (concrete implementation).
 - Idempotent job processing with stable identifiers.
@@ -42,6 +44,7 @@ Workers implement:
 ### n8n (Workflow orchestration)
 
 n8n handles external processing that the app delegates:
+
 - Receives webhook triggers from BullMQ workers.
 - Executes LLM calls, email delivery, and other external integrations.
 - Calls back to the app API with results (HMAC-signed).
@@ -64,12 +67,14 @@ App API → Update DB + create notification
 ## Consequences
 
 ### Positive
+
 - Reliable: BullMQ provides retries, backoff, and persistence via Redis.
 - Observable: Job status tracked in DB + n8n execution logs + Redis queue metrics.
 - Separation of concerns: app enqueues work, workers dispatch, n8n orchestrates externals.
 - Rapid iteration: n8n workflows can be modified without code changes.
 
 ### Negative / Trade-offs
+
 - Requires Redis + n8n services running alongside the app.
 - HMAC secrets must be coordinated between app and n8n.
 - Workflow logic in n8n must be versioned/managed to avoid "hidden business logic."

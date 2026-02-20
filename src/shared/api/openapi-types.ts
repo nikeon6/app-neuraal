@@ -13,7 +13,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Register a new user */
+    /**
+     * Register a new user
+     * @description Creates a user with emailVerified=false and sends a verification email. No auth cookies are set until the user verifies their email and logs in.
+     */
     post: operations["registerUser"];
     delete?: never;
     options?: never;
@@ -32,6 +35,46 @@ export interface paths {
     put?: never;
     /** Log in with email and password */
     post: operations["loginUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/verify-email": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Verify email address
+     * @description Validates the verification token from the email link and marks the user as verified. Redirects to /login on success or failure.
+     */
+    get: operations["verifyEmail"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/resend-verification": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resend verification email
+     * @description Sends a new verification email if the user exists and is not yet verified. Always returns 200 to prevent email enumeration.
+     */
+    post: operations["resendVerificationEmail"];
     delete?: never;
     options?: never;
     head?: never;
@@ -103,9 +146,49 @@ export interface paths {
     put?: never;
     /**
      * Request password reset
-     * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created (but email is not sent in MVP).
+     * @description Always returns 200 to prevent email enumeration. If the email exists, a reset token is created and a reset email is sent (when SMTP is configured).
      */
     post: operations["requestPasswordReset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/reset-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Confirm password reset
+     * @description Validates the reset token and sets a new password. Revokes all active sessions for the user.
+     */
+    post: operations["confirmPasswordReset"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/change-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change password (authenticated)
+     * @description Changes the password for the authenticated user. Requires current password verification. Revokes all active sessions after success.
+     */
+    post: operations["changePassword"];
     delete?: never;
     options?: never;
     head?: never;
@@ -371,7 +454,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List pending reminders for an entry
+     * @description Returns all pending reminders for the specified entry owned by the authenticated user.
+     */
+    get: operations["listPendingReminders"];
     put?: never;
     /**
      * Create a reminder
@@ -839,14 +926,15 @@ export interface operations {
       };
     };
     responses: {
-      /** @description User registered. Auth cookies set. */
-      200: {
+      /** @description User registered. Verification email sent. No auth cookies set. */
+      201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": {
             user: components["schemas"]["UserResponse"];
+            message: string;
           };
         };
       };
@@ -884,6 +972,66 @@ export interface operations {
       };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
+      /** @description Email not verified. User must confirm email first. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  verifyEmail: {
+    parameters: {
+      query: {
+        token: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Redirects to /login?verified=true on success or /login?verify-error=expired|invalid on failure. */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+    };
+  };
+  resendVerificationEmail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Always returns ok (prevents email enumeration). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
     };
   };
   refreshSession: {
@@ -978,6 +1126,72 @@ export interface operations {
         };
       };
       400: components["responses"]["BadRequest"];
+    };
+  };
+  confirmPasswordReset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Raw reset token received via email */
+          token: string;
+          /** @description New password (min 8 chars, uppercase, lowercase, number, special char) */
+          newPassword: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Password reset successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Current password for verification */
+          currentPassword: string;
+          /** @description New password (min 8 chars, uppercase, lowercase, number, special char) */
+          newPassword: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Password changed successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
     };
   };
   listTopics: {
@@ -1670,6 +1884,33 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  listPendingReminders: {
+    parameters: {
+      query: {
+        /** @description The entry ID to filter reminders by */
+        entryId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of pending reminders */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            reminders: components["schemas"]["Reminder"][];
+          };
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
     };
   };
   createReminder: {

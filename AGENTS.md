@@ -66,16 +66,23 @@ The project owner prefers answering questions over receiving unwanted assumption
 
 Build an app where authenticated users can:
 
-- Access a dashboard and calendar views.
-- Create/edit tasks and notes (entries).
-- Organize entries into user-defined **Topics** (categories).
+- **Register, log in, recover/reset/change password** (JWT access + refresh tokens in httpOnly cookies).
+- Access a **dashboard** with multiple sections (daily log, weekly recap, stickies, topics, settings).
+- Create/edit tasks and notes (**entries**) with a **rich text editor** (TipTap).
+- Organize entries into user-defined **Topics** (color-coded categories).
 - Navigate tasks by day via a **right-side day list** (expandable).
-- Attach files to entries (S3/MinIO presigned URL flow).
-- Schedule task reminders processed asynchronously (BullMQ/Redis worker + n8n).
-- **AI features**:
-  - Generate summaries of entries asynchronously (n8n + LLM).
-  - Auto-classify entries into topics via embedding similarity (Ollama + pgvector).
-- Receive in-app notifications for async operations (reminders, summaries).
+- **Drag-and-drop reorder** tasks and stickies.
+- Attach files to entries (S3/MinIO presigned URL flow with per-entry and per-user quotas).
+- Create **sticky notes** (kanban-style, two-column layout).
+- View **weekly recap** analytics (completion chart, daily bar chart, topic bubble chart).
+- Schedule task **reminders** processed asynchronously (BullMQ/Redis worker + n8n).
+- **AI features** (with per-user rate limiting, concurrency limits, and monthly quotas):
+  - Generate **summaries** of entries asynchronously (n8n + LLM).
+  - **Auto-classify** entries into topics via embedding similarity (Ollama + pgvector).
+  - **Extract text from images** (OCR via Ollama vision model).
+  - **Transcribe YouTube videos** embedded in entries (async via n8n).
+- Receive **in-app notifications** for async operations (reminders, summaries, transcriptions).
+- View **AI usage quotas** and **storage usage** in settings.
 
 ---
 
@@ -104,22 +111,37 @@ The backend follows strict Clean Architecture with these layers:
 src/
   domain/
     core/             # Result type
-    entities/         # Entry, Topic, Reminder, Notification, EntrySummaryRequest...
-    value-objects/    # HexColor, ISODate, EmbeddingVector, SimilarityScore...
+    entities/         # Entry, Topic, Reminder, Notification, User, Attachment,
+                      # Sticky, EntrySummaryRequest, TranscriptionRequest
+    value-objects/    # Email, Password, HexColor, ISODate, EmbeddingVector,
+                      # SimilarityScore, MimeType, StorageKey, Channel,
+                      # JwtAccessToken, RefreshTokenValue, AiAction, QuotaLimit...
   application/
     core/             # UseCaseError
-    dto/              # TopicDTO, ReminderDTO, NotificationDTO, AttachmentDTO
-    ports/            # Repository interfaces, EmbeddingProviderPort, QueuePort...
-    use-cases/        # CreateEntry, AutoAssignTopicToEntry, RebuildTopicEmbedding...
+    dto/              # AuthDTO, EntryDTO, TopicDTO, ReminderDTO, NotificationDTO,
+                      # AttachmentDTO, StickyDTO
+    ports/            # Repository interfaces, EmbeddingProviderPort, QueuePort,
+                      # JwtServicePort, PasswordHasherPort, RateLimiterPort...
+    use-cases/        # Auth (Register, Login, Refresh, Logout, Recover, Reset,
+                      # ChangePassword), Entries CRUD, Topics CRUD + Embedding,
+                      # Reminders, Notifications, Stickies, Attachments,
+                      # AI (GuardAiAction, ConsumeAiRequest, Summary, Transcription, OCR)
     test/             # InMemory repos, Fake ports (test doubles)
   infrastructure/
-    auth/             # getAuthUserId (x-user-id → future JWT)
-    automation/       # N8NClient
-    config/           # AttachmentConfig
+    auth/             # JoseJwtService, BcryptPasswordHasher, AuthCookies,
+                      # CryptoRefreshTokenService, LoginRateLimiter, AuthConfig
+    automation/       # N8NClient (HMAC-signed webhooks)
+    config/           # AiGuardrailsConfig, AttachmentConfig
     embedding/        # OllamaEmbeddingProvider
-    persistence/      # Prisma client, PrismaXxxRepository
-    queue/            # BullMQAdapter, reminderWorker, summaryWorker
-    storage/          # S3ObjectStorage
+    http/             # withApiContext, requestContext (request ID, logging)
+    logging/          # pino logger (structured JSON, auto-redaction)
+    metrics/          # Prometheus counters and histograms
+    ocr/              # OllamaVisionProvider
+    persistence/      # Prisma client, PrismaXxxRepository (13 repositories)
+    queue/            # BullMQAdapter, reminderWorker, summaryWorker,
+                      # transcriptionWorker, bullBoardServer
+    redis/            # RedisClient, RedisRateLimiter, RedisConcurrencyLimiter
+    storage/          # S3ObjectStorage (presigned URLs)
   app/api/            # Next.js API route handlers (thin wiring layer)
 ```
 
@@ -150,6 +172,11 @@ src/
     tasks-container/
     task-editor/
     topics/
+    stickies/
+    weekly-recap/
+    notifications/
+    attachments/
+    settings/
     layout/
 ```
 
@@ -172,6 +199,18 @@ src/
 ### Other project files
 
 ```
+docs/
+  adr/                # Architecture Decision Records
+  design.md           # Design notes
+  context/            # AI/developer context docs
+    project-context.md
+    backend-plan.md
+    requirements-gathering.txt
+  templates/          # PR description references
+    pr-description-dashboard.md
+    pr-description-topics.md
+  reference-material/ # Supporting PDFs/reference docs
+    documentacion/
 openapi/
   spec.ts           # OpenAPI 3.1 source of truth
   openapi.json      # Generated JSON (pnpm openapi:emit)
@@ -249,30 +288,32 @@ prisma/
 
 ## 5) Authentication Rules
 
-### Current state (dev)
+### Current state (implemented)
 
-- Temporary `x-user-id` header sent from the API client in development only.
-- Controlled by env `NEXT_PUBLIC_DEV_USER_ID` (empty or absent = no header).
-- Backend extracts user ID via `getAuthUserId(request)` helper.
-- HMAC-signed callbacks (n8n → API) do NOT use `x-user-id`; they verify `X-Signature`.
+JWT authentication is **fully implemented** with access + refresh tokens in httpOnly cookies.
 
-### Target state (future JWT)
+- **Access token**: Short-lived (default 15 min), HS256 signed with `jose`.
+- **Refresh token**: Long-lived (default 30 days), stored hashed (SHA-256) in database.
+- **Token rotation**: New refresh token issued on each `/api/auth/refresh`; old token revoked.
+- **Reuse detection**: If a revoked token is reused, all user tokens are revoked (session compromise response).
+- **Cookie attributes**: `httpOnly`, `Secure` (production), `SameSite=Lax`, `Path=/`.
+- Backend extracts user ID via `getAuthUserId(request)` which reads the JWT cookie and verifies signature.
+- HMAC-signed callbacks (n8n → API) do NOT use JWT; they verify `X-Signature` + `X-Timestamp`.
 
-Implement auth with:
+### Dev fallback
 
-- **Access token**: short TTL
-- **Refresh token**: long TTL, rotation recommended
+- In non-production environments, an `x-user-id` header is accepted as fallback if no JWT cookie is present.
+- Controlled by env `NEXT_PUBLIC_DEV_USER_ID`.
 
-Storage guidelines (default preference):
+### Password policy
 
-- Use **httpOnly cookies** for tokens (mitigates XSS token theft).
-- Use secure cookie attributes in production (`Secure`, `SameSite`, `HttpOnly`).
-- Enforce server-side authorization checks on every protected resource.
+- Minimum 8 characters with uppercase, lowercase, number, and special character.
+- Bcrypt with 12 salt rounds.
+- Login rate limiting: 5 failed attempts per IP triggers 5-minute lockout.
 
-Password policy:
+### Auth endpoints
 
-- Strong passwords required (length + complexity, no trivial passwords).
-- Rate limiting and brute-force protections for login.
+`/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/recover`, `/api/auth/reset-password`, `/api/auth/change-password`.
 
 If any security tradeoff is unclear, ask before implementing.
 
@@ -282,27 +323,42 @@ If any security tradeoff is unclear, ask before implementing.
 
 ### BullMQ Workers
 
-- Two queues: `reminders` and `summaries`, each with a dedicated worker.
-- Run workers with: `pnpm worker:reminders` / `pnpm worker:summaries`.
+- Three queues: `reminders`, `summaries`, and `transcriptions`, each with a dedicated worker.
+- Run workers with: `pnpm worker:reminders` / `pnpm worker:summaries` / `pnpm worker:transcriptions`.
+- Workers are built separately via `pnpm build:workers` (tsup).
 - Reminder scheduling must be reliable and idempotent.
 - Jobs should include a stable identifier to avoid duplicates.
-- Failures must be observable (Sentry logging / structured logs).
+- Failures must be observable (Sentry + structured pino logs).
 - Do not block API requests with long-running tasks; enqueue work instead.
+- Queue monitoring available via Bull Board: `pnpm monitor:queues`.
 
 ### n8n Integration
 
-- n8n orchestrates external async workflows (e.g., AI summary generation).
+- n8n orchestrates external async workflows (summaries, transcriptions, reminders).
 - Communication: Worker → n8n webhook (HMAC-signed) → n8n processes → callback to API (HMAC-signed).
-- Callbacks to the API use HMAC signature verification, NOT x-user-id.
+- Callbacks to the API use HMAC signature verification (SHA-256 + timestamp ±5 min), NOT JWT.
 - n8n workflows must be documented (inputs, outputs, callbacks).
+- Workflow definitions stored in `n8n/workflows/`.
 
 ### AI Features (Ollama)
 
-- **Embeddings**: Ollama (`nomic-embed-text-v2-moe`) generates 768-dim vectors for topics and entries.
+- **Embeddings**: Ollama (`qwen3-embedding:latest`) generates 768-dim vectors for topics and entries.
 - **Auto-topic**: Cosine similarity via pgvector finds the best matching topic.
-- **Summaries**: Async flow via BullMQ → n8n → LLM → callback.
+- **Summaries**: Async flow via BullMQ → n8n → LLM → callback → in-app notification.
+- **Transcriptions**: YouTube videos in entries, async via BullMQ → n8n → transcript → callback.
+- **OCR**: Extract text from images via Ollama vision model (`glm-ocr:q8_0`), synchronous.
 - Embedding operations are synchronous (API waits for Ollama response).
-- Summary generation is asynchronous (202 Accepted, notification on completion).
+- Summary/transcription generation is asynchronous (202 Accepted, notification on completion).
+
+### AI Guardrails
+
+All AI features are protected by per-user guardrails:
+
+- **Rate limits**: per-minute and per-hour request caps per AI action.
+- **Concurrency limits**: max simultaneous requests per user (Redis-backed).
+- **Monthly quotas**: tracked in `AiUsageMonthly` / `AiUsageLedger` tables.
+- **Input size limits**: max characters per request.
+- Usage visible to users at `/api/ai/usage` and in the Settings section.
 
 ---
 
@@ -410,7 +466,7 @@ pnpm openapi:generate  # Both steps combined
 - When adding/modifying an API endpoint, update `openapi/spec.ts` in the same PR.
 - Never edit `openapi/openapi.json` or `openapi-types.ts` by hand — they are generated.
 - The spec is served at runtime via `GET /api/openapi.json` (no auth required).
-- Security schemes: `DevUserIdHeader` (current dev auth) + `BearerAuth` (future JWT).
+- Security schemes: `CookieAuth` (JWT httpOnly cookie) + `DevUserIdHeader` (dev fallback).
 
 ---
 

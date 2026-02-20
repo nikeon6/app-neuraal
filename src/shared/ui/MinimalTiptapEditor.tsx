@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -11,6 +11,10 @@ import "./minimal-tiptap.css";
 
 const lowlight = createLowlight(common);
 
+export interface MinimalTiptapEditorHandle {
+  editor: ReturnType<typeof useEditor> | null;
+}
+
 export interface MinimalTiptapEditorProps {
   readonly content: Record<string, unknown>;
   readonly onUpdate: (json: Record<string, unknown>) => void;
@@ -18,6 +22,7 @@ export interface MinimalTiptapEditorProps {
   readonly editable?: boolean;
   readonly placeholder?: string;
   readonly onFocus?: () => void;
+  readonly editorRef?: React.Ref<MinimalTiptapEditorHandle>;
 }
 
 function isValidContent(content: Record<string, unknown>): boolean {
@@ -40,6 +45,7 @@ export const MinimalTiptapEditor = React.memo(function MinimalTiptapEditor({
   editable = true,
   placeholder = "Start writing...",
   onFocus,
+  editorRef,
 }: MinimalTiptapEditorProps) {
   const skipUpdateRef = useRef(false);
   const contentHashRef = useRef<string>("");
@@ -76,6 +82,8 @@ export const MinimalTiptapEditor = React.memo(function MinimalTiptapEditor({
     },
     onFocus: () => onFocus?.(),
   });
+
+  useImperativeHandle(editorRef, () => ({ editor }), [editor]);
 
   useEffect(() => {
     if (editor) editor.setEditable(editable);

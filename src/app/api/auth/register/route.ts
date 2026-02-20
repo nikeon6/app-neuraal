@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
 import { PrismaUserRepository } from "@/infrastructure/persistence/PrismaUserRepository";
-import { PrismaRefreshTokenRepository } from "@/infrastructure/persistence/PrismaRefreshTokenRepository";
+import { PrismaEmailVerificationTokenRepository } from "@/infrastructure/persistence/PrismaEmailVerificationTokenRepository";
 import { BcryptPasswordHasher } from "@/infrastructure/auth/BcryptPasswordHasher";
-import { JoseJwtService } from "@/infrastructure/auth/JoseJwtService";
 import { CryptoRefreshTokenService } from "@/infrastructure/auth/CryptoRefreshTokenService";
 import { SystemClock } from "@/infrastructure/auth/SystemClock";
 import { getAuthConfig } from "@/infrastructure/auth/AuthConfig";
-import { setAuthCookies } from "@/infrastructure/auth/AuthCookies";
+import { SmtpEmailService } from "@/infrastructure/email/SmtpEmailService";
+import { getEmailConfig } from "@/infrastructure/email/EmailConfig";
+import type { EmailServicePort } from "@/application/ports/EmailServicePort";
 import type { UseCaseErrorCode } from "@/application/core/UseCaseError";
 
 function errorCodeToStatus(code: UseCaseErrorCode): number {
@@ -15,6 +16,7 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
     VALIDATION_ERROR: 400,
     DUPLICATE_ERROR: 409,
     UNAUTHORIZED: 401,
+    EMAIL_NOT_VERIFIED: 403,
     NOT_FOUND: 404,
     CONFLICT: 409,
     QUOTA_EXCEEDED: 429,
@@ -26,9 +28,19 @@ function errorCodeToStatus(code: UseCaseErrorCode): number {
   return map[code] ?? 500;
 }
 
+function tryBuildEmailService(): EmailServicePort | null {
+  try {
+    const emailConfig = getEmailConfig();
+    return new SmtpEmailService(emailConfig);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/auth/register
- * Registers a new user and returns auth cookies.
+ * Registers a new user and sends a verification email.
+ * Returns 201 with a message to check email.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: { email?: string; password?: string };
@@ -54,15 +66,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const config = getAuthConfig();
+
   const useCase = new RegisterUser(
     new PrismaUserRepository(),
-    new PrismaRefreshTokenRepository(),
     new BcryptPasswordHasher(),
-    new JoseJwtService(config.jwtSecret),
     new CryptoRefreshTokenService(),
     new SystemClock(),
-    config.accessTtlSeconds,
-    config.refreshTtlDays,
+    new PrismaEmailVerificationTokenRepository(),
+    tryBuildEmailService(),
+    config.appBaseUrl,
+    config.verificationTtlHours,
   );
 
   const result = await useCase.execute({
@@ -76,8 +89,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: { code, message } }, { status });
   }
 
-  const { user, tokens } = result.value;
-  const response = NextResponse.json({ user }, { status: 200 });
-  setAuthCookies(response, tokens.accessToken, tokens.refreshToken, config);
-  return response;
+  const { user, message } = result.value;
+  return NextResponse.json({ user, message }, { status: 201 });
 }

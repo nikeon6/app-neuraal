@@ -47,6 +47,7 @@ let editorMock: {
 
 vi.mock("@/shared/api/queries", () => ({
   useTopicsQuery: (...args: unknown[]) => mockTopicsQuery(...args),
+  useUserProfileQuery: () => ({ data: undefined }),
   entriesQueryKey: (dateKey: string) => ["entries", dateKey],
   topicsQueryKey: ["topics"],
   useEntryAttachmentsQuery: () => ({ data: undefined, isLoading: false }),

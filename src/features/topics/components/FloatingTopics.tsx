@@ -13,7 +13,7 @@ import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery } from "@/shared/api/queries";
 import type { TopicNodeCenter, TaskCenter } from "@/features/topics/types";
 import { clamp, median, quadPath, cn } from "@/shared/lib";
-// Default anchor positions for topic bubbles (cycled for > 6 topics)
+// Default anchor positions for topic bubbles (max 12 topics)
 const DEFAULT_ANCHORS = [
   { xPct: 0.2, yPct: 0.25 },
   { xPct: 0.35, yPct: 0.4 },
@@ -21,6 +21,12 @@ const DEFAULT_ANCHORS = [
   { xPct: 0.25, yPct: 0.65 },
   { xPct: 0.65, yPct: 0.35 },
   { xPct: 0.45, yPct: 0.7 },
+  { xPct: 0.75, yPct: 0.55 },
+  { xPct: 0.15, yPct: 0.45 },
+  { xPct: 0.6, yPct: 0.7 },
+  { xPct: 0.3, yPct: 0.15 },
+  { xPct: 0.7, yPct: 0.2 },
+  { xPct: 0.55, yPct: 0.15 },
 ] as const;
 
 // ============================================================================
@@ -40,7 +46,7 @@ const MIN_TRUNK = 32;
 const DIR_HYSTERESIS = 10;
 const MIN_TRUNK_PUSH_FACTOR = 0.85;
 const NODE_MARGIN = 8;
-const NODE_SCALE_STACK = 0.59; // Scale factor for topic nodes in mobile stack mode
+const NODE_SCALE_STACK = 0.62; // Scale factor for topic nodes in mobile stack mode
 
 // Junction dot (neuron point) parameters
 const DOT_RADIUS_BASE = 4.5;
@@ -815,8 +821,9 @@ export function FloatingTopics({
     for (let idx = 0; idx < activeTopics.length; idx++) {
       const id = activeTopics[idx];
       const count = topicCounts[id] ?? 0;
-      // Scale radius down in mobile stack mode for smaller bubbles
-      const baseR = Math.min(65, 20 + count * 8);
+      // Keep the same minimum size (28 for count=1), cap at 72,
+      // and spread growth across 9 distinct sizes.
+      const baseR = Math.min(72, 28 + (count - 1) * 5.5);
       const r = isStackLayout ? baseR * NODE_SCALE_STACK : baseR;
 
       // Cycle through default anchors for positioning
@@ -1565,6 +1572,16 @@ export function FloatingTopics({
       const node = nodePosRef.current[id];
       if (!container || !node) return;
 
+      // On touch devices, the previously focused editor/input can keep focus
+      // after the keyboard is dismissed. Blur it before handling the bubble tap
+      // to prevent mobile browsers from reopening the keyboard.
+      if (e.pointerType === "touch") {
+        const activeEl = document.activeElement;
+        if (activeEl instanceof HTMLElement && activeEl !== e.currentTarget) {
+          activeEl.blur();
+        }
+      }
+
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -1752,7 +1769,7 @@ export function FloatingTopics({
     <div
       className="absolute inset-0 pointer-events-none landscape-mobile-hidden"
       aria-label="Topics floating layer"
-      style={{ zIndex: 15 }}
+      style={{ zIndex: 15, isolation: "isolate" }}
     >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg

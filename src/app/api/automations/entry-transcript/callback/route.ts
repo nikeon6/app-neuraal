@@ -36,7 +36,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     requestId: string;
     userId: string;
     entryId: string;
-    transcriptText: string;
+    transcriptText?: string;
+    transcription?: string;
     format?: string;
     usage?: {
       promptTokens?: number;
@@ -50,6 +51,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     payload = JSON.parse(body);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (
+    !payload.requestId ||
+    !payload.userId ||
+    !payload.entryId ||
+    (!payload.transcriptText && !payload.transcription)
+  ) {
+    return NextResponse.json(
+      { error: "requestId, userId, entryId and transcriptText are required" },
+      { status: 400 },
+    );
   }
 
   const recordAiUsage = new RecordAiUsageFromCallback(

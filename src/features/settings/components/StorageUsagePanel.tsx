@@ -90,8 +90,6 @@ export function StorageUsagePanel() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-medium text-zinc-300">Storage</h3>
-
       <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-4 space-y-4">
         {/* Global user quota */}
         <StorageBar

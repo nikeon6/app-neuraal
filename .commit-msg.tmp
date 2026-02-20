@@ -1,0 +1,15 @@
+feat: implement password recovery, reset, and change flows
+
+- Add ConfirmPasswordReset use case + POST /api/auth/reset-password endpoint
+- Add ChangePassword use case + POST /api/auth/change-password endpoint (authenticated)
+- Add /reset-password?token=... frontend page for confirming password reset
+- Integrate ChangePasswordForm into existing dashboard Settings section
+- Add EmailServicePort + SmtpEmailService (Nodemailer) infrastructure
+- Wire email sending into RequestPasswordReset (graceful fallback when SMTP not configured)
+- Add SMTP env vars template in .env for provider configuration
+- Update OpenAPI spec with confirmPasswordReset and changePassword operations
+- Add UserRepository.updatePasswordHash to port + Prisma/InMemory implementations
+- Create SettingsPanel component unifying Storage, AI Usage, and Change Password
+- Rename section titles: Stickies->Brainstorm Board, Topics->Neural Paths, Settings->Usage & Settings
+- Clean up docs, remove PDFs, update README, AGENTS.md, design.md, ADRs
+- All 62+ new/updated auth tests passing, typecheck clean
