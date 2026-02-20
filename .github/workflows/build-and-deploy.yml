@@ -312,29 +312,215 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
+            export TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+            export GHCR_PULL_USER="${{ secrets.GHCR_PULL_USER }}"
+            export GHCR_PULL_TOKEN="${{ secrets.GHCR_PULL_TOKEN }}"
             set -euo pipefail
 
             cd /srv/neuraal
+            COMPOSE='docker compose -f docker-compose.prod.yml --env-file .env.prod'
 
-            # 1) Use workflow_run head SHA when available, otherwise push SHA
-            TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
-            echo "Deploying tag: $TAG"
+            # ---------------- helpers ----------------
+            get_env_tag() {
+              grep -E '^APP_IMAGE_TAG=' .env.prod 2>/dev/null | head -n1 | cut -d= -f2- || true
+            }
 
-            # 2) Persist selected tag for docker compose image reference
-            if grep -q '^APP_IMAGE_TAG=' .env.prod; then
-              sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$TAG/" .env.prod
-            else
-              echo "APP_IMAGE_TAG=$TAG" >> .env.prod
+            set_env_tag() {
+              local tag="$1"
+              if grep -q '^APP_IMAGE_TAG=' .env.prod 2>/dev/null; then
+                sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$tag/" .env.prod
+              else
+                echo "APP_IMAGE_TAG=$tag" >> .env.prod
+              fi
+            }
+
+            # Healthcheck via local Caddy, but with proper TLS SNI using --resolve
+            healthcheck() {
+              curl -fsS --max-time 5 \
+                --resolve neuraal.app:443:127.0.0.1 \
+                https://neuraal.app/api/health \
+                >/dev/null
+            }
+
+            wait_health() {
+              local timeout="${1:-180}"     # 3 min por defecto
+              local interval="${2:-5}"      # cada 5s
+              local deadline=$((SECONDS + timeout))
+
+              while [ $SECONDS -lt $deadline ]; do
+                if healthcheck; then
+                  return 0
+                fi
+
+                # Log suave cada ~30s
+                if (( (deadline - SECONDS) % 30 == 0 )); then
+                  echo "Still waiting... (remaining $((deadline-SECONDS))s)"
+                  docker ps --format '{{.Names}} {{.Status}}' | grep -E 'neuraal-(caddy|app|postgres|redis|minio|n8n|ollama)' || true
+                fi
+
+                sleep "$interval"
+              done
+
+              return 1
+            }
+
+            # ---------------- 0) Tags ----------------
+            OLD_TAG="$(get_env_tag)"
+            TAG="${TAG:-${GITHUB_SHA:-}}"
+
+            if [ -z "${TAG:-}" ]; then
+              echo "ERROR: TAG is empty. You must pass TAG (commit sha) from GitHub Actions."
+              exit 10
             fi
 
-            # 3) Login to GHCR (private registry)
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_PULL_USER }}" --password-stdin
+            echo "Deploying tag: $TAG"
+            echo "Previous tag: ${OLD_TAG:-"(none)"}"
 
-            # 4) Pull exact tag + migrate + up
-            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
-            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app pnpm prisma migrate deploy
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
-
-            # 5) Guardamos el último deploy (útil para rollback rápido)
+            # Guarda attempted ASAP
             echo "$TAG" > .last_deploy_tag
-            echo "Last deploy tag saved: $TAG"
+
+            # Si no existe last_good_tag y tenemos OLD_TAG, lo inicializamos (evita rollback sin referencia)
+            if [ ! -f .last_good_tag ] && [ -n "${OLD_TAG:-}" ]; then
+              echo "$OLD_TAG" > .last_good_tag
+            fi
+
+            # Set new tag in env
+            set_env_tag "$TAG"
+
+            # ---------------- 1) GHCR login ----------------
+            # (asegúrate de que estos secrets existen en el workflow)
+            echo "${GHCR_PULL_TOKEN:-}" | docker login ghcr.io -u "${GHCR_PULL_USER:-}" --password-stdin
+
+            # ---------------- 2) DB backup (antes de migrar) ----------------
+            mkdir -p backups/postgres
+            STAMP="$(date -u +'%Y%m%dT%H%M%SZ')"
+            BACKUP_FILE="backups/postgres/neuraal_${STAMP}_${TAG}.dump.gz"
+
+            echo "Creating DB backup: $BACKUP_FILE"
+
+            # pg_dump dentro del contenedor postgres -> stdout -> gzip en host
+            $COMPOSE exec -T postgres sh -lc '
+              set -e
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              pg_dump -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc
+            ' | gzip -9 > "$BACKUP_FILE"
+
+            gzip -t "$BACKUP_FILE"
+            echo "$BACKUP_FILE" > .last_backup_file
+            echo "DB backup OK"
+            
+            # ---------- BACKUP RETENTION (keep last 7, delete only if older than 14d AND count>7) ----------
+            RETENTION_DAYS=14
+            RETENTION_KEEP=7
+            BACKUP_DIR="backups/postgres"
+            BACKUP_GLOB="neuraal_*.dump.gz"
+
+            cleanup_backups() {
+              local dir="$1" days="$2" keep="$3" glob="$4"
+
+              mkdir -p "$dir"
+
+              # total backups
+              local total
+              total=$(ls -1 "$dir"/$glob 2>/dev/null | wc -l | tr -d ' ')
+              if [ "${total:-0}" -le "$keep" ]; then
+                echo "Retention: total ($total) <= keep ($keep). Nothing to delete."
+                return 0
+              fi
+
+              # candidates: older than N days, sorted oldest first
+              local candidates
+              candidates=$(find "$dir" -maxdepth 1 -type f -name "$glob" -mtime +"$days" -printf '%T@ %p\n' 2>/dev/null | sort -n || true)
+
+              if [ -z "$candidates" ]; then
+                echo "Retention: total ($total) > keep ($keep) but no files older than ${days}d. Nothing to delete."
+                return 0
+              fi
+
+              echo "Retention: total=$total, keep=$keep, days=$days. Deleting oldest backups older than ${days}d until total==${keep}."
+
+              # delete oldest eligible until total==keep or no more eligible
+              while [ "$(ls -1 "$dir"/$glob 2>/dev/null | wc -l | tr -d ' ')" -gt "$keep" ]; do
+                local line file
+                line="$(printf '%s\n' "$candidates" | head -n 1 || true)"
+                [ -z "$line" ] && break
+
+                file="${line#* }"
+                if [ -n "$file" ] && [ -f "$file" ]; then
+                  echo "Retention: removing $file"
+                  rm -f -- "$file"
+                fi
+
+                # drop first line from candidates
+                candidates="$(printf '%s\n' "$candidates" | tail -n +2 || true)"
+                [ -z "$candidates" ] && break
+              done
+
+              echo "Retention: done. Remaining: $(ls -1 "$dir"/$glob 2>/dev/null | wc -l | tr -d ' ')"
+            }
+
+            cleanup_backups "$BACKUP_DIR" "$RETENTION_DAYS" "$RETENTION_KEEP" "$BACKUP_GLOB"
+            # ---------------------------------------------------------------------------------------------
+
+
+            # ---------------- 3) Pull + migrate + up ----------------
+            echo "Pulling images..."
+            $COMPOSE pull
+
+            echo "Running migrations..."
+            if ! $COMPOSE run --rm app pnpm prisma migrate deploy; then
+              echo "❌ Migrations FAILED for tag $TAG"
+
+              # rollback env tag to OLD_TAG if we have it
+              if [ -n "${OLD_TAG:-}" ]; then
+                echo "Reverting APP_IMAGE_TAG to previous tag: $OLD_TAG"
+                set_env_tag "$OLD_TAG"
+                $COMPOSE pull || true
+                $COMPOSE up -d --remove-orphans || true
+              fi
+
+              exit 1
+            fi
+
+            echo "Starting services..."
+            $COMPOSE up -d --remove-orphans
+
+            # ---------------- 4) Health + mark good or rollback ----------------
+            HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-600}"  # 10 min
+            HEALTH_INTERVAL_SECONDS="${HEALTH_INTERVAL_SECONDS:-5}"
+
+            echo "Waiting for health..."
+            if wait_health "$HEALTH_TIMEOUT_SECONDS" "$HEALTH_INTERVAL_SECONDS"; then
+              echo "✅ Health OK"
+              echo "$TAG" > .last_good_tag
+              echo "Last good tag saved: $TAG"
+              exit 0
+            fi
+
+            echo "❌ Health FAILED after ${HEALTH_TIMEOUT_SECONDS}s for tag $TAG"
+            echo "Attempting rollback..."
+
+            ROLLBACK_TAG="$(cat .last_good_tag 2>/dev/null || true)"
+            if [ -z "${ROLLBACK_TAG:-}" ]; then
+              ROLLBACK_TAG="${OLD_TAG:-}"
+            fi
+
+            if [ -z "${ROLLBACK_TAG:-}" ]; then
+              echo "No rollback tag available (.last_good_tag missing and OLD_TAG empty). Manual intervention required."
+              exit 2
+            fi
+
+            echo "Rolling back to tag: $ROLLBACK_TAG"
+            set_env_tag "$ROLLBACK_TAG"
+
+            $COMPOSE pull || true
+            $COMPOSE up -d --remove-orphans || true
+
+            echo "Waiting for health after rollback..."
+            if wait_health "$HEALTH_TIMEOUT_SECONDS" "$HEALTH_INTERVAL_SECONDS"; then
+              echo "✅ Rollback succeeded. Stack is healthy on tag: $ROLLBACK_TAG"
+              exit 1
+            fi
+
+            echo "❌ Rollback FAILED too. Manual intervention required."
+            exit 3
