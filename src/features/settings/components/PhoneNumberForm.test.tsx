@@ -1,7 +1,9 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PhoneNumberForm } from "./PhoneNumberForm";
 
 const mockGet = vi.fn();
@@ -19,6 +21,17 @@ vi.mock("@/shared/api/apiClient", () => ({
   },
 }));
 
+vi.mock("@/shared/api/queries", () => ({
+  userProfileQueryKey: ["user-profile"],
+}));
+
+function renderWithClient(ui: React.ReactElement) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
+
 describe("PhoneNumberForm", () => {
   beforeEach(() => {
     mockGet.mockReset();
@@ -28,7 +41,7 @@ describe("PhoneNumberForm", () => {
   it("renders loading state while fetching current phone", async () => {
     mockGet.mockReturnValue(new Promise(() => {}));
 
-    const { container } = render(<PhoneNumberForm />);
+    const { container } = renderWithClient(<PhoneNumberForm />);
     expect(container.querySelector(".animate-pulse")).not.toBeNull();
   });
 
@@ -37,7 +50,7 @@ describe("PhoneNumberForm", () => {
       user: { id: "u1", email: "a@b.com", phoneNumber: "+34612345678" },
     });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("+34612345678")).toBeInTheDocument();
@@ -49,7 +62,7 @@ describe("PhoneNumberForm", () => {
       user: { id: "u1", email: "a@b.com", phoneNumber: null },
     });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       const input = screen.getByLabelText(/phone number/i);
@@ -62,7 +75,7 @@ describe("PhoneNumberForm", () => {
       user: { id: "u1", email: "a@b.com", phoneNumber: null },
     });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       const input = screen.getByPlaceholderText(/\+34/);
@@ -75,7 +88,7 @@ describe("PhoneNumberForm", () => {
       user: { id: "u1", email: "a@b.com", phoneNumber: null },
     });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByText(/country prefix/i)).toBeInTheDocument();
@@ -89,7 +102,7 @@ describe("PhoneNumberForm", () => {
     });
     mockPatch.mockResolvedValue({ phoneNumber: "+34612345678" });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument();
@@ -119,7 +132,7 @@ describe("PhoneNumberForm", () => {
     });
     mockPatch.mockResolvedValue({ phoneNumber: null });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("+34612345678")).toBeInTheDocument();
@@ -144,7 +157,7 @@ describe("PhoneNumberForm", () => {
       user: { id: "u1", email: "a@b.com", phoneNumber: null },
     });
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument();
@@ -169,7 +182,7 @@ describe("PhoneNumberForm", () => {
     const { ApiError } = await import("@/shared/api/apiClient");
     mockPatch.mockRejectedValue(new ApiError("Invalid phone", 400));
 
-    render(<PhoneNumberForm />);
+    renderWithClient(<PhoneNumberForm />);
 
     await waitFor(() => {
       expect(screen.getByLabelText(/phone number/i)).toBeInTheDocument();

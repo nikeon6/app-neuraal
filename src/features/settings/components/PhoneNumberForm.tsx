@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { get, patch, ApiError } from "@/shared/api/apiClient";
+import { userProfileQueryKey } from "@/shared/api/queries";
 import { CheckCircle } from "lucide-react";
 
 interface MeResponse {
@@ -20,6 +22,7 @@ function normalizeForValidation(raw: string): string {
 }
 
 export function PhoneNumberForm() {
+  const queryClient = useQueryClient();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,7 @@ export function PhoneNumberForm() {
       setInitialPhone(trimmed.length > 0 ? trimmed : "");
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      await queryClient.invalidateQueries({ queryKey: userProfileQueryKey });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message || "Something went wrong. Please try again.");

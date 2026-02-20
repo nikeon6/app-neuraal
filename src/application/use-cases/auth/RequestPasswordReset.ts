@@ -1,4 +1,5 @@
 import { Result, ok, err } from "@/domain/core/Result";
+import { buildEmailDocument, emailBody, LOGO_CID } from "./emailLayout";
 import { Email } from "@/domain/value-objects/Email";
 import type { UserRepository } from "../../ports/UserRepository";
 import type { PasswordResetTokenRepository } from "../../ports/PasswordResetTokenRepository";
@@ -55,11 +56,7 @@ export class RequestPasswordReset {
           await this.emailService.send({
             to: emailResult.value.toString(),
             subject: "Reset your password — Neuraal",
-            html: buildResetEmailHtml(
-              resetUrl,
-              this.resetTtlMinutes,
-              this.appBaseUrl,
-            ),
+            html: buildResetEmailHtml(resetUrl, this.resetTtlMinutes),
             text: buildResetEmailText(resetUrl, this.resetTtlMinutes),
           });
         } catch {
@@ -72,35 +69,18 @@ export class RequestPasswordReset {
   }
 }
 
-function buildResetEmailHtml(
-  resetUrl: string,
-  ttlMinutes: number,
-  appBaseUrl: string,
-): string {
-  const logoUrl = `${appBaseUrl}/branding/lockups/Neuraal_Negro_Logotipo.png`;
+function buildResetEmailHtml(resetUrl: string, ttlMinutes: number): string {
+  const body = emailBody({
+    logoSrc: `cid:${LOGO_CID}`,
+    heading: "Reset your password",
+    paragraph:
+      "We received a request to reset your password. Click the button below to choose a new one.",
+    buttonUrl: resetUrl,
+    buttonLabel: "Reset password",
+    footnote: `This link expires in ${ttlMinutes} minutes. If you didn&#8217;t request this, you can safely ignore this email.`,
+  });
 
-  return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-      <div style="text-align: center; margin-bottom: 32px;">
-        <img src="${logoUrl}" alt="Neuraal" width="160" height="auto" style="display: inline-block; max-width: 160px; height: auto;" />
-      </div>
-      <h2 style="color: #1a1a2e; margin-bottom: 16px;">Reset your password</h2>
-      <p style="color: #555; line-height: 1.6;">
-        We received a request to reset your password. Click the button below to choose a new one.
-      </p>
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${resetUrl}"
-           style="display: inline-block; background: #6366f1; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
-          Reset password
-        </a>
-      </div>
-      <p style="color: #888; font-size: 13px; line-height: 1.5;">
-        This link expires in ${ttlMinutes} minutes. If you didn&rsquo;t request this, you can safely ignore this email.
-      </p>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
-      <p style="color: #aaa; font-size: 12px;">Neuraal</p>
-    </div>
-  `.trim();
+  return buildEmailDocument("Reset your password", body);
 }
 
 function buildResetEmailText(resetUrl: string, ttlMinutes: number): string {

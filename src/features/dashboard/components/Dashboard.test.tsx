@@ -139,6 +139,12 @@ vi.mock("@/features/settings/components/StorageUsagePanel", () => ({
   ),
 }));
 
+vi.mock("@/features/settings/components/PhoneNumberForm", () => ({
+  PhoneNumberForm: () => (
+    <div data-testid="phone-number-form">phone-number</div>
+  ),
+}));
+
 describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
