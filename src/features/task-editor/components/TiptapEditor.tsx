@@ -77,6 +77,10 @@ export interface TiptapEditorHandle {
   syncImageVisionResults: (
     visionResults: Map<string, { text: string; mode: string }>,
   ) => Record<string, unknown> | null;
+  /** Toggle a bullet list at the current selection. */
+  toggleBulletList: () => void;
+  /** Toggle a numbered list at the current selection. */
+  toggleOrderedList: () => void;
 }
 
 interface TiptapEditorProps {
@@ -707,6 +711,16 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     [editor],
   );
 
+  const toggleBulletList = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().toggleBulletList().run();
+  }, [editor]);
+
+  const toggleOrderedList = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().toggleOrderedList().run();
+  }, [editor]);
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -720,6 +734,8 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
+      toggleBulletList,
+      toggleOrderedList,
     }),
     [
       editor,
@@ -732,6 +748,8 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
+      toggleBulletList,
+      toggleOrderedList,
     ],
   );
 

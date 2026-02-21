@@ -21,6 +21,8 @@ import {
   ChevronDown,
   CheckCircle2,
   Circle,
+  List,
+  ListOrdered,
   ListTodo,
   StickyNote,
   X,
@@ -998,6 +1000,8 @@ export function TaskEditor({
     { id: "code", label: "Code snippet", icon: Code },
     { id: "youtube", label: "YouTube video", icon: CirclePlay },
     { id: "file", label: "Attach file", icon: Paperclip },
+    { id: "bulletList", label: "Bullet list", icon: List },
+    { id: "orderedList", label: "Numbered list", icon: ListOrdered },
   ];
 
   // Handle "+" menu item clicks
@@ -1031,6 +1035,12 @@ export function TaskEditor({
           fileInputRef.current?.click();
           break;
         }
+        case "bulletList":
+          tiptapRef.current?.toggleBulletList();
+          break;
+        case "orderedList":
+          tiptapRef.current?.toggleOrderedList();
+          break;
       }
     },
     [uploadImages],
@@ -1322,6 +1332,7 @@ export function TaskEditor({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
+                      onMouseDown={(e) => e.preventDefault()}
                       className="absolute bottom-full left-0 mb-2 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50"
                     >
                       {contentMenuItems.map((item) => (
