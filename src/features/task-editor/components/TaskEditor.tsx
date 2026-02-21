@@ -19,7 +19,6 @@ import {
   CirclePlay,
   Paperclip,
   ChevronDown,
-  Sparkles,
   CheckCircle2,
   Circle,
   ListTodo,
@@ -422,7 +421,7 @@ function TopicDropdown({
           {currentTopicDisplay.name}
         </span>
         {selectedTopicId === AUTO_TOPIC && (
-          <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />
+          <Brain className="w-3 h-3 text-purple-400 flex-shrink-0" />
         )}
         <ChevronDown
           className={cn(
@@ -483,7 +482,7 @@ function TopicDropdown({
                     style={{ "--dot-color": "#8b5cf6" } as React.CSSProperties}
                   />
                   <span>Auto</span>
-                  <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
+                  <Brain className="w-3 h-3 text-purple-400 ml-auto" />
                 </button>
 
                 {/* No topic option */}
