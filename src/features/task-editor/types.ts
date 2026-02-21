@@ -110,10 +110,16 @@ export interface TaskEditorUIState {
 }
 
 /**
+ * IDs accepted by the "Add content" menu.
+ * Extends AttachmentKind with editor-only formatting actions (lists).
+ */
+export type ContentMenuId = AttachmentKind | "bulletList" | "orderedList";
+
+/**
  * Content menu item configuration.
  */
 export interface ContentMenuItem {
-  id: AttachmentKind;
+  id: ContentMenuId;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }

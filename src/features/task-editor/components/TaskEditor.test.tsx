@@ -288,6 +288,28 @@ describe("TaskEditor", () => {
         screen.getByRole("menuitem", { name: /file|attach/i }),
       ).toBeInTheDocument();
     });
+
+    it("should show bullet list option in content dropdown", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      await user.click(screen.getByRole("button", { name: /add content/i }));
+      expect(
+        screen.getByRole("menuitem", { name: /bullet list/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("should show numbered list option in content dropdown", async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await expandEditor(user);
+
+      await user.click(screen.getByRole("button", { name: /add content/i }));
+      expect(
+        screen.getByRole("menuitem", { name: /numbered list/i }),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("Top Right Buttons", () => {

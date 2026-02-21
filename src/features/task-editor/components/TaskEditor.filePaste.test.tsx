@@ -183,6 +183,8 @@ vi.mock("./TiptapEditor", () => ({
         removeUploadingFileNode: removeUploadingFileNodeMock,
         syncYoutubeTranscriptions: vi.fn(),
         syncImageVisionResults: vi.fn(),
+        toggleBulletList: vi.fn(),
+        toggleOrderedList: vi.fn(),
       };
     }
 
