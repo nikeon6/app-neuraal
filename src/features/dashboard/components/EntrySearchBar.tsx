@@ -52,6 +52,17 @@ export function EntrySearchBar({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // ---- Responsive width (smaller on mobile so it doesn't push the date text) ----
+  const [expandedWidth, setExpandedWidth] = useState(280);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(min-width: 768px)");
+    const update = () => setExpandedWidth(mql.matches ? 280 : 170);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
   // ---- Debounce ----
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS);
@@ -190,7 +201,7 @@ export function EntrySearchBar({
             aria-haspopup="listbox"
             aria-label="Search entries"
             initial={{ width: 36, opacity: 0.8 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: expandedWidth, opacity: 1 }}
             exit={{ width: 36, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             style={{ originX: 1 }}
@@ -264,7 +275,7 @@ export function EntrySearchBar({
             transition={{ duration: 0.15 }}
             className={cn(
               "absolute top-full right-0 mt-2 z-50",
-              "w-[280px] max-h-[320px] overflow-y-auto",
+              "w-[170px] md:w-[280px] max-h-[320px] overflow-y-auto",
               "bg-slate-900/95 backdrop-blur-md",
               "border border-white/10 rounded-xl shadow-2xl",
               "tasks-scrollbar",
