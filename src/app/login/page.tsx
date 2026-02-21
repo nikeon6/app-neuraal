@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import * as Sentry from "@sentry/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/shared/store";
 import { post, ApiError } from "@/shared/api/apiClient";
 import { ArrowRight, CheckCircle, AlertTriangle, RotateCw } from "lucide-react";
@@ -40,6 +41,7 @@ function LoginPageContent() {
   const [resendMessage, setResendMessage] = useState("");
   const { login, user } = useStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
   const verified = searchParams.get("verified");
@@ -111,6 +113,7 @@ function LoginPageContent() {
         message: "User login succeeded",
         level: "info",
       });
+      queryClient.clear();
       login(data.user);
       router.push("/");
     } catch (err) {

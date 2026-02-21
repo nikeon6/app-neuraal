@@ -92,7 +92,7 @@ export const useStore = create<AppState>()(
     (set) => ({
       user: null,
       login: (user) => set({ user }),
-      logout: () => set({ user: null }),
+      logout: () => set({ user: null, topicPositions: {} }),
 
       selectedDate: new Date(),
       selectedDay: new Date().getDate(),
