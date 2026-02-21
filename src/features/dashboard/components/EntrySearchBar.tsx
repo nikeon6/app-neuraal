@@ -177,7 +177,10 @@ export function EntrySearchBar({
     isOpen && debouncedQuery.trim().length >= MIN_QUERY_LENGTH;
 
   return (
-    <div ref={containerRef} className="relative flex items-center self-center">
+    <div
+      ref={containerRef}
+      className="relative flex items-center justify-end self-center"
+    >
       <AnimatePresence mode="wait">
         {isOpen ? (
           <motion.div
@@ -190,8 +193,9 @@ export function EntrySearchBar({
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 36, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ originX: 1 }}
             className={cn(
-              "flex items-center gap-2 overflow-hidden",
+              "flex items-center gap-2 overflow-hidden ml-auto",
               "rounded-full px-3 h-9",
               "bg-white/5 backdrop-blur-sm border border-white/15",
             )}
@@ -236,7 +240,7 @@ export function EntrySearchBar({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "flex items-center justify-center rounded-full transition-colors",
+              "flex items-center justify-center rounded-full transition-colors ml-auto",
               "w-8 h-8 md:w-9 md:h-9",
               "bg-white/5 border border-white/10",
               "hover:bg-white/10 hover:border-white/20",
@@ -256,10 +260,11 @@ export function EntrySearchBar({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "absolute top-full left-0 mt-2 z-50",
+              "absolute top-full right-0 mt-2 z-50",
               "w-[280px] max-h-[320px] overflow-y-auto",
               "bg-slate-900/95 backdrop-blur-md",
               "border border-white/10 rounded-xl shadow-2xl",
+              "tasks-scrollbar",
             )}
           >
             {results.length > 0 ? (
