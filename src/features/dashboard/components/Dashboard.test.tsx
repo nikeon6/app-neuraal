@@ -70,10 +70,17 @@ vi.mock("@/shared/api/queries", () => ({
   useEntriesForDates: () => ({ entriesByDate: entriesByDateMock }),
   useSummaryDoneWatcher: vi.fn(),
   useTranscriptionDoneWatcher: vi.fn(),
+  useTopicsQuery: () => ({ data: [] }),
 }));
 
 vi.mock("@/features/topics/components/FloatingTopics", () => ({
   FloatingTopics: () => <div data-testid="floating-topics" />,
+}));
+
+vi.mock("@/features/topics/components/TopicsLaneEmptyState", () => ({
+  TopicsLaneEmptyState: () => (
+    <div data-testid="topics-lane-empty">empty-state</div>
+  ),
 }));
 
 vi.mock("@/features/topics/components/TopicsSection", () => ({
@@ -204,9 +211,8 @@ describe("Dashboard", () => {
   it("clears selection when clicking empty lane", () => {
     storeState.selectedTopicIds = ["topic-1"];
     render(<Dashboard />);
-    const lane = document.querySelector('div[aria-hidden="true"]');
-    expect(lane).not.toBeNull();
-    fireEvent.click(lane as Element);
+    const lane = screen.getByTestId("topics-lane");
+    fireEvent.click(lane);
     expect(storeFns.clearSelection).toHaveBeenCalledTimes(1);
   });
 

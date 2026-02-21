@@ -14,8 +14,10 @@ import {
   useEntriesForDates,
   useSummaryDoneWatcher,
   useTranscriptionDoneWatcher,
+  useTopicsQuery,
 } from "@/shared/api/queries";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
+import { TopicsLaneEmptyState } from "@/features/topics/components/TopicsLaneEmptyState";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
 import { StickiesContainer } from "@/features/stickies";
@@ -72,6 +74,16 @@ export function Dashboard() {
   }, [selectedDate]);
 
   const { entriesByDate } = useEntriesForDates(monthDateKeys);
+  const { data: allTopics = [] } = useTopicsQuery();
+
+  const hasTopics = allTopics.length > 0;
+  const hasAssignedTopics = useMemo(() => {
+    if (!hasTopics) return false;
+    const topicIdSet = new Set(allTopics.map((t) => t.id));
+    return Object.values(entriesByDate)
+      .flat()
+      .some((e) => e.topicId && topicIdSet.has(e.topicId));
+  }, [hasTopics, allTopics, entriesByDate]);
 
   // Watch for SUMMARY_DONE notifications and auto-refresh entries
   const currentDateKey = useStore(selectDateKey);
@@ -268,13 +280,16 @@ export function Dashboard() {
       {showTopicsLane && (
         <div
           ref={laneRef}
+          data-testid="topics-lane"
           className={cn(
             "relative min-w-0 flex-shrink-0 order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto landscape-mobile-hidden",
             isKeyboardOpen && "hidden",
           )}
-          aria-hidden="true"
+          aria-hidden={hasAssignedTopics ? "true" : undefined}
           onClick={handleLaneClick}
-        />
+        >
+          {!hasAssignedTopics && <TopicsLaneEmptyState hasTopics={hasTopics} />}
+        </div>
       )}
 
       {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}
