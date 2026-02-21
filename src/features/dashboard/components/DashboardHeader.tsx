@@ -32,6 +32,8 @@ export interface DashboardHeaderProps {
   selectedDate: Date;
   /** Slot for the notifications widget (rendered in the nav bar). */
   notificationSlot?: React.ReactNode;
+  /** Slot for the search widget (rendered next to the daily title). */
+  searchSlot?: React.ReactNode;
 }
 
 // ============================================================================
@@ -118,6 +120,7 @@ export function DashboardHeader({
   onChangeSection,
   selectedDate,
   notificationSlot,
+  searchSlot,
 }: Readonly<DashboardHeaderProps>) {
   const isDaily = section === "daily";
   const isWeekly = section === "weeklyRecap";
@@ -205,12 +208,15 @@ export function DashboardHeader({
         {/* Main title */}
         {isDaily && (
           <>
-            <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
-              {format(selectedDate, "MMMM d")}
-              <span className="text-white/20">
-                , {format(selectedDate, "yyyy")}
-              </span>
-            </h1>
+            <div className="flex items-center gap-2 md:gap-3">
+              <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+                {format(selectedDate, "MMMM d")}
+                <span className="text-white/20">
+                  , {format(selectedDate, "yyyy")}
+                </span>
+              </h1>
+              {searchSlot}
+            </div>
             <p className="text-white/40 text-sm lg:text-lg">
               {format(selectedDate, "EEEE")}
             </p>
