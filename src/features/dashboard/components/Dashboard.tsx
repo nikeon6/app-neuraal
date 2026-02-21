@@ -23,6 +23,7 @@ import { TasksContainer } from "@/features/tasks-container";
 import { StickiesContainer } from "@/features/stickies";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
+import { EntrySearchBar } from "./EntrySearchBar";
 import { NotificationCenter } from "@/features/notifications";
 import { WeeklyRecap } from "@/features/weekly-recap";
 import { SettingsPanel } from "@/features/settings";
@@ -291,6 +292,14 @@ export function Dashboard() {
           selectedDate={selectedDate}
           notificationSlot={
             <NotificationCenter onNavigateToEntry={handleNavigateToEntry} />
+          }
+          searchSlot={
+            dashboardSection === "daily" ? (
+              <EntrySearchBar
+                entriesByDate={entriesByDate}
+                onSelect={handleNavigateToEntry}
+              />
+            ) : undefined
           }
         />
 
