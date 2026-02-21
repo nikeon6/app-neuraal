@@ -157,6 +157,8 @@ interface TaskEditorProps {
   onClose?: () => void;
   /** When true, the editor stays permanently expanded and skips collapse/expand logic. Used by MobileEditorOverlay. */
   forceExpanded?: boolean;
+  /** Ref populated with a function that flushes any pending autosave and awaits completion. */
+  flushSaveRef?: React.RefObject<(() => Promise<void>) | null>;
 }
 
 // ============================================================================
@@ -618,6 +620,7 @@ export function TaskEditor({
   entry,
   onClose,
   forceExpanded = false,
+  flushSaveRef,
 }: Readonly<TaskEditorProps>) {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
@@ -685,9 +688,37 @@ export function TaskEditor({
 
   // Track the current entry version for optimistic concurrency
   const versionRef = useRef<number>(entry.version);
+
+  // Sync local state from the entry prop when a newer version arrives
+  // (e.g. after save + query refetch). Skip when the editor is actively
+  // being used (forceExpanded = mobile overlay) to avoid overwriting the
+  // user's in-progress edits.
   useEffect(() => {
+    if (entry.version === versionRef.current) return;
     versionRef.current = entry.version;
-  }, [entry.version]);
+    if (forceExpanded) return;
+
+    setTitle(entry.title);
+    setContentJson(parseEntryContent(entry.content));
+    setSelectedTopicId(entry.topicId ?? AUTO_TOPIC);
+    setEntryType(entry.type as EntryType);
+    setIsCompleted(entry.completed ?? false);
+    draftRef.current = {
+      title: entry.title,
+      contentJson: parseEntryContent(entry.content),
+      selectedTopicId: (entry.topicId ?? AUTO_TOPIC) as string | null,
+      entryType: entry.type as EntryType,
+      isCompleted: entry.completed ?? false,
+    };
+  }, [
+    entry.version,
+    entry.title,
+    entry.content,
+    entry.topicId,
+    entry.type,
+    entry.completed,
+    forceExpanded,
+  ]);
 
   // Track whether the user has manually edited the title at least once.
   // Auto-topic should NOT fire until the user touches the title — otherwise
@@ -811,6 +842,33 @@ export function TaskEditor({
     }
   }, [runSave]);
 
+  useEffect(() => {
+    if (!flushSaveRef) return;
+    flushSaveRef.current = async () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      await runSave();
+    };
+    return () => {
+      flushSaveRef.current = null;
+    };
+  }, [flushSaveRef, runSave]);
+
+  // ---- Auto-resize title textarea ----------------------------------------
+
+  const autoResizeTitle = useCallback(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    requestAnimationFrame(autoResizeTitle);
+  }, [title, autoResizeTitle]);
+
   // ---- Handlers -----------------------------------------------------------
 
   const handleTitleChange = useCallback(
@@ -818,6 +876,8 @@ export function TaskEditor({
       titleEditedRef.current = true;
       const newTitle = e.target.value;
       setTitle(newTitle);
+
+      requestAnimationFrame(autoResizeTitle);
 
       // Optimistic update: reflect title immediately in VerticalCalendar
       queryClient.setQueryData<ApiEntry[]>(entriesQueryKey(dateKey), (old) =>
@@ -828,7 +888,7 @@ export function TaskEditor({
 
       triggerAutoSave();
     },
-    [queryClient, dateKey, entry.id, triggerAutoSave],
+    [queryClient, dateKey, entry.id, triggerAutoSave, autoResizeTitle],
   );
 
   const handleContentUpdate = useCallback(
@@ -985,10 +1045,11 @@ export function TaskEditor({
     forceExpanded ? ((() => {}) as typeof setUIState) : setUIState,
   );
 
+  const flushRef = useRef(flushPendingSave);
+  flushRef.current = flushPendingSave;
+
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
+    return () => flushRef.current();
   }, []);
 
   // Close content menu on click outside its container

@@ -18,6 +18,7 @@ export function MobileEditorOverlay({
 }: Readonly<MobileEditorOverlayProps>) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   // Lock body + html scroll while overlay is open
   useEffect(() => {
@@ -139,18 +140,21 @@ export function MobileEditorOverlay({
     };
   }, [entry]);
 
-  const handleBack = useCallback(() => {
+  const handleBack = useCallback(async () => {
+    if (flushSaveRef.current) {
+      await flushSaveRef.current();
+    }
     onClose();
   }, [onClose]);
 
   useEffect(() => {
     if (!entry) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") void handleBack();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [entry, onClose]);
+  }, [entry, handleBack]);
 
   return createPortal(
     <AnimatePresence>
@@ -186,7 +190,12 @@ export function MobileEditorOverlay({
             ref={scrollAreaRef}
             className="flex-1 overflow-y-auto overscroll-none p-4 min-h-0"
           >
-            <TaskEditor entry={entry} onClose={onClose} forceExpanded />
+            <TaskEditor
+              entry={entry}
+              onClose={onClose}
+              forceExpanded
+              flushSaveRef={flushSaveRef}
+            />
           </div>
         </motion.div>
       )}

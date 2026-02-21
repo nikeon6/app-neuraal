@@ -26,6 +26,7 @@ import type { ISODate } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useTopicsQuery } from "@/shared/api/queries";
 import { deleteEntryAndInvalidate } from "@/shared/api/mutations";
+import { useDragScroll } from "@/shared/hooks";
 
 const DATE_KEY_FORMAT = "yyyy-MM-dd";
 
@@ -72,6 +73,8 @@ export function VerticalCalendar({
   const scrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const compactScrollRef = useRef<HTMLDivElement>(null);
+
+  useDragScroll(mobileScrollRef);
   const [visibleDays, setVisibleDays] = useState<Set<string>>(new Set());
   const visibleDaysRef = useRef<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -517,7 +520,7 @@ export function VerticalCalendar({
           {/* MOBILE: Horizontal compact calendar */}
           <div
             ref={mobileScrollRef}
-            className="lg:hidden flex overflow-x-auto overflow-y-hidden scrollbar-hide py-2 px-2 gap-1"
+            className="lg:hidden flex overflow-x-auto overflow-y-hidden scrollbar-hide py-2 px-2 gap-1 cursor-grab active:cursor-grabbing"
           >
             {/* Month button — first item in the horizontal scroll */}
             <div className="relative flex-shrink-0" data-month-picker>
