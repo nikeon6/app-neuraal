@@ -581,6 +581,33 @@
   color: rgb(248, 113, 113);
 }
 
+.tiptap-editor .file-upload-spinner {
+  display: none;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.tiptap-editor .file-upload-spinner-ring {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(56, 189, 248, 0.7);
+  border-radius: 50%;
+  animation: file-spin 0.8s linear infinite;
+}
+
+.tiptap-editor .file-upload-spinner-label {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes file-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---- YouTube embeds (vanilla NodeView) ---- */
 .tiptap-editor .youtube-embed-wrapper {
   margin: 0.75em 0;

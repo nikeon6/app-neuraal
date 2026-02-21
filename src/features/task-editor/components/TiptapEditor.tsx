@@ -51,6 +51,17 @@ export interface TiptapEditorHandle {
     mimeType: string;
     sizeBytes: number;
   }) => void;
+  /** Insert a placeholder file node with uploading state. */
+  insertUploadingFileNode: (attrs: {
+    uploadId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  }) => void;
+  /** Finalize an uploading file node by replacing its attrs with the real attachment data. */
+  finalizeFileNode: (uploadId: string, attrs: { attachmentId: string }) => void;
+  /** Remove an uploading file node (on error). */
+  removeUploadingFileNode: (uploadId: string) => void;
   /**
    * Inject transcription text into YouTube nodes, keyed by src URL.
    * This uses a ProseMirror transaction without triggering onUpdate
@@ -559,6 +570,71 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     [editor],
   );
 
+  const insertUploadingFileNode = useCallback(
+    (attrs: {
+      uploadId: string;
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+    }) => {
+      if (!editor) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "fileAttachment",
+          attrs: { ...attrs, uploading: true, attachmentId: null },
+        })
+        .run();
+    },
+    [editor],
+  );
+
+  const finalizeFileNode = useCallback(
+    (uploadId: string, attrs: { attachmentId: string }) => {
+      if (!editor) return;
+      const { tr } = editor.state;
+      let updated = false;
+      editor.state.doc.descendants((n, pos) => {
+        if (
+          !updated &&
+          n.type.name === "fileAttachment" &&
+          n.attrs.uploadId === uploadId
+        ) {
+          tr.setNodeMarkup(pos, undefined, {
+            ...n.attrs,
+            ...attrs,
+            uploading: false,
+            uploadId: null,
+          });
+          updated = true;
+        }
+      });
+      if (updated) editor.view.dispatch(tr);
+    },
+    [editor],
+  );
+
+  const removeUploadingFileNode = useCallback(
+    (uploadId: string) => {
+      if (!editor) return;
+      const { tr } = editor.state;
+      let removed = false;
+      editor.state.doc.descendants((n, pos) => {
+        if (
+          !removed &&
+          n.type.name === "fileAttachment" &&
+          n.attrs.uploadId === uploadId
+        ) {
+          tr.delete(pos, pos + n.nodeSize);
+          removed = true;
+        }
+      });
+      if (removed) editor.view.dispatch(tr);
+    },
+    [editor],
+  );
+
   const syncYoutubeTranscriptions = useCallback(
     (transcriptions: Map<string, string>): Record<string, unknown> | null => {
       if (!editor || editor.isDestroyed || transcriptions.size === 0)
@@ -635,6 +711,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      insertUploadingFileNode,
+      finalizeFileNode,
+      removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
     }),
@@ -644,6 +723,9 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      insertUploadingFileNode,
+      finalizeFileNode,
+      removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
     ],

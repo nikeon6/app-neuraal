@@ -45,7 +45,7 @@ import {
 import * as entriesSdk from "@/shared/api/sdk/entries";
 import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
-import { cn } from "@/shared/lib";
+import { cn, uid } from "@/shared/lib";
 import { extractPlainText } from "@/shared/lib/extractPlainText";
 import { ConfirmDialog } from "@/shared/ui";
 import { ReminderDialog } from "./ReminderDialog";
@@ -956,17 +956,26 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     [uploadImages],
   );
 
-  // Handle pasted non-image files (from TiptapEditor paste handler)
   const handleFilePaste = useCallback(
     async (files: File[]) => {
       if (files.length === 0 || !entry.id) return;
 
       for (const file of files) {
+        const uploadId = uid();
+        const mime = file.type || "application/octet-stream";
+
+        tiptapRef.current?.insertUploadingFileNode({
+          uploadId,
+          filename: file.name,
+          mimeType: mime,
+          sizeBytes: file.size,
+        });
+
         try {
           const initResult = await attachmentsSdk.initUpload({
             entryId: entry.id,
             filename: file.name,
-            mimeType: file.type || "application/octet-stream",
+            mimeType: mime,
             sizeBytes: file.size,
             kind: "file",
           });
@@ -974,9 +983,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           const uploadResp = await fetch(initResult.presignedPutUrl, {
             method: "PUT",
             body: file,
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
+            headers: { "Content-Type": mime },
           });
 
           if (!uploadResp.ok) {
@@ -989,23 +996,20 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
             queryKey: attachmentsQueryKey(entry.id),
           });
 
-          tiptapRef.current?.insertFileNode({
+          tiptapRef.current?.finalizeFileNode(uploadId, {
             attachmentId: initResult.attachment.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
           });
 
           triggerAutoSave();
         } catch (error) {
           console.error("[TaskEditor] File paste attachment failed:", error);
+          tiptapRef.current?.removeUploadingFileNode(uploadId);
         }
       }
     },
     [entry.id, triggerAutoSave, queryClient],
   );
 
-  // Handle file attachment upload (from "+" menu → Attach file)
   const handleFileAttach = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
@@ -1013,49 +1017,49 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       e.target.value = "";
 
       for (const file of files) {
+        const uploadId = uid();
+        const mime = file.type || "application/octet-stream";
+
+        tiptapRef.current?.insertUploadingFileNode({
+          uploadId,
+          filename: file.name,
+          mimeType: mime,
+          sizeBytes: file.size,
+        });
+
         try {
-          // Init upload
           const initResult = await attachmentsSdk.initUpload({
             entryId: entry.id,
             filename: file.name,
-            mimeType: file.type || "application/octet-stream",
+            mimeType: mime,
             sizeBytes: file.size,
             kind: "file",
           });
 
-          // Upload to S3
           const uploadResp = await fetch(initResult.presignedPutUrl, {
             method: "PUT",
             body: file,
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
+            headers: { "Content-Type": mime },
           });
 
           if (!uploadResp.ok) {
             throw new Error(`Upload failed: ${uploadResp.status}`);
           }
 
-          // Complete
           await attachmentsSdk.completeUpload(initResult.attachment.id);
 
-          // Invalidate attachments query so AttachmentPanel updates
           await queryClient.invalidateQueries({
             queryKey: attachmentsQueryKey(entry.id),
           });
 
-          // Insert file node in editor
-          tiptapRef.current?.insertFileNode({
+          tiptapRef.current?.finalizeFileNode(uploadId, {
             attachmentId: initResult.attachment.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
           });
 
-          // Trigger save since editor content changed
           triggerAutoSave();
         } catch (error) {
           console.error("[TaskEditor] File attachment failed:", error);
+          tiptapRef.current?.removeUploadingFileNode(uploadId);
         }
       }
     },
