@@ -71,7 +71,7 @@ export function TopicsSection() {
       data-testid="topics-section"
       role="region"
       aria-label="Topics management"
-      className="h-full flex flex-col"
+      className="h-full flex flex-col pl-6 lg:pl-10"
     >
       {/* Header */}
       <div className="flex items-center gap-6 mb-6">
