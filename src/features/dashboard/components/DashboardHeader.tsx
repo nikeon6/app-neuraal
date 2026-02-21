@@ -208,7 +208,7 @@ export function DashboardHeader({
         {/* Main title */}
         {isDaily && (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pr-2 lg:pr-4">
               <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
                 {format(selectedDate, "MMMM d")}
                 <span className="text-white/20">

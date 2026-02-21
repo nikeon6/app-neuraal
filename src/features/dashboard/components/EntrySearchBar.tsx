@@ -240,13 +240,16 @@ export function EntrySearchBar({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "flex items-center justify-center rounded-full transition-colors ml-auto",
-              "w-8 h-8 md:w-9 md:h-9",
+              "flex items-center justify-center gap-1.5 rounded-full transition-colors ml-auto",
+              "w-8 h-8 md:w-auto md:h-9 md:px-3.5",
               "bg-white/5 border border-white/10",
               "hover:bg-white/10 hover:border-white/20",
             )}
           >
             <Search className="w-3.5 h-3.5 md:w-4 md:h-4 text-white/50" />
+            <span className="hidden md:inline text-xs font-medium text-white/50">
+              Search
+            </span>
           </motion.button>
         )}
       </AnimatePresence>
