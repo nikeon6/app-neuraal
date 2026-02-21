@@ -200,13 +200,6 @@ export function NotificationCenter({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
-  // Toggle a body class while notifications are open so other layered effects
-  // (like masked scroll fades) can avoid compositor artifacts under this panel.
-  useEffect(() => {
-    document.body.classList.toggle("notifications-open", isOpen);
-    return () => document.body.classList.remove("notifications-open");
-  }, [isOpen]);
-
   const handleMarkRead = useCallback(
     (id: string) => {
       markReadMutation.mutate(id);

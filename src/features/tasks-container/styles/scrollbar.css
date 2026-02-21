@@ -46,20 +46,6 @@
   );
 }
 
-/* Chromium can render white seam artifacts when mask-image and backdrop-filter
-   layers overlap. Disable mask only while the notifications panel is open. */
-.notifications-open .tasks-scroll-fade {
-  mask-image: none;
-  -webkit-mask-image: none;
-}
-
-/* Apply the same mask workaround while hovering dashboard top navigation,
-   where backdrop-blur hover effects can trigger similar seam artifacts. */
-.dashboard-nav-hover .tasks-scroll-fade {
-  mask-image: none;
-  -webkit-mask-image: none;
-}
-
 /* Scroll-to-entry highlight animation */
 @keyframes entryHighlight {
   0% {
