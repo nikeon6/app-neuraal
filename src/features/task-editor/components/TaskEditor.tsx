@@ -68,20 +68,93 @@ import { FormatMenu } from "./FormatMenu";
 
 const AUTOSAVE_DEBOUNCE_MS = 1800;
 
+async function uploadFileToEntry(
+  file: File,
+  entryId: string,
+  tiptapHandle: TiptapEditorHandle | null,
+  queryClient: ReturnType<typeof useQueryClient>,
+  triggerAutoSave: () => void,
+) {
+  const uploadId = uid();
+  const mime = file.type || "application/octet-stream";
+
+  tiptapHandle?.insertUploadingFileNode({
+    uploadId,
+    filename: file.name,
+    mimeType: mime,
+    sizeBytes: file.size,
+  });
+
+  try {
+    const initResult = await attachmentsSdk.initUpload({
+      entryId,
+      filename: file.name,
+      mimeType: mime,
+      sizeBytes: file.size,
+      kind: "file",
+    });
+
+    const uploadResp = await fetch(initResult.presignedPutUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": mime },
+    });
+
+    if (!uploadResp.ok) {
+      throw new Error(`Upload failed: ${uploadResp.status}`);
+    }
+
+    await attachmentsSdk.completeUpload(initResult.attachment.id);
+    await queryClient.invalidateQueries({
+      queryKey: attachmentsQueryKey(entryId),
+    });
+
+    tiptapHandle?.finalizeFileNode(uploadId, {
+      attachmentId: initResult.attachment.id,
+    });
+
+    triggerAutoSave();
+  } catch (error) {
+    console.error("[TaskEditor] File attachment failed:", error);
+    tiptapHandle?.removeUploadingFileNode(uploadId);
+  }
+}
+
 /** Sentinel value for "auto-classify" topic mode. Not a real topic ID. */
 const AUTO_TOPIC = "__auto__" as const;
 
-/**
- * Props for TaskEditor component.
- *
- * Receives the full ApiEntry object from the parent (TasksContainer).
- * All edits trigger debounced API calls via the store.
- */
+function getEditorMotionProps(forceExpanded: boolean) {
+  if (forceExpanded) {
+    return { initial: false as const, animate: undefined, exit: undefined };
+  }
+  return {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+  };
+}
+
+function getDeleteDialogMessage(
+  entryType: EntryType,
+  title: string,
+): React.ReactNode {
+  const fallback = entryType === "task" ? "this task" : "this note";
+  return (
+    <>
+      Are you sure you want to delete{" "}
+      <strong className="text-white">{title || fallback}</strong>
+      {"? This action cannot be undone."}
+    </>
+  );
+}
+
 interface TaskEditorProps {
   /** The entry being edited. */
   entry: ApiEntry;
   /** Callback when editor is closed / entry deleted. */
   onClose?: () => void;
+  /** When true, the editor stays permanently expanded and skips collapse/expand logic. Used by MobileEditorOverlay. */
+  forceExpanded?: boolean;
 }
 
 // ============================================================================
@@ -539,7 +612,11 @@ function TopicDropdown({
   );
 }
 
-export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
+export function TaskEditor({
+  entry,
+  onClose,
+  forceExpanded = false,
+}: Readonly<TaskEditorProps>) {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
   const { data: topics = [] } = useTopicsQuery();
@@ -566,7 +643,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   // Refs that mirror draft state — used inside setTimeout to always read the
   // LATEST value, avoiding stale closures that caused topic/completed not saving.
   // ---------------------------------------------------------------------------
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const tiptapRef = useRef<TiptapEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatTriggerRef = useRef<HTMLButtonElement>(null);
@@ -620,7 +697,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
   // UI state
   const [uiState, setUIState] = useState<TaskEditorUIState>({
-    isExpanded: false,
+    isExpanded: forceExpanded,
     isContentMenuOpen: false,
     isTopicMenuOpen: false,
     isSaving: false,
@@ -735,7 +812,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   // ---- Handlers -----------------------------------------------------------
 
   const handleTitleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       titleEditedRef.current = true;
       const newTitle = e.target.value;
       setTitle(newTitle);
@@ -892,15 +969,19 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   const { data: userProfile } = useUserProfileQuery(isReminderDialogOpen);
 
   const handleEditorClick = useCallback(() => {
-    // Only expand if not already expanded — avoids scroll jump
+    if (forceExpanded) return;
     setUIState((prev) => {
       if (prev.isExpanded) return prev;
       return { ...prev, isExpanded: true };
     });
-  }, []);
+  }, [forceExpanded]);
 
-  // Click outside → collapse (but ignore clicks on portal-rendered dialogs)
-  useEditorCollapse(editorRef, flushPendingSave, setUIState);
+  // Click outside → collapse (skip when forceExpanded since the overlay handles closing)
+  useEditorCollapse(
+    editorRef,
+    flushPendingSave,
+    forceExpanded ? ((() => {}) as typeof setUIState) : setUIState,
+  );
 
   useEffect(() => {
     return () => {
@@ -958,52 +1039,14 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   const handleFilePaste = useCallback(
     async (files: File[]) => {
       if (files.length === 0 || !entry.id) return;
-
       for (const file of files) {
-        const uploadId = uid();
-        const mime = file.type || "application/octet-stream";
-
-        tiptapRef.current?.insertUploadingFileNode({
-          uploadId,
-          filename: file.name,
-          mimeType: mime,
-          sizeBytes: file.size,
-        });
-
-        try {
-          const initResult = await attachmentsSdk.initUpload({
-            entryId: entry.id,
-            filename: file.name,
-            mimeType: mime,
-            sizeBytes: file.size,
-            kind: "file",
-          });
-
-          const uploadResp = await fetch(initResult.presignedPutUrl, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": mime },
-          });
-
-          if (!uploadResp.ok) {
-            throw new Error(`Upload failed: ${uploadResp.status}`);
-          }
-
-          await attachmentsSdk.completeUpload(initResult.attachment.id);
-
-          await queryClient.invalidateQueries({
-            queryKey: attachmentsQueryKey(entry.id),
-          });
-
-          tiptapRef.current?.finalizeFileNode(uploadId, {
-            attachmentId: initResult.attachment.id,
-          });
-
-          triggerAutoSave();
-        } catch (error) {
-          console.error("[TaskEditor] File paste attachment failed:", error);
-          tiptapRef.current?.removeUploadingFileNode(uploadId);
-        }
+        await uploadFileToEntry(
+          file,
+          entry.id,
+          tiptapRef.current,
+          queryClient,
+          triggerAutoSave,
+        );
       }
     },
     [entry.id, triggerAutoSave, queryClient],
@@ -1014,52 +1057,14 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       const files = Array.from(e.target.files ?? []);
       if (files.length === 0 || !entry.id) return;
       e.target.value = "";
-
       for (const file of files) {
-        const uploadId = uid();
-        const mime = file.type || "application/octet-stream";
-
-        tiptapRef.current?.insertUploadingFileNode({
-          uploadId,
-          filename: file.name,
-          mimeType: mime,
-          sizeBytes: file.size,
-        });
-
-        try {
-          const initResult = await attachmentsSdk.initUpload({
-            entryId: entry.id,
-            filename: file.name,
-            mimeType: mime,
-            sizeBytes: file.size,
-            kind: "file",
-          });
-
-          const uploadResp = await fetch(initResult.presignedPutUrl, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": mime },
-          });
-
-          if (!uploadResp.ok) {
-            throw new Error(`Upload failed: ${uploadResp.status}`);
-          }
-
-          await attachmentsSdk.completeUpload(initResult.attachment.id);
-
-          await queryClient.invalidateQueries({
-            queryKey: attachmentsQueryKey(entry.id),
-          });
-
-          tiptapRef.current?.finalizeFileNode(uploadId, {
-            attachmentId: initResult.attachment.id,
-          });
-
-          triggerAutoSave();
-        } catch (error) {
-          console.error("[TaskEditor] File attachment failed:", error);
-          tiptapRef.current?.removeUploadingFileNode(uploadId);
-        }
+        await uploadFileToEntry(
+          file,
+          entry.id,
+          tiptapRef.current,
+          queryClient,
+          triggerAutoSave,
+        );
       }
     },
     [entry.id, triggerAutoSave, queryClient],
@@ -1098,6 +1103,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
   // Current topic display info
   const currentTopicDisplay = getTopicDisplayInfo(selectedTopicId, topicMap);
+  const motionProps = getEditorMotionProps(forceExpanded);
 
   return (
     <motion.div
@@ -1105,9 +1111,9 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       data-testid="task-editor"
       data-task-id={entry.id}
       aria-label="Task editor"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
       onClick={handleEditorClick}
       className="task-editor glass-panel rounded-2xl p-5 w-full @container"
     >
@@ -1142,26 +1148,32 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           )}
 
           <div className="flex-1 min-w-0">
-            <label htmlFor={`title-${entry.id}`} className="sr-only">
+            <label htmlFor={`te-heading-${entry.id}`} className="sr-only">
               Title
             </label>
-            <input
+            <textarea
               ref={titleRef}
-              id={`title-${entry.id}`}
-              type="text"
+              id={`te-heading-${entry.id}`}
+              rows={1}
               aria-label="Title"
               autoComplete="off"
+              enterKeyHint="next"
               value={title}
               onChange={handleTitleChange}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  tiptapRef.current?.editor?.commands.focus();
+                  const editor = tiptapRef.current?.editor;
+                  if (editor && !editor.isDestroyed) {
+                    editor.commands.focus("start", {
+                      scrollIntoView: false,
+                    });
+                  }
                 }
               }}
               placeholder={entryType === "task" ? "Task title" : "Note title"}
               className={cn(
-                "w-full bg-transparent border-none outline-none text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
+                "w-full bg-transparent border-none outline-none resize-none overflow-hidden text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all leading-tight",
                 isCompleted ? "text-white/50 line-through" : "text-white/90",
               )}
             />
@@ -1216,6 +1228,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           onFilePaste={handleFilePaste}
           onFocus={handleEditorClick}
           entryId={entry.id}
+          skipScrollPatches={false}
         />
       </div>
 
@@ -1403,15 +1416,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       <ConfirmDialog
         open={isDeleteDialogOpen}
         title={entryType === "task" ? "Delete task" : "Delete note"}
-        message={
-          <>
-            Are you sure you want to delete{" "}
-            <strong className="text-white">
-              {title || (entryType === "task" ? "this task" : "this note")}
-            </strong>
-            {"? This action cannot be undone."}
-          </>
-        }
+        message={getDeleteDialogMessage(entryType, title)}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}

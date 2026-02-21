@@ -105,6 +105,7 @@ vi.mock("@/features/task-editor", () => ({
       {entry.title}
     </div>
   ),
+  MobileEditorOverlay: () => null,
 }));
 
 // --- Hooks used internally (auto-scroll + ordered IDs) ----------------------

@@ -103,25 +103,52 @@ export function Dashboard() {
   // Mobile portrait detection — used to hide bubbles lane in specific sections.
   const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
-  // FIX ANDROID: Use visualViewport to get real viewport height
-  // Also detect virtual keyboard open (viewport significantly shorter than screen)
+  // FIX ANDROID: visualViewport API gives the real visible height (excluding
+  // browser chrome). On mobile, we also detect virtual keyboard open/close to
+  // hide the bubbles lane and calendar so the editor has room.
   useEffect(() => {
-    // Only detect virtual keyboard on touch-only devices (phones/tablets).
-    // This avoids false positives when resizing desktop browser windows
-    // (where screen.height >> viewport height triggers the heuristic incorrectly).
     const touchOnlyMql = matchMedia("(hover: none) and (pointer: coarse)");
+    let baselineVh = 0;
 
-    const update = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
-      const vh = window.visualViewport?.height ?? window.innerHeight;
+    const applyHeight = (vh: number) => {
       setAppHeight(`${vh}px`);
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
-      // Keyboard detection: viewport is much shorter than the full screen height
-      // Gate behind touch-only check to prevent false positives on desktop
+    };
+
+    const update = () => {
+      const vv = window.visualViewport;
+      const vw = vv?.width ?? window.innerWidth;
+      const vh = vv?.height ?? window.innerHeight;
       const isTouchOnly = touchOnlyMql.matches;
-      const fullHeight = window.screen.height;
-      const isKb = isTouchOnly && vh < fullHeight * 0.65 && vw < 1024;
-      setIsKeyboardOpen(isKb);
+
+      if (!isTouchOnly || vw >= 1024) {
+        applyHeight(vh);
+        setIsKeyboardOpen(false);
+        baselineVh = Math.max(baselineVh, vh);
+        return;
+      }
+
+      if (baselineVh === 0 || vh > baselineVh) {
+        baselineVh = vh;
+      }
+
+      const delta = baselineVh - vh;
+      const kbOpen = delta > 100;
+      setIsKeyboardOpen(kbOpen);
+
+      // Only update container height when keyboard is NOT open.
+      // When the virtual keyboard appears the visualViewport shrinks; resizing
+      // the Dashboard to match causes a visible layout shift ("double jump").
+      // Keeping the baseline height keeps the layout stable while the
+      // MobileEditorOverlay (position:fixed) handles the keyboard natively.
+      if (!kbOpen) {
+        applyHeight(vh);
+      }
+    };
+
+    const handleOrientationChange = () => {
+      baselineVh = 0;
+      setTimeout(update, 150);
     };
 
     update();
@@ -129,19 +156,16 @@ export function Dashboard() {
     const vv = window.visualViewport;
     if (vv) {
       vv.addEventListener("resize", update);
-      vv.addEventListener("scroll", update);
     }
-
     window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", () => setTimeout(update, 150));
+    window.addEventListener("orientationchange", handleOrientationChange);
 
     return () => {
       if (vv) {
         vv.removeEventListener("resize", update);
-        vv.removeEventListener("scroll", update);
       }
       window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("orientationchange", handleOrientationChange);
     };
   }, []);
 

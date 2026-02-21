@@ -100,6 +100,8 @@ interface TiptapEditorProps {
   readonly onFocus?: () => void;
   /** Entry ID — passed to ImageAttachment extension for OCR feature. */
   readonly entryId?: string;
+  /** Skip ancestor-scroll-restore patches (used inside MobileEditorOverlay to avoid fighting browser's native keyboard scroll). */
+  readonly skipScrollPatches?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +133,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   onImagePaste,
   onFilePaste,
   onFocus,
+  skipScrollPatches = false,
   entryId,
 }: TiptapEditorProps) {
   // Track whether we should skip the next onUpdate (to avoid loops when setting content)
@@ -386,6 +389,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
+    if (skipScrollPatches) return;
 
     type ViewWithScrollToSelection = typeof editor.view & {
       scrollToSelection: () => void;
@@ -463,7 +467,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       // Remove the instance override so the prototype method is used again
       Reflect.deleteProperty(editorDom, "focus");
     };
-  }, [editor]);
+  }, [editor, skipScrollPatches]);
 
   // Sync external content changes (e.g., when entry changes from API)
   useEffect(() => {
