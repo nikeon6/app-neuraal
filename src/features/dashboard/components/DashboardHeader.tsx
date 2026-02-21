@@ -188,12 +188,12 @@ export function DashboardHeader({
         {notificationSlot}
       </nav>
 
-      {/* Kicker (small label) + Title - changes based on section */}
+      {/* Kicker (small label) + Title - aligned with task list (pl-6 lg:pl-10) */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         key={motionKey}
-        className="space-y-0.5 lg:space-y-2"
+        className="space-y-0.5 lg:space-y-2 pl-6 lg:pl-10"
       >
         {/* Kicker - always visible, blue accent */}
         <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
