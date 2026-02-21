@@ -358,7 +358,7 @@ describe("TaskEditor file paste coverage", () => {
       expect.any(String),
     );
     expect(errorSpy).toHaveBeenCalledWith(
-      "[TaskEditor] File paste attachment failed:",
+      "[TaskEditor] File attachment failed:",
       expect.any(Error),
     );
     errorSpy.mockRestore();

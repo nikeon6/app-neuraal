@@ -107,7 +107,9 @@ export function StickiesContainer() {
       content: EMPTY_DOC,
       columnIndex,
     });
-    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof scrollRef.current?.scrollTo === "function") {
+      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [queryClient, left.length, right.length]);
 
   // IDs per column for each Reorder.Group

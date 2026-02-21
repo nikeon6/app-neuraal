@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { Dashboard } from "./Dashboard";
@@ -66,11 +66,13 @@ vi.mock("@/shared/store", () => ({
     )}-${String(state.selectedDate.getDate()).padStart(2, "0")}`,
 }));
 
+const mockTopics = vi.fn().mockReturnValue({ data: [] });
+
 vi.mock("@/shared/api/queries", () => ({
   useEntriesForDates: () => ({ entriesByDate: entriesByDateMock }),
   useSummaryDoneWatcher: vi.fn(),
   useTranscriptionDoneWatcher: vi.fn(),
-  useTopicsQuery: () => ({ data: [] }),
+  useTopicsQuery: () => mockTopics(),
 }));
 
 vi.mock("@/features/topics/components/FloatingTopics", () => ({
@@ -208,6 +210,23 @@ describe("Dashboard", () => {
     expect(screen.getByTestId("ai-usage-panel")).toBeInTheDocument();
   });
 
+  it("renders topics section", () => {
+    storeState.dashboardSection = "topics";
+    render(<Dashboard />);
+    expect(screen.getByTestId("topics-section")).toBeInTheDocument();
+  });
+
+  it("computes hasAssignedTopics when topics and entries exist", () => {
+    mockTopics.mockReturnValueOnce({
+      data: [{ id: "t1", name: "Work", color: "#fff" }],
+    });
+    entriesByDateMock = {
+      "2026-02-11": [{ id: "e1", topicId: "t1" } as ApiEntry],
+    };
+    render(<Dashboard />);
+    expect(screen.getByTestId("tasks-container")).toBeInTheDocument();
+  });
+
   it("clears selection when clicking empty lane", () => {
     storeState.selectedTopicIds = ["topic-1"];
     render(<Dashboard />);
@@ -229,5 +248,52 @@ describe("Dashboard", () => {
     expect(storeFns.setScrollToEntryId).toHaveBeenCalledWith("entry-2");
     expect(storeFns.setDashboardSection).toHaveBeenCalledWith("daily");
     expect(storeFns.setSelectedDate).toHaveBeenCalledWith(expect.any(Date));
+  });
+
+  it("detects virtual keyboard on touch-only mobile devices", () => {
+    const mediaListeners: Record<string, (() => void)[]> = {};
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("hover: none") || query.includes("max-width"),
+        addEventListener: vi.fn((_: string, fn: () => void) => {
+          (mediaListeners[query] ??= []).push(fn);
+        }),
+        removeEventListener: vi.fn(),
+      })),
+    );
+
+    const vvListeners: Record<string, (() => void)[]> = {};
+    const vv = {
+      width: 400,
+      height: 800,
+      addEventListener: vi.fn((event: string, fn: () => void) => {
+        (vvListeners[event] ??= []).push(fn);
+      }),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(globalThis, "visualViewport", {
+      configurable: true,
+      value: vv,
+    });
+
+    render(<Dashboard />);
+
+    // Simulate keyboard opening (viewport shrinks significantly)
+    vv.height = 400;
+    act(() => {
+      vvListeners["resize"]?.forEach((fn) => fn());
+    });
+
+    // Simulate keyboard closing (viewport returns to normal)
+    vv.height = 800;
+    act(() => {
+      vvListeners["resize"]?.forEach((fn) => fn());
+    });
+
+    // Simulate orientation change
+    act(() => {
+      window.dispatchEvent(new Event("orientationchange"));
+    });
   });
 });

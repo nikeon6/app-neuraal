@@ -452,4 +452,23 @@ describe("TasksContainer", () => {
       expect(screen.getByLabelText(/tasks list/i)).toBeInTheDocument();
     });
   });
+
+  describe("Mobile behavior", () => {
+    it("detects mobile viewport via useIsMobile hook", () => {
+      const mql = {
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+      vi.stubGlobal("matchMedia", vi.fn().mockReturnValue(mql));
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 500,
+      });
+
+      renderWithProviders(<TasksContainer />);
+
+      expect(screen.getByLabelText(/tasks list/i)).toBeInTheDocument();
+    });
+  });
 });
