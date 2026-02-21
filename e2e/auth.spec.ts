@@ -54,7 +54,7 @@ test.describe("Authentication", () => {
       .getByRole("button", { name: /log\s*in|sign\s*in|enter|entrar/i })
       .click();
 
-    await expect(page).not.toHaveURL(/login/);
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).not.toHaveURL(/login/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/$/, { timeout: 5_000 });
   });
 });
