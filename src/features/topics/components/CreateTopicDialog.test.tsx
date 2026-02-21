@@ -79,6 +79,22 @@ describe("CreateTopicDialog", () => {
     expect(screen.getByRole("button", { name: /create/i })).toBeDisabled();
   });
 
+  it("shows min-length validation and prevents submit for one-letter names", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByLabelText(/topic name/i), "a");
+    await user.click(
+      screen.getByRole("radio", { name: /select color #3b82f6/i }),
+    );
+
+    expect(
+      screen.getByText(/topic name must be at least 2 characters/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create/i })).toBeDisabled();
+    expect(mockCreateTopicAndInvalidate).not.toHaveBeenCalled();
+  });
+
   it("prevents selecting used color", async () => {
     const user = userEvent.setup();
     renderDialog({ existingTopics: [makeTopic({ color: "#22c55e" })] });
@@ -136,5 +152,55 @@ describe("CreateTopicDialog", () => {
     renderDialog({ onClose });
     fireEvent.click(screen.getByTestId("dialog-backdrop"));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the custom color picker button", () => {
+    renderDialog();
+    expect(
+      screen.getByRole("button", { name: /pick a custom color/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("custom-color-input")).toBeInTheDocument();
+  });
+
+  it("submits with a custom color from the native picker", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    mockCreateTopicAndInvalidate.mockResolvedValue(undefined as never);
+    renderDialog({ onClose });
+
+    await user.type(screen.getByLabelText(/topic name/i), "Custom topic");
+
+    fireEvent.change(screen.getByTestId("custom-color-input"), {
+      target: { value: "#aabbcc" },
+    });
+
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateTopicAndInvalidate).toHaveBeenCalledWith(
+        expect.anything(),
+        { name: "Custom topic", color: "#aabbcc" },
+      );
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("prevents submit when custom color is already used by another topic", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      existingTopics: [makeTopic({ color: "#aabbcc" })],
+    });
+
+    await user.type(screen.getByLabelText(/topic name/i), "My topic");
+
+    fireEvent.change(screen.getByTestId("custom-color-input"), {
+      target: { value: "#aabbcc" },
+    });
+
+    expect(
+      screen.getByText(/this color is already used by another topic/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create/i })).toBeDisabled();
+    expect(mockCreateTopicAndInvalidate).not.toHaveBeenCalled();
   });
 });
