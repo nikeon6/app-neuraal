@@ -196,7 +196,7 @@ export function StickiesContainer() {
       {/* Single scrollable container with 2-col grid; each column is its own Reorder.Group */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 py-4 md:py-6 pl-10 lg:pl-10 pr-2 lg:pr-4 stickies-scrollbar tasks-scroll-fade content-start auto-rows-min"
+        className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 py-4 md:py-6 pl-6 lg:pl-10 pr-2 lg:pr-4 stickies-scrollbar tasks-scroll-fade content-start auto-rows-min"
       >
         {/* Left column */}
         <Reorder.Group
