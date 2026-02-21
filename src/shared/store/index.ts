@@ -6,6 +6,35 @@ import type { ISODate } from "@/shared/types";
 import type { ApiEntry } from "@/shared/api/sdk";
 
 // ============================================================================
+// Per-user topic positions persistence (localStorage)
+// ============================================================================
+
+const POSITIONS_KEY_PREFIX = "neuraal-positions-";
+
+function positionsKey(userId: string): string {
+  return `${POSITIONS_KEY_PREFIX}${userId}`;
+}
+
+function loadUserPositions(userId: string): TopicPositions {
+  if (globalThis.window === undefined) return {};
+  try {
+    const raw = localStorage.getItem(positionsKey(userId));
+    return raw ? (JSON.parse(raw) as TopicPositions) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUserPositions(userId: string, positions: TopicPositions): void {
+  if (globalThis.window === undefined) return;
+  try {
+    localStorage.setItem(positionsKey(userId), JSON.stringify(positions));
+  } catch {
+    // localStorage full or unavailable — best-effort
+  }
+}
+
+// ============================================================================
 // Helper: Get unique topic IDs from entries in expanded days (exported for UI)
 // ============================================================================
 export function getTopicIdsFromExpandedDays(
@@ -89,9 +118,10 @@ interface AppState {
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
-      login: (user) => set({ user }),
+      login: (user) =>
+        set({ user, topicPositions: loadUserPositions(user.id) }),
       logout: () => set({ user: null, topicPositions: {} }),
 
       selectedDate: new Date(),
@@ -102,9 +132,12 @@ export const useStore = create<AppState>()(
 
       topicPositions: {},
       setTopicPosition: (topicId, position) =>
-        set((state) => ({
-          topicPositions: { ...state.topicPositions, [topicId]: position },
-        })),
+        set((state) => {
+          const updated = { ...state.topicPositions, [topicId]: position };
+          const userId = get().user?.id;
+          if (userId) saveUserPositions(userId, updated);
+          return { topicPositions: updated };
+        }),
 
       highlightedTopic: null,
       setHighlightedTopic: (topicId) => set({ highlightedTopic: topicId }),
@@ -206,7 +239,6 @@ export const useStore = create<AppState>()(
       name: "neuraal-storage",
       partialize: (state) => ({
         user: state.user,
-        topicPositions: state.topicPositions,
         dashboardSection: state.dashboardSection,
       }),
     },
