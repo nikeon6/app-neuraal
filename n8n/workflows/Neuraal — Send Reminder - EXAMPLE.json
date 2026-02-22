@@ -1,0 +1,401 @@
+{
+  "name": "Neuraal — Send Reminder - EXAMPLE",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "authentication": "basicAuth",
+        "options": {}
+      },
+      "id": "ed462b76-eaa4-4869-a753-dfaf1c08c23e",
+      "name": "Webhook: Receive Reminder",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-480, 128],
+      "webhookId": "33e7ef2b-dc98-4acb-8f2f-16e42095343b",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "XqECJnTekFuLCevs",
+          "name": "Basic Auth Prod"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.channel }}",
+                    "rightValue": "email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "69710d9a-d787-44c1-a37f-ebfa8fbfe472"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.channel }}",
+                    "rightValue": "whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "bc2e607f-7384-4e41-8eee-ec4e1b9f3766"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "whatsapp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4fe2bf5-6590-46d8-9c42-bc66a9119a94",
+      "name": "Switch: Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [-240, 128]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "email-to",
+              "name": "to",
+              "value": "={{ $json.body.userEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "email-subject",
+              "name": "subject",
+              "value": "={{ \"Neuraal Reminder: \" + ($json.body.message || \"You have a scheduled reminder\").substring(0, 80) }}",
+              "type": "string"
+            },
+            {
+              "id": "email-body",
+              "name": "body",
+              "value": "={{\n  \"<div style='font-family: Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background-color: #ffffff;'>\" +\n  \n  // CABECERA\n  \"<div style='background-color: #2D3748; padding: 20px; text-align: center; color: white;'>\" +\n    \"<h2 style='margin: 0; font-size: 22px; letter-spacing: 0.5px;'>🧠 Neuraal</h2>\" +\n  \"</div>\" +\n\n  // CUERPO\n  \"<div style='padding: 30px;'>\" +\n    \n    // Texto de introducción (Vibra WhatsApp)\n    \"<p style='color: #4A5568; font-size: 16px; line-height: 1.6; margin-top: 0; margin-bottom: 25px;'>\" +\n      \"Hey! It's your Neuraal subconscious waking up to tell you something...<br><br>\" +\n      \"Just a quick nudge to remind you that it's time to focus on your scheduled task right now:\" +\n    \"</p>\" +\n    \n    // Título de la tarea (Centrado y con destellos)\n    \"<h1 style='color: #1a202c; font-size: 24px; margin-top: 0; margin-bottom: 10px; text-align: center;'>✨ \" + $json.body.entryTitle + \" ✨</h1>\" +\n    \n    // Fecha/Hora\n    \"<p style='color: #718096; font-size: 14px; margin-top: 0; margin-bottom: 25px; border-bottom: 1px solid #edf2f7; padding-bottom: 20px; text-align: center;'>📅 <strong>Scheduled for:</strong> \" + $json.body.scheduledAt + \"</p>\" +\n\n    // Resumen (CONDICIONAL)\n    ($json.summaryHtml ? \n      \"<div style='background-color: #F7FAFC; padding: 15px; border-radius: 6px; border-left: 4px solid #48BB78; margin-bottom: 25px;'>\" +\n      \"<p style='font-weight: bold; color: #2D3748; margin-top: 0; margin-bottom: 8px;'>📝 Summary:</p>\" +\n      \"<p style='color: #4A5568; line-height: 1.6; margin: 0;'>\" + $json.summaryHtml + \"</p>\" +\n      \"</div>\" \n    : \"\") +\n\n    // Cierre motivacional\n    \"<p style='color: #4A5568; font-size: 16px; line-height: 1.6; margin-top: 0; margin-bottom: 0; text-align: center; font-weight: bold;'>\" +\n      \"Take a deep breath and dive right in. You've got this! 💪🚀\" +\n    \"</p>\" +\n\n  \"</div>\" +\n\n  // PIE DE PÁGINA (La frase del segundo cerebro)\n  \"<div style='background-color: #f7fafc; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0;'>\" +\n    \"<p style='color: #a0aec0; font-size: 13px; margin: 0; font-style: italic;'>Your second brain, always on duty.</p>\" +\n  \"</div>\" +\n\n  \"</div>\"\n}}",
+              "type": "string"
+            },
+            {
+              "id": "reminder-id",
+              "name": "reminderId",
+              "value": "={{ $json.body.reminderId }}",
+              "type": "string"
+            },
+            {
+              "id": "entry-id",
+              "name": "entryId",
+              "value": "={{ $json.body.entryId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "71dee0b7-bc42-43e0-a52e-27454108ed41",
+      "name": "Set: Build Email Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [224, 112]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "wa-phone",
+              "name": "phone",
+              "value": "={{ $json.body.userPhoneNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "wa-reminder-id",
+              "name": "reminderId",
+              "value": "={{ $json.reminderId }}",
+              "type": "string"
+            },
+            {
+              "id": "wa-entry-id",
+              "name": "entryId",
+              "value": "={{ $json.entryId }}",
+              "type": "string"
+            },
+            {
+              "id": "b8c4065b-d606-46a4-b062-30ffe710506a",
+              "name": "body.entryTitle",
+              "value": "={{ $json.body.entryTitle }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c88941fa-53cc-4cbb-bd71-8af8fbecf321",
+      "name": "Set: Build WhatsApp Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-16, 304]
+    },
+    {
+      "parameters": {
+        "fromEmail": "your_emaill@email.com",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [432, 112],
+      "id": "a59de715-7aa1-4469-a0b0-0751a2eb31fc",
+      "name": "Send an Email",
+      "webhookId": "428a51d7-ab4e-4953-8f6d-b94515e209df",
+      "credentials": {
+        "smtp": {
+          "id": "k8oM4BUqShfkzo3b",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/YOUR_ACCOUNT/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "=whatsapp:{{ $json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "whatsapp:+3600000000"
+            },
+            {
+              "name": "ContentSid",
+              "value": "ID_TEMPLATE"
+            },
+            {
+              "name": "ContentVariables",
+              "value": "={\"task_name\":\"{{ $json.body.entryTitle }}\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [432, 304],
+      "id": "48dd365c-0af5-4d91-b635-8e56d27e593b",
+      "name": "Whatsapp (HTTP Request twilio)",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "xQd1fX6nQl7edhZU",
+          "name": "Twilio API Basic Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $json.body.entrySummary }}",
+        "destinationKey": "summaryHtml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [-16, -16],
+      "id": "0b1c7ae8-5eb7-46fc-bc0b-bd5809bbb085",
+      "name": "Markdown"
+    }
+  ],
+  "pinData": {
+    "Webhook: Receive Reminder": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-timestamp": "1770549600083",
+            "x-signature": "591011b907192191266dc98d8d12102bd46abf13ab7ce6cdc571b503cfacfa2a",
+            "authorization": "Basic bmV1cmFhbDpuZXVyYWFsX3Bhc3N3b3Jk",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "199"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "reminderId": "9ed4a0aa-da84-464f-b292-15e17a36c6da",
+            "userId": "user-123",
+            "entryId": "e16177b3-58e9-424d-9a95-8345f2c6947d",
+            "scheduledAt": "2026-02-08T11:20:00.000Z",
+            "channel": "email",
+            "message": null
+          },
+          "webhookUrl": "http://localhost:5678/webhook/neuraal-send-reminder",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Switch: Channel": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n:5678",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-timestamp": "1771466100247",
+            "x-signature": "7dbdc043615025095d62241db7df872ab8bf502a0e0db83d62c109d5e643ee45",
+            "authorization": "Basic bmV1cmFhbDpOZXVyYWFsX244bl83NTcz",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "399"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "reminderId": "97595697-acef-4f74-b8b1-a723e0ef37bc",
+            "userId": "56c99c63-0d68-4aed-8c45-aad13e1df30b",
+            "entryId": "c8095a1d-86be-4661-a2ab-df717daff358",
+            "scheduledAt": "2026-02-19T01:55:00.000Z",
+            "channel": "email",
+            "message": null,
+            "entryTitle": "PRUEBA EMAIL",
+            "entrySummary": "## Tarea 1: Ir a trabajar\n\n- **Acción:** Ir a trabajar",
+            "userEmail": "sergio.caballero.entrena@gmail.com",
+            "userPhoneNumber": null
+          },
+          "webhookUrl": "https://n8n.neuraal.app/webhook/neuraal-send-reminder",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook: Receive Reminder": {
+      "main": [
+        [
+          {
+            "node": "Switch: Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Channel": {
+      "main": [
+        [
+          {
+            "node": "Set: Build Email Params",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Build WhatsApp Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Build Email Params": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Build WhatsApp Params": {
+      "main": [
+        [
+          {
+            "node": "Whatsapp (HTTP Request twilio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whatsapp (HTTP Request twilio)": {
+      "main": [[]]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Set: Build Email Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8693215d-be37-4eff-8350-331f6b8e927a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "775cbc690e420a40a18f1b94e3ef1c73dd425fd06bc98cf4bd4868419fcfae5b"
+  },
+  "id": "P54FzmWqAqtCM1Rc",
+  "tags": []
+}
