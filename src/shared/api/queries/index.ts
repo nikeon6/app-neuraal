@@ -14,6 +14,7 @@ export {
   useMarkNotificationReadMutation,
   useSummaryDoneWatcher,
   useTranscriptionDoneWatcher,
+  useReminderDoneWatcher,
   notificationsQueryKey,
   getUnreadCount,
 } from "./notifications";

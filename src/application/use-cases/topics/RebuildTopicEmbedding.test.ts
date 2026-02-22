@@ -14,7 +14,7 @@ describe("RebuildTopicEmbedding", () => {
 
   beforeEach(async () => {
     topicRepo = new InMemoryTopicRepository();
-    embeddingProvider = new FakeEmbeddingProvider(768);
+    embeddingProvider = new FakeEmbeddingProvider(4096);
     useCase = new RebuildTopicEmbedding(topicRepo, embeddingProvider, {
       embeddingDim: 768,
       embeddingModel: "nomic-embed-text-v2-moe:latest",
