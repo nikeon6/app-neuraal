@@ -46,6 +46,7 @@ export function useEditorCollapse(
 
 /**
  * Hook that closes the content menu when clicking outside its container.
+ * Accepts an optional portalRef for menus rendered via createPortal.
  *
  * Extracted from TaskEditor to reduce its Cognitive Complexity.
  */
@@ -53,14 +54,17 @@ export function useContentMenuClose(
   isContentMenuOpen: boolean,
   contentMenuRef: RefObject<HTMLDivElement | null>,
   setUIState: React.Dispatch<React.SetStateAction<TaskEditorUIState>>,
+  portalRef?: RefObject<HTMLDivElement | null>,
 ): void {
   useEffect(() => {
     if (!isContentMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (contentMenuRef.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (contentMenuRef.current?.contains(target)) return;
+      if (portalRef?.current?.contains(target)) return;
       setUIState((prev) => ({ ...prev, isContentMenuOpen: false }));
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [isContentMenuOpen, contentMenuRef, setUIState]);
+  }, [isContentMenuOpen, contentMenuRef, setUIState, portalRef]);
 }
