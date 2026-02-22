@@ -222,10 +222,6 @@ rewritten to `host.docker.internal` by the Code nodes. No manual change needed.
   Update them to match the URLs configured in the app's environment variables
   (`N8N_SUMMARY_WEBHOOK_URL`, `N8N_TRANSCRIPTION_WEBHOOK_URL`)
 
-### 6. Activate
-
-Toggle each workflow to **Active** so their webhooks start listening.
-
 ---
 
 ## Dev Placeholders
