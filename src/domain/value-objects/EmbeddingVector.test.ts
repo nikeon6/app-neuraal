@@ -31,7 +31,7 @@ describe("EmbeddingVector", () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error).toContain("768");
+        expect(result.error).toContain("4096");
       }
     });
 

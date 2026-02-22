@@ -72,6 +72,7 @@ vi.mock("@/shared/api/queries", () => ({
   useEntriesForDates: () => ({ entriesByDate: entriesByDateMock }),
   useSummaryDoneWatcher: vi.fn(),
   useTranscriptionDoneWatcher: vi.fn(),
+  useReminderDoneWatcher: vi.fn(),
   useTopicsQuery: () => mockTopics(),
 }));
 

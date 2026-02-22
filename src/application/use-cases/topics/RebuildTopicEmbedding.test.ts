@@ -16,8 +16,8 @@ describe("RebuildTopicEmbedding", () => {
     topicRepo = new InMemoryTopicRepository();
     embeddingProvider = new FakeEmbeddingProvider(4096);
     useCase = new RebuildTopicEmbedding(topicRepo, embeddingProvider, {
-      embeddingDim: 768,
-      embeddingModel: "nomic-embed-text-v2-moe:latest",
+      embeddingDim: 4096,
+      embeddingModel: "qwen3-embedding:latest",
     });
 
     // Seed a topic
@@ -43,8 +43,8 @@ describe("RebuildTopicEmbedding", () => {
     // Verify embedding was stored
     const embData = topicRepo.getEmbedding(topicId);
     expect(embData).toBeDefined();
-    expect(embData!.vector).toHaveLength(768);
-    expect(embData!.model).toBe("nomic-embed-text-v2-moe:latest");
+    expect(embData!.vector).toHaveLength(4096);
+    expect(embData!.model).toBe("qwen3-embedding:latest");
   });
 
   it("should call embedding provider with topic name", async () => {
