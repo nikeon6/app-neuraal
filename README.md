@@ -27,6 +27,7 @@ Users can:
   - **Auto-classify** entries into topics via embedding similarity (Ollama + pgvector).
   - **Extract text from images** (OCR via Ollama vision model).
   - **Transcribe YouTube videos** embedded in entries (async via n8n).
+  - Full **LLM observability** via LangSmith (tracing, prompt versioning, cost tracking) integrated through n8n.
 - **Sticky notes** — persistent kanban-style notes with two-column layout.
 - **Weekly recap** — analytics with completion donut chart, daily bar chart, and topic bubble chart.
 - **In-app notifications** for async operations (summaries, transcriptions, reminders).
@@ -36,31 +37,31 @@ Users can:
 
 ## Tech Stack
 
-| Category            | Technology                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| **Framework**       | Next.js 16 (App Router) + React 19 + TypeScript                                              |
-| **Styling**         | Tailwind CSS 4                                                                               |
-| **State**           | Zustand (with persist middleware)                                                            |
-| **Data Fetching**   | TanStack Query (React Query)                                                                 |
-| **Rich Text**       | TipTap 3 (ProseMirror-based, custom extensions)                                              |
-| **Animations**      | Framer Motion                                                                                |
-| **Charts**          | Recharts, D3 (force, hierarchy)                                                              |
-| **Icons**           | Lucide React                                                                                 |
-| **Date Handling**   | date-fns                                                                                     |
-| **Database**        | PostgreSQL 16 + pgvector (vector similarity)                                                 |
-| **ORM**             | Prisma 7 (+ raw SQL for pgvector operations)                                                 |
-| **Object Storage**  | S3-compatible (MinIO for dev, AWS S3/R2 for prod)                                            |
-| **Job Queues**      | BullMQ + Redis 7                                                                             |
-| **Automation**      | n8n (workflow orchestration for summaries, transcriptions, reminders)                        |
-| **AI / Embeddings** | Ollama (`qwen3-embedding:latest` for embeddings, `glm-ocr:q8_0` for OCR/vision)              |
-| **Auth**            | JWT (jose) + bcryptjs, httpOnly cookies with token rotation                                  |
-| **API Docs**        | OpenAPI 3.1 spec (`openapi/spec.ts`) + openapi-typescript                                    |
-| **Testing**         | Vitest + Testing Library + Playwright (E2E)                                                  |
-| **Quality**         | ESLint + SonarJS + Prettier + Commitlint + Husky                                             |
-| **Observability**   | Sentry (errors + performance + session replay) + Prometheus metrics + pino (structured logs) |
-| **CI/CD**           | GitHub Actions (CI + Docker build + deploy to VPS via SSH)                                   |
-| **Reverse Proxy**   | Caddy (automatic TLS)                                                                        |
-| **Package Manager** | **pnpm** (v10+)                                                                              |
+| Category            | Technology                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Framework**       | Next.js 16 (App Router) + React 19 + TypeScript                                                                        |
+| **Styling**         | Tailwind CSS 4                                                                                                         |
+| **State**           | Zustand (with persist middleware)                                                                                      |
+| **Data Fetching**   | TanStack Query (React Query)                                                                                           |
+| **Rich Text**       | TipTap 3 (ProseMirror-based, custom extensions)                                                                        |
+| **Animations**      | Framer Motion                                                                                                          |
+| **Charts**          | Recharts, D3 (force, hierarchy)                                                                                        |
+| **Icons**           | Lucide React                                                                                                           |
+| **Date Handling**   | date-fns                                                                                                               |
+| **Database**        | PostgreSQL 16 + pgvector (vector similarity)                                                                           |
+| **ORM**             | Prisma 7 (+ raw SQL for pgvector operations)                                                                           |
+| **Object Storage**  | S3-compatible (MinIO for dev, AWS S3/R2 for prod)                                                                      |
+| **Job Queues**      | BullMQ + Redis 7                                                                                                       |
+| **Automation**      | n8n (workflow orchestration for summaries, transcriptions, reminders)                                                  |
+| **AI / Embeddings** | Ollama (`qwen3-embedding:latest` for embeddings, `glm-ocr:q8_0` for OCR/vision)                                        |
+| **Auth**            | JWT (jose) + bcryptjs, httpOnly cookies with token rotation                                                            |
+| **API Docs**        | OpenAPI 3.1 spec (`openapi/spec.ts`) + openapi-typescript                                                              |
+| **Testing**         | Vitest + Testing Library + Playwright (E2E)                                                                            |
+| **Quality**         | ESLint + SonarJS + Prettier + Commitlint + Husky                                                                       |
+| **Observability**   | Sentry (errors + performance + session replay) + Prometheus metrics + pino (structured logs) + LangSmith (LLM tracing) |
+| **CI/CD**           | GitHub Actions (CI + Docker build + deploy to VPS via SSH)                                                             |
+| **Reverse Proxy**   | Caddy (automatic TLS)                                                                                                  |
+| **Package Manager** | **pnpm** (v10+)                                                                                                        |
 
 ---
 
@@ -528,6 +529,7 @@ See `.env.example` for the full list with documentation. Key groups:
 - **Sentry**: Error tracking, performance monitoring, and session replay (client/server/edge/workers).
 - **Prometheus**: HTTP request metrics, AI guardrail metrics, BullMQ job metrics at `/api/metrics`.
 - **Structured Logging**: pino with JSON output, auto-redaction of sensitive fields, request ID propagation.
+- **LangSmith**: LLM observability integrated through n8n — traces every AI Agent execution (summaries, transcriptions) with full input/output logging, latency breakdown, token usage, cost tracking, and prompt versioning. Enables iterating on system prompts with version history and A/B comparison without redeploying workflows.
 - **Health Check**: `/api/health` reports status of all critical dependencies (DB, Redis, Ollama, n8n, S3).
 - **Bull Board**: Queue monitoring UI via `pnpm monitor:queues`.
 
