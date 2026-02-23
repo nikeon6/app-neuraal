@@ -18,12 +18,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wait for CI workflow to succeed
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: "E2E Tests (Playwright)"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 30
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for CI workflow on commit ${{ github.sha }}..."
+          for i in $(seq 1 40); do
+            RUN_ID=$(gh run list --repo ${{ github.repository }} --workflow=ci.yml \
+              --commit ${{ github.sha }} --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$RUN_ID" ]; then
+              echo "Found CI run $RUN_ID — watching until completion..."
+              gh run watch "$RUN_ID" --repo ${{ github.repository }} --exit-status
+              exit $?
+            fi
+            echo "CI run not found yet (attempt $i/40), retrying in 15s..."
+            sleep 15
+          done
+          echo "CI workflow never appeared after 10 minutes. Failing."
+          exit 1
 
   build-and-push-main:
     name: Build & Push (main)
