@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as sdk from "../sdk/notifications";
 import type { ApiNotification } from "../sdk/types";
 import { entriesQueryKey } from "./entries";
+import { pendingReminderQueryKey } from "./reminders";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
@@ -111,6 +112,48 @@ export function useTranscriptionDoneWatcher(dateKey: string) {
       });
     }
   }, [notifications, dateKey, queryClient]);
+}
+
+/**
+ * Watches for REMINDER_SENT / REMINDER_FAILED notifications and invalidates
+ * the pendingReminderQuery for the affected entry so the bell icon clears.
+ */
+export function useReminderDoneWatcher() {
+  const queryClient = useQueryClient();
+  const { data: notifications } = useNotificationsQuery();
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!notifications) return;
+
+    const REMINDER_TYPES = new Set(["REMINDER_SENT", "REMINDER_FAILED"]);
+
+    const newReminders = notifications.filter(
+      (n) => REMINDER_TYPES.has(n.type) && !knownIdsRef.current.has(n.id),
+    );
+
+    if (newReminders.length > 0) {
+      for (const n of notifications) {
+        if (REMINDER_TYPES.has(n.type)) {
+          knownIdsRef.current.add(n.id);
+        }
+      }
+
+      const entryIds = new Set<string>();
+      for (const n of newReminders) {
+        const p = n.payload as Record<string, unknown> | null | undefined;
+        if (p && typeof p.entryId === "string") {
+          entryIds.add(p.entryId);
+        }
+      }
+
+      for (const entryId of entryIds) {
+        void queryClient.invalidateQueries({
+          queryKey: pendingReminderQueryKey(entryId),
+        });
+      }
+    }
+  }, [notifications, queryClient]);
 }
 
 /**

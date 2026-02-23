@@ -579,6 +579,21 @@ export function VerticalCalendar({
                 </button>
               );
             })}
+            {/* Month button — last item in the horizontal scroll (mirrors the first one) */}
+            <div className="relative flex-shrink-0" data-month-picker>
+              <button
+                type="button"
+                onClick={handleOpenMonthPicker}
+                className="flex-shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all duration-200 text-white/50 hover:text-white hover:bg-white/10 border border-white/10"
+              >
+                <span className="text-[10px] uppercase font-bold opacity-70">
+                  {format(selectedDate, "yyyy")}
+                </span>
+                <span className="text-sm font-bold">
+                  {format(selectedDate, "MMM")}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* DESKTOP: Vertical calendar with expandable entries */}

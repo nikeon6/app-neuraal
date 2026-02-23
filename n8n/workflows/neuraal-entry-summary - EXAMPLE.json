@@ -1,0 +1,367 @@
+{
+  "name": "neuraal-entry-summary - EXAMPLE",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR_PATH",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "ef68a3bc-2977-4fda-8698-1eccb52f6b48",
+      "name": "Webhook",
+      "webhookId": "6f5e2549-52c0-44cc-8772-6608991b20b3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ $json.rawBody }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1184, 0],
+      "id": "dc425974-deba-4ca6-b60c-dd61c43d9c7b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.plainText }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are the AI of a task and notes management application. The user will provide the content of the task/note that needs to be summarized and structured. You must take the content and summarize it if you consider it necessary and there is redundant content, but the most important thing is to structure it correctly and clearly. If there are multiple tasks or notes, separate them and structure them properly.\n\nYou must respond in the same language as the input content provided by the user.\n\nYou must return the result in well-structured Markdown format. Return only the text, do not make any comments about it and do not ask questions. It is essential that you return only the text in Markdown format.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [608, 0],
+      "id": "35baebc2-3a41-428a-82f9-61b2877bb896",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.2",
+          "mode": "list",
+          "cachedResultName": "gpt-5.2"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 650,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [608, 192],
+      "id": "d41769bc-dc30-417d-ab33-375809c0b0a9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "blpHb18y5f9kQo5F",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {
+          "maxTokensToSample": 650
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [656, 336],
+      "id": "a3ced847-fb8b-452f-8eae-cf32868c8244",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "A1QQwf2QL5gK56Ux",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body.entryContent;\n// Si el input es un array, tomar el primer elemento; si no, usarlo directamente\nconst doc = Array.isArray(input) ? input[0] : input;\nconst content = doc.content || [];\n\nconst texts = content\n  .filter(block => block.type === \"paragraph\" && block.content)\n  .flatMap(block =>\n    block.content\n      .filter(node => node.type === \"text\" && node.text)\n      .map(node => node.text)\n  );\n\nreturn [{\n  json: {\n    plainText: texts.join(\"\\n\")\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [416, 0],
+      "id": "0c3bbfaf-a735-4953-8e06-44dae1b4f112",
+      "name": "Extract text"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [208, 0],
+      "id": "9a7fb78d-0812-450e-a664-cc6812610e87",
+      "name": "Respond to Webhook (optional if trigger webhook respond inmediatedly)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Get data from webhook input\nconst input=$('Respond to Webhook (optional if trigger webhook respond inmediatedly)').first().json.body\n//const input = $input.first().json.body;\nconst { requestId, userId, entryId, callbackUrl } = input;\n\n// Fix: n8n runs inside Docker, so replace localhost with host.docker.internal\nconst fixedCallbackUrl = callbackUrl.replace('localhost', 'host.docker.internal');\n\n\n// Build callback body\nconst callbackBody = {\n  requestId,\n  userId,\n  entryId,\n  summary:$input.first().json.output || \"Empty\",\n  format: \"markdown\"\n};\n\n// Generate HMAC signature\nconst secret = $env['N8N_WEBHOOK_SECRET'] || 'dev_secret_change_me_in_production';\nconst timestamp = Date.now().toString();\nconst rawBody = JSON.stringify(callbackBody);\nconst signature = crypto\n  .createHmac('sha256', secret)\n  .update(`${timestamp}.${rawBody}`)\n  .digest('hex');\n\nreturn [{\n  json: {\n    callbackUrl: fixedCallbackUrl,\n    callbackBody,\n    rawBody,\n    timestamp,\n    signature\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 0],
+      "id": "1e4d2bea-0d3a-4cdb-8f5d-c30ee12f7540",
+      "name": "Signature callback"
+    }
+  ],
+  "pinData": {
+    "Respond to Webhook (optional if trigger webhook respond inmediatedly)": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-timestamp": "1770598069542",
+            "x-signature": "67a05a051159c847055fa8759dbc2a4fe135417d429f31fe9dda634568cbd62d",
+            "authorization": "Basic bmV1cmFhbDpuZXVyYWFsX3Bhc3N3b3Jk",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "2048"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "requestId": "6ca61101-41a7-4cf8-a805-a9aaaae0065a",
+            "userId": "user-123",
+            "entryId": "fe78f01e-6b0a-4fd8-8528-a3c2e649913b",
+            "callbackUrl": "http://host.docker.internal:3000/api/automations/entry-summary/callback",
+            "entryTitle": "ir al gimnasio",
+            "entryType": "task",
+            "entryContent": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Quiero ir al gimnasio. necesito recoger el paquete de la empresa. repasar proyecto de neuraal pedir cita en la peluqueria",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "image",
+                  "attrs": {
+                    "alt": "enlaces.jpg",
+                    "src": "http://localhost:9000/neuraal/attachments/user-123/1770597523091-y3jauns4-enlaces.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=minioadmin%2F20260209%2Feu-west-1%2Fs3%2Faws4_request&X-Amz-Date=20260209T004050Z&X-Amz-Expires=3600&X-Amz-Signature=a45e7c32d0b659dded09c6791e1c045cb75eea92a71b895b1a050a2689283d3c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+                    "title": null,
+                    "width": null,
+                    "height": null,
+                    "uploading": false,
+                    "attachmentId": "e4379a20-b1d6-481f-9d4a-15ff8c6b2635"
+                  }
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "llevar el coche al taller llamar a mi madre",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "youtube",
+                  "attrs": {
+                    "src": "https://www.youtube.com/watch?v=3pa11va6LVY",
+                    "start": 0,
+                    "width": 640,
+                    "height": 480
+                  }
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Pasear al perro",
+                      "type": "text"
+                    },
+                    {
+                      "type": "hardBreak"
+                    }
+                  ]
+                },
+                {
+                  "type": "codeBlock",
+                  "attrs": {
+                    "language": "python"
+                  },
+                  "content": [
+                    {
+                      "text": " while iteration < self.max_iterations:\n            iteration += 1\n            print \"\\n--- Iteration {} ---\".format(iteration)\n            \n            # Enviar mensaje a Claude\n            response = self.claude_client.send_message(messages)\n            \n            if 'error' in response:\n                print \"Error from Claude:\", response['error']\n                break\n            ",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "llamar a mi novia",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph"
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "no tengo dinero",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "webhookUrl": "http://localhost:5678/webhook/neuraal-entry-summary",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (optional if trigger webhook respond inmediatedly)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Signature callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract text": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook (optional if trigger webhook respond inmediatedly)": {
+      "main": [
+        [
+          {
+            "node": "Extract text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature callback": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a4b83a8f-ade3-4969-9510-84699e3de1af",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "775cbc690e420a40a18f1b94e3ef1c73dd425fd06bc98cf4bd4868419fcfae5b"
+  },
+  "id": "J5Y0ICETHcy2uPdb",
+  "tags": []
+}

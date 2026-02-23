@@ -143,7 +143,7 @@ function ReorderableTaskItem({
   onDragEnd,
   updatePointerY,
   onTapMobile,
-}: ReorderableTaskItemProps) {
+}: Readonly<ReorderableTaskItemProps>) {
   const dragControls = useDragControls();
   const isDraggingRef = useRef(false);
 
@@ -354,10 +354,10 @@ export function TasksContainer() {
 
     const timer = setInterval(() => {
       attempts++;
-      const container = containerRef.current as HTMLElement | null;
-      const el = document.querySelector(
+      const container = containerRef.current;
+      const el = document.querySelector<HTMLElement>(
         `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`,
-      ) as HTMLElement | null;
+      );
 
       if (el && container) {
         clearInterval(timer);

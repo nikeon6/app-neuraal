@@ -14,6 +14,7 @@ import {
   useEntriesForDates,
   useSummaryDoneWatcher,
   useTranscriptionDoneWatcher,
+  useReminderDoneWatcher,
   useTopicsQuery,
 } from "@/shared/api/queries";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
@@ -86,10 +87,11 @@ export function Dashboard() {
       .some((e) => e.topicId && topicIdSet.has(e.topicId));
   }, [hasTopics, allTopics, entriesByDate]);
 
-  // Watch for SUMMARY_DONE notifications and auto-refresh entries
+  // Watch for async operation notifications and auto-refresh relevant queries
   const currentDateKey = useStore(selectDateKey);
   useSummaryDoneWatcher(currentDateKey);
   useTranscriptionDoneWatcher(currentDateKey);
+  useReminderDoneWatcher();
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);

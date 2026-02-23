@@ -1,0 +1,285 @@
+{
+  "name": "neuraal-entry-transcription - EXAMPLE",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b8fb5e2a-5d87-4d23-897e-40cef7f80bb3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "2641a470-6e49-4428-bca4-b97eb3885b33",
+      "name": "Webhook",
+      "webhookId": "b8fb5e2a-5d87-4d23-897e-40cef7f80bb3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ $json.callbackBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1248, 0],
+      "id": "fccc2c84-a89d-4700-a304-d0a757bcbbe8",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"requestId\": \"{{ $json.body.requestId }}\"\n} ",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [208, 0],
+      "id": "226e6ada-4a67-4109-8e5e-724c7f2b7ef2",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.content }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are an expert in grammar corrections and textual structuring.\n\nCorrect the classification of the provided text, adding commas, periods, question marks and other symbols necessary for natural and consistent reading. Do not change any words, just adjust the punctuation according to the grammatical rules and context.\n\nOrganize your content using markdown, structuring it with titles, subtitles, lists or other protected elements to clearly highlight the topics and information captured. Leave it in Portuguese and remember to always maintain the original formatting.\n\nTextual organization should always be a priority according to the content of the text, as well as the appropriate title, which must make sense.\n\nTranscribe siempre en español o inglés (preferiblemente respetando el idioma del vídeo y si no traduciéndolo). No pongas nada en portugués."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [624, 0],
+      "id": "d5d1b74d-f58d-4894-91d0-36725a44ddc9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.2",
+          "mode": "list",
+          "cachedResultName": "gpt-5.2"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [624, 224],
+      "id": "8986a4c1-1f08-4b60-95cf-a1c3077282a1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "blpHb18y5f9kQo5F",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getTranscript",
+        "videoUrl": "={{ $('Webhook').item.json.body.youtubeUrl }}"
+      },
+      "type": "n8n-nodes-supadata.supadata",
+      "typeVersion": 1,
+      "position": [400, 0],
+      "id": "8d82903a-3ec9-4682-87e8-ece7489a3865",
+      "name": "Get transcript1",
+      "credentials": {
+        "supadataApi": {
+          "id": "oNx7AQOft6B2NqdK",
+          "name": "Supadata account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [672, 336],
+      "id": "976c1587-923b-44cb-a6d7-8f83d28f0e82",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "A1QQwf2QL5gK56Ux",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Get data from webhook input\nconst input=$('Respond to Webhook').first().json.body\n//const input = $input.first().json.body;\nconst { requestId, userId, entryId, youtubeUrl, callbackUrl } = input;\n\n// Fix: n8n runs inside Docker, so replace localhost with host.docker.internal\nconst fixedCallbackUrl = callbackUrl.replace('localhost', 'host.docker.internal');\n\n\n// Build callback body\nconst callbackBody = {\n  requestId,\n  userId,\n  entryId,\n  youtubeUrl,\n  transcription:$input.first().json.output || \"Error in transcription\"\n  \n};\n\n// Generate HMAC signature\nconst secret = $env['N8N_WEBHOOK_SECRET'] || 'dev_secret_change_me_in_production';\nconst timestamp = Date.now().toString();\nconst rawBody = JSON.stringify(callbackBody);\nconst signature = crypto\n  .createHmac('sha256', secret)\n  .update(`${timestamp}.${rawBody}`)\n  .digest('hex');\n\nreturn [{\n  json: {\n    callbackUrl: fixedCallbackUrl,\n    callbackBody,\n    rawBody,\n    timestamp,\n    signature\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1008, 0],
+      "id": "a5caf521-085e-40c6-ad08-c73252f86a47",
+      "name": "Signature callback"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-timestamp": "1770681221368",
+            "x-signature": "94e7fd2516daa5be847799505fcb5826b7a61d726146dd67134f86ce2955b4d6",
+            "authorization": "Basic bmV1cmFhbDpuZXVyYWFsX3Bhc3N3b3Jk",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "298"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "requestId": "04d67a0c-d40c-4782-b48c-4f5599372cab",
+            "userId": "user-123",
+            "entryId": "a7de8536-9c7e-4c8e-b45f-335785f18bfd",
+            "youtubeUrl": "https://www.youtube.com/watch?v=w9t8MrJ1G5I",
+            "callbackUrl": "http://host.docker.internal:3000/api/automations/entry-transcription/callback",
+            "entryTitle": "New task"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/neuraal-entry-transcription",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get transcript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Signature callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get transcript1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Signature callback": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "137829b4-b425-4c52-a304-e6f6098a7af9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "775cbc690e420a40a18f1b94e3ef1c73dd425fd06bc98cf4bd4868419fcfae5b"
+  },
+  "id": "CDoEaPyuV6ETDYkN",
+  "tags": []
+}

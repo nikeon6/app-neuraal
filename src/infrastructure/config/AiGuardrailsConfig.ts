@@ -99,11 +99,7 @@ export function getAiGuardrailsConfig(): AiGuardrailsConfig {
       maxActivePerEntry: 0,
       maxInputChars: 0,
       maxInputBytes: parseEnvInt("AI_OCR_MAX_INPUT_BYTES", 4_000_000, 1000),
-      monthlyQuotaRequests: parseEnvInt(
-        "AI_OCR_MONTHLY_QUOTA_REQUESTS",
-        100,
-        1,
-      ),
+      monthlyQuotaRequests: parseEnvInt("AI_OCR_MONTHLY_QUOTA_REQUESTS", 30, 1),
       monthlyQuotaTokens: parseEnvInt("AI_OCR_MONTHLY_QUOTA_TOKENS", 0, 0),
     },
     reminderWhatsapp: {
@@ -113,7 +109,7 @@ export function getAiGuardrailsConfig(): AiGuardrailsConfig {
         1,
       ),
       rateLimitPerHour: 0,
-      maxActivePerUser: parseEnvInt("AI_WHATSAPP_MAX_ACTIVE_PER_USER", 50, 1),
+      maxActivePerUser: parseEnvInt("AI_WHATSAPP_MAX_ACTIVE_PER_USER", 40, 1),
       maxActivePerEntry: 0,
       maxInputChars: parseEnvInt("AI_WHATSAPP_MAX_MESSAGE_CHARS", 500, 10),
       maxInputBytes: 0,

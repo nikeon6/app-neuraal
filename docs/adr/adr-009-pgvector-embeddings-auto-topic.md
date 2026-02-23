@@ -22,7 +22,7 @@ Requirements:
 
 Adopt a **local embedding + vector similarity** approach using:
 
-1. **Ollama** (`nomic-embed-text-v2-moe:latest`) for generating 768-dimensional text embeddings locally.
+1. **Ollama** (`qwen3-embedding:latest`) for generating 4096-dimensional text embeddings locally.
 2. **pgvector** (PostgreSQL extension) for storing and searching embeddings using cosine distance (`<=>`).
 3. **Synchronous API** for embedding operations (not queued), since Ollama runs locally with low latency.
 
@@ -39,7 +39,7 @@ Adopt a **local embedding + vector similarity** approach using:
 
 ### Persistence
 
-- `Topic.embedding`: `vector(768)` column managed via raw SQL (Prisma `Unsupported` type).
+- `Topic.embedding`: `vector(4096)` column managed via raw SQL (Prisma `Unsupported` type).
 - `Topic.embeddingModel`: tracks which model generated the embedding.
 - `Topic.embeddingUpdatedAt`: timestamp for cache invalidation.
 - Vector index (HNSW or IVFFLAT) deferred until data volume warrants it.
@@ -64,7 +64,7 @@ Adopt a **local embedding + vector similarity** approach using:
 - Requires Ollama running alongside the app (Docker resource usage).
 - Short topic names produce weaker embeddings (low similarity scores); richer topic descriptions would improve accuracy.
 - Raw SQL needed for pgvector operations (Prisma doesn't natively support `vector` type).
-- Embedding dimension is hardcoded to 768; changing models requires re-embedding all topics.
+- Embedding dimension is hardcoded to 4096; changing models requires re-embedding all topics.
 
 ## Alternatives Considered
 

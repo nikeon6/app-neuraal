@@ -84,9 +84,10 @@
 
 ### Prevention
 
-- Regular backups: `pg_dump` daily (minimum)
-- Monitor disk space
-- Set up replication for production
+- **Automatic pre-deploy backups**: The CI/CD pipeline creates a compressed `pg_dump` backup before every deployment. Backups are stored in `/srv/neuraal/backups/postgres/` with automatic retention (keep last 7, delete only if >14 days old).
+- For additional safety, schedule daily cron backups and copy to external storage.
+- Monitor disk space.
+- Set up replication for production.
 
 ---
 
@@ -153,10 +154,12 @@
 
 ### On Deploy
 
-- [ ] Run `pnpm prisma migrate deploy`
-- [ ] Restart workers
-- [ ] Verify `/api/health` returns `ok`
+The CI/CD pipeline handles migrations, restarts, health checks, and automatic rollback. After an automated deploy, verify:
+
+- [ ] `/api/health` returns `ok` (automated by pipeline)
 - [ ] Smoke test critical flows (login, create entry)
+- [ ] Check Sentry for new errors after deploy
+- [ ] Verify workers are processing jobs (Bull Board or logs)
 
 ---
 

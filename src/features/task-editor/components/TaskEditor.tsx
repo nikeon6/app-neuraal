@@ -64,6 +64,7 @@ import {
   useEditorCollapse,
   useContentMenuClose,
 } from "../hooks/useEditorCollapse";
+import { useContentMenuPosition } from "../hooks/useContentMenuPosition";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 import { YoutubeUrlDialog } from "./YoutubeUrlDialog";
 import { FormatMenu } from "./FormatMenu";
@@ -398,6 +399,68 @@ function TaskEditorActionButtons({
         </p>
       )}
     </div>
+  );
+}
+
+// ============================================================================
+// ContentMenuPortal — portal-rendered to escape parent overflow clipping
+// Extracted to reduce TaskEditor Cognitive Complexity.
+// ============================================================================
+interface ContentMenuPortalProps {
+  isOpen: boolean;
+  pos: { top: number; left: number; opensUp: boolean };
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  items: ContentMenuItem[];
+  onAction: (id: string) => void;
+}
+
+function ContentMenuPortal({
+  isOpen,
+  pos,
+  panelRef,
+  items,
+  onAction,
+}: Readonly<ContentMenuPortalProps>) {
+  if (typeof document === "undefined") return null;
+
+  const portalStyle: React.CSSProperties = {
+    position: "fixed",
+    zIndex: 9999,
+    ...(pos.opensUp
+      ? { bottom: window.innerHeight - pos.top, left: pos.left }
+      : { top: pos.top, left: pos.left }),
+  };
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          ref={panelRef}
+          role="menu"
+          initial={{ opacity: 0, y: pos.opensUp ? 10 : -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: pos.opensUp ? 10 : -10, scale: 0.95 }}
+          transition={{ duration: 0.15 }}
+          onMouseDown={(e) => e.preventDefault()}
+          style={portalStyle}
+          className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px]"
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              role="menuitem"
+              aria-label={item.label}
+              className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
+              onClick={() => onAction(item.id)}
+            >
+              <item.icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 }
 
@@ -748,6 +811,7 @@ export function TaskEditor({
   // DOM / timer refs
   const editorRef = useRef<HTMLDivElement>(null);
   const contentMenuRef = useRef<HTMLDivElement>(null);
+  const contentMenuButtonRef = useRef<HTMLButtonElement>(null);
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1052,8 +1116,17 @@ export function TaskEditor({
     return () => flushRef.current();
   }, []);
 
-  // Close content menu on click outside its container
-  useContentMenuClose(isContentMenuOpen, contentMenuRef, setUIState);
+  // Content menu position — portal-rendered with smart up/down placement
+  const { pos: contentMenuPos, panelRef: contentMenuPanelRef } =
+    useContentMenuPosition(isContentMenuOpen, contentMenuButtonRef);
+
+  // Close content menu on click outside its container (including portal)
+  useContentMenuClose(
+    isContentMenuOpen,
+    contentMenuRef,
+    setUIState,
+    contentMenuPanelRef,
+  );
 
   // Content menu items
   const contentMenuItems: ContentMenuItem[] = [
@@ -1363,6 +1436,7 @@ export function TaskEditor({
             <div className="flex items-center gap-2">
               <div className="relative" ref={contentMenuRef}>
                 <button
+                  ref={contentMenuButtonRef}
                   type="button"
                   aria-label="Add content"
                   aria-haspopup="menu"
@@ -1385,32 +1459,13 @@ export function TaskEditor({
                   />
                 </button>
 
-                <AnimatePresence>
-                  {isContentMenuOpen && (
-                    <motion.div
-                      role="menu"
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className="absolute bottom-full left-0 mb-2 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50"
-                    >
-                      {contentMenuItems.map((item) => (
-                        <button
-                          key={item.id}
-                          role="menuitem"
-                          aria-label={item.label}
-                          className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
-                          onClick={() => handleContentMenuAction(item.id)}
-                        >
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <ContentMenuPortal
+                  isOpen={isContentMenuOpen}
+                  pos={contentMenuPos}
+                  panelRef={contentMenuPanelRef}
+                  items={contentMenuItems}
+                  onAction={handleContentMenuAction}
+                />
               </div>
 
               <div className="relative">
