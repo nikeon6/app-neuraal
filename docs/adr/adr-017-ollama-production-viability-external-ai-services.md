@@ -9,11 +9,10 @@
 
 ## Context
 
-Neuraal uses **Ollama** as its local AI inference engine for three features:
+Neuraal uses **Ollama** as its local AI inference engine for two features:
 
 1. **Embeddings** (auto-topic classification): `qwen3-embedding:latest` — synchronous, ~4096-dim vectors.
 2. **OCR** (image text extraction): `glm-ocr:q8_0` — synchronous, vision model.
-3. **Summaries and transcriptions** use n8n workflows with external LLM APIs (OpenAI/Anthropic), not Ollama.
 
 The original design decision (ADR-009) chose Ollama for privacy, zero API cost, and offline capability. During development on a machine with a dedicated GPU (NVIDIA), Ollama performs well: embedding generation is sub-second and OCR completes in 1–3 seconds.
 
@@ -23,12 +22,12 @@ However, testing on a **production VPS** (typical cloud instance without GPU) re
 
 | Operation                   | GPU workstation            | CPU-only VPS (4 vCPU)                              |
 | --------------------------- | -------------------------- | -------------------------------------------------- |
-| Embedding (qwen3-embedding) | ~200–500 ms                | ~8–15 s                                            |
+| Embedding (qwen3-embedding) | ~200–500 ms                | ~1-2 s                                             |
 | OCR (glm-ocr:q8_0)          | ~1–3 s                     | ~30–90 s                                           |
 | CPU usage during inference  | Offloaded to GPU           | **100% across all cores**                          |
 | Concurrent requests         | Handled by GPU parallelism | Queue behind single inference, compounding latency |
 
-On a CPU-only server, Ollama inference **saturates all CPU cores** for the duration of each request, blocking the entire server. Concurrent users would experience cascading slowdowns. The API, database, and other services sharing the same host are also impacted.
+On a CPU-only server, Ollama inference **saturates all CPU cores**
 
 ### GPU-enabled VPS cost analysis
 
