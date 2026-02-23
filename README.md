@@ -539,24 +539,25 @@ See [docs/observability.md](docs/observability.md) for full details.
 
 ## Architecture Decision Records
 
-| ADR                                                                        | Decision                                            | Status     |
-| -------------------------------------------------------------------------- | --------------------------------------------------- | ---------- |
-| [001](docs/adr/adr-001-nextjs-app-router-and-feature-structure.md)         | Next.js App Router + feature-based structure        | Accepted   |
-| [002](docs/adr/adr-002-state-management-feature-scoped-first.md)           | Feature-scoped state management + Zustand           | Accepted   |
-| [003](docs/adr/adr-003-testing-stack-vitest-testing-library-playwright.md) | Testing: Vitest + Testing Library + Playwright      | Accepted   |
-| [004](docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md)            | Auth: JWT access/refresh tokens in httpOnly cookies | Accepted   |
-| [005](docs/adr/adr-005-observability-sentry.md)                            | Observability with Sentry                           | Accepted   |
-| [006](docs/adr/adr-006-auth-oauth-authjs-postgres-sessions.md)             | Auth: OAuth + Auth.js (superseded by ADR-004)       | Superseded |
-| [007](docs/adr/adr-007-hybrid-persistence-postgres-s3-compatible.md)       | Hybrid persistence: Postgres + S3                   | Accepted   |
-| [008](docs/adr/adr-008-automation-n8n-orchestrated-async-jobs.md)          | Automation: n8n + BullMQ async jobs                 | Accepted   |
-| [009](docs/adr/adr-009-pgvector-embeddings-auto-topic.md)                  | pgvector embeddings for auto-topic classification   | Accepted   |
-| [010](docs/adr/adr-010-openapi-spec-generated-types.md)                    | OpenAPI spec as source of truth + generated types   | Accepted   |
-| [011](docs/adr/adr-011-ai-guardrails-usage-tracking.md)                    | AI guardrails and usage tracking                    | Accepted   |
-| [012](docs/adr/adr-012-rich-text-editor-tiptap.md)                         | Rich text editor: TipTap 3                          | Accepted   |
-| [013](docs/adr/adr-013-whatsapp-integration-evolution-api.md)              | WhatsApp reminders via Evolution API                | Deprecated |
-| [014](docs/adr/adr-014-docker-multistage-cicd-pipeline.md)                 | Docker multi-stage build + CI/CD pipeline           | Accepted   |
-| [015](docs/adr/adr-015-structured-logging-prometheus-metrics.md)           | Structured logging (pino) + Prometheus metrics      | Accepted   |
-| [016](docs/adr/adr-016-tanstack-query-server-state.md)                     | TanStack Query for server state management          | Accepted   |
+| ADR                                                                         | Decision                                            | Status     |
+| --------------------------------------------------------------------------- | --------------------------------------------------- | ---------- |
+| [001](docs/adr/adr-001-nextjs-app-router-and-feature-structure.md)          | Next.js App Router + feature-based structure        | Accepted   |
+| [002](docs/adr/adr-002-state-management-feature-scoped-first.md)            | Feature-scoped state management + Zustand           | Accepted   |
+| [003](docs/adr/adr-003-testing-stack-vitest-testing-library-playwright.md)  | Testing: Vitest + Testing Library + Playwright      | Accepted   |
+| [004](docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md)             | Auth: JWT access/refresh tokens in httpOnly cookies | Accepted   |
+| [005](docs/adr/adr-005-observability-sentry.md)                             | Observability with Sentry                           | Accepted   |
+| [006](docs/adr/adr-006-auth-oauth-authjs-postgres-sessions.md)              | Auth: OAuth + Auth.js (superseded by ADR-004)       | Superseded |
+| [007](docs/adr/adr-007-hybrid-persistence-postgres-s3-compatible.md)        | Hybrid persistence: Postgres + S3                   | Accepted   |
+| [008](docs/adr/adr-008-automation-n8n-orchestrated-async-jobs.md)           | Automation: n8n + BullMQ async jobs                 | Accepted   |
+| [009](docs/adr/adr-009-pgvector-embeddings-auto-topic.md)                   | pgvector embeddings for auto-topic classification   | Accepted   |
+| [010](docs/adr/adr-010-openapi-spec-generated-types.md)                     | OpenAPI spec as source of truth + generated types   | Accepted   |
+| [011](docs/adr/adr-011-ai-guardrails-usage-tracking.md)                     | AI guardrails and usage tracking                    | Accepted   |
+| [012](docs/adr/adr-012-rich-text-editor-tiptap.md)                          | Rich text editor: TipTap 3                          | Accepted   |
+| [013](docs/adr/adr-013-whatsapp-integration-evolution-api.md)               | WhatsApp reminders via Evolution API                | Deprecated |
+| [014](docs/adr/adr-014-docker-multistage-cicd-pipeline.md)                  | Docker multi-stage build + CI/CD pipeline           | Accepted   |
+| [015](docs/adr/adr-015-structured-logging-prometheus-metrics.md)            | Structured logging (pino) + Prometheus metrics      | Accepted   |
+| [016](docs/adr/adr-016-tanstack-query-server-state.md)                      | TanStack Query for server state management          | Accepted   |
+| [017](docs/adr/adr-017-ollama-production-viability-external-ai-services.md) | Ollama production viability vs external AI services | Accepted   |
 
 ---
 
