@@ -129,7 +129,12 @@
   },
   "pnpm": {
     "overrides": {
-      "glob": "^13.0.3"
+      "glob": "^13.0.3",
+      "fast-xml-parser": ">=5.3.6",
+      "lodash": ">=4.17.23",
+      "markdown-it": ">=14.1.1",
+      "hono": ">=4.11.10",
+      "minimatch@>=10": ">=10.2.1"
     }
   },
   "packageManager": "pnpm@10.30.0+sha512.2b5753de015d480eeb88f5b5b61e0051f05b4301808a82ec8b840c9d2adf7748eb352c83f5c1593ca703ff1017295bc3fdd3119abb9686efc96b9fcb18200937"
