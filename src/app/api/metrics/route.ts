@@ -10,8 +10,20 @@ import { registry } from "@/infrastructure/metrics/metrics";
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const metricsToken = process.env.METRICS_TOKEN;
+  const isProduction = process.env.NODE_ENV === "production";
 
-  // Auth check
+  if (isProduction && !metricsToken) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "FORBIDDEN",
+          message: "Metrics endpoint disabled: METRICS_TOKEN not configured",
+        },
+      },
+      { status: 403 },
+    );
+  }
+
   if (metricsToken) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${metricsToken}`) {

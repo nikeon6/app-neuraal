@@ -10,10 +10,18 @@ import { logger } from "../logging/logger";
 const PORT = parseInt(process.env.BULLBOARD_PORT ?? "3001", 10);
 const BULLBOARD_USER = process.env.BULLBOARD_USER ?? "admin";
 const BULLBOARD_PASSWORD = process.env.BULLBOARD_PASSWORD ?? "";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 const QUEUE_NAMES = ["reminders", "summaries", "transcriptions"];
 
 async function start() {
+  if (IS_PRODUCTION && !BULLBOARD_PASSWORD) {
+    logger.fatal(
+      "BULLBOARD_PASSWORD is required in production. " +
+        "Set it in your environment to protect the queue monitor.",
+    );
+    process.exit(1);
+  }
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
