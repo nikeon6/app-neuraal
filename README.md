@@ -10,6 +10,8 @@ A full-stack web application where authenticated users manage **tasks**, **notes
 
 ## Product Overview
 
+![Dashboard overview](docs/gifs%20and%20captures/Inicio%20dashboard.gif)
+
 Users can:
 
 - **Register and log in** securely (JWT access + refresh tokens in httpOnly cookies).
