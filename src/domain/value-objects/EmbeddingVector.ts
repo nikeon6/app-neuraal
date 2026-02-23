@@ -21,7 +21,7 @@ export class EmbeddingVector {
   /**
    * Creates an EmbeddingVector from an array of numbers.
    * @param values - The embedding values
-   * @param expectedDim - The expected dimension (e.g. 768)
+   * @param expectedDim - The expected dimension (e.g. 4096)
    */
   static create(
     values: number[],

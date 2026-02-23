@@ -706,6 +706,8 @@ export function FloatingTopics({
   const layoutModeRef = useRef<"stack" | "grid">("grid");
   // State mirror of layoutModeRef for triggering re-renders (e.g., baseTopicCenters needs to recalculate)
   const [isStackLayout, setIsStackLayout] = useState(false);
+  // Prevents the flash of all bubbles at (0,0) before the first DOM measurement
+  const [layoutReady, setLayoutReady] = useState(false);
   const [taskCenters, setTaskCenters] = useState<Record<string, TaskCenter>>(
     {},
   );
@@ -916,6 +918,10 @@ export function FloatingTopics({
       laneTop,
       laneH,
     });
+
+    if (containerRect.width > 1 && containerRect.height > 1) {
+      setLayoutReady(true);
+    }
 
     // Measure task pills from VerticalCalendar (inside aside ONLY, not TasksContainer)
     const taskCenterMap: Record<string, TaskCenter> = {};
@@ -1769,7 +1775,12 @@ export function FloatingTopics({
     <div
       className="absolute inset-0 pointer-events-none landscape-mobile-hidden"
       aria-label="Topics floating layer"
-      style={{ zIndex: 15, isolation: "isolate" }}
+      style={{
+        zIndex: 15,
+        isolation: "isolate",
+        opacity: layoutReady ? 1 : 0,
+        transition: "opacity 0.3s ease-in",
+      }}
     >
       {/* SVG Wires - structure is React-driven, geometry updated imperatively */}
       <svg

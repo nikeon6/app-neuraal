@@ -144,7 +144,9 @@ describe("YoutubeEmbedComponent", () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith("Transcript content");
     });
-    expect(screen.getByText(/copied!/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/copied!/i)).toBeInTheDocument();
+    });
   });
 
   it("uses execCommand fallback when clipboard API fails", async () => {
@@ -165,7 +167,9 @@ describe("YoutubeEmbedComponent", () => {
     await waitFor(() => {
       expect(execCommandMock).toHaveBeenCalledWith("copy");
     });
-    expect(screen.getByText(/copied!/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/copied!/i)).toBeInTheDocument();
+    });
   });
 
   it("toggles transcription expansion", () => {

@@ -13,6 +13,17 @@ interface SummarizeErrorResult {
   shouldClose: boolean;
 }
 
+function readApiErrorDetails(
+  error: ApiError,
+): Record<string, unknown> | undefined {
+  if (!error.details || typeof error.details !== "object") return undefined;
+  const payload = error.details as { error?: unknown };
+  if (!payload.error || typeof payload.error !== "object") return undefined;
+  const details = (payload.error as { details?: unknown }).details;
+  if (!details || typeof details !== "object") return undefined;
+  return details as Record<string, unknown>;
+}
+
 /**
  * Map a summarize API error to a user-facing message.
  */
@@ -25,7 +36,7 @@ function mapSummarizeApiError(error: unknown): SummarizeErrorResult {
     case 404:
       return { message: null, shouldClose: true };
     case 429: {
-      const details = error.details as
+      const details = readApiErrorDetails(error) as
         | { resetAt?: string; remaining?: number }
         | undefined;
       const resetAt = details?.resetAt ? new Date(details.resetAt) : null;
@@ -45,8 +56,27 @@ function mapSummarizeApiError(error: unknown): SummarizeErrorResult {
         shouldClose: false,
       };
     case 409:
+      if (error.code === "CONCURRENCY_LIMIT") {
+        const scope = readApiErrorDetails(error)?.scope;
+        if (scope === "USER") {
+          return {
+            message:
+              "Another summary is already in progress for a different entry.",
+            shouldClose: false,
+          };
+        }
+        return {
+          message: "A summary is already in progress for this entry.",
+          shouldClose: false,
+        };
+      }
       return {
         message: "A summary is already in progress for this entry.",
+        shouldClose: false,
+      };
+    case 400:
+      return {
+        message: error.message,
         shouldClose: false,
       };
     default:
@@ -65,6 +95,7 @@ export function useSummaryActions(
   summaryUpdatedAt: string | null | undefined,
   dateKey: string,
   queryClient: QueryClient,
+  hasSummarizableContent: boolean,
   onClose?: () => void,
 ) {
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -83,6 +114,12 @@ export function useSummaryActions(
 
   const handleSummarize = useCallback(async () => {
     if (isSummarizing) return;
+    if (!hasSummarizableContent) {
+      setSummarizeError(
+        "Cannot summarize an empty entry. Add content before requesting a summary.",
+      );
+      return;
+    }
     setSummarizeError(null);
     setIsSummarizing(true);
     summaryRequestedAtRef.current = new Date().toISOString();
@@ -104,7 +141,14 @@ export function useSummaryActions(
         setSummarizeError(result.message);
       }
     }
-  }, [isSummarizing, queryClient, entryId, dateKey, onClose]);
+  }, [
+    isSummarizing,
+    hasSummarizableContent,
+    queryClient,
+    entryId,
+    dateKey,
+    onClose,
+  ]);
 
   const handleClearSummary = useCallback(async () => {
     try {

@@ -1,7 +1,7 @@
 # ADR-002: State Management Strategy (Feature-Scoped First)
 
-- **Status:** Proposed
-- **Date:** 2026-01-28
+- **Status:** Accepted
+- **Date:** 2026-01-28 (updated 2026-02-21)
 - **Deciders:** Project maintainer(s)
 - **Technical Story:** Neuraal (TFM) — foundational architecture decision
 
@@ -9,7 +9,7 @@
 
 ## Context
 
-Neuraal’s UI has interactive components (topic bubbles/anchors, calendar views) where:
+Neuraal's UI has interactive components (topic bubbles/anchors, calendar views) where:
 
 - Much state is local to a feature (positions, layout, UI transitions)
 - Some state may later become cross-cutting (selected topic, global filters, user session)
@@ -17,7 +17,7 @@ Neuraal’s UI has interactive components (topic bubbles/anchors, calendar views
 We want a strategy that:
 
 - Keeps state as local as possible
-- Avoids a global “god store”
+- Avoids a global "god store"
 - Is easy to test and reason about
 
 ## Decision
@@ -36,7 +36,7 @@ Adopt a **feature-scoped-first** strategy:
 
 ### Positive
 
-- Lower complexity early; state is close to where it’s used.
+- Lower complexity early; state is close to where it's used.
 - Easier testing (reducers/hooks as pure logic).
 - Prevents over-engineering.
 
@@ -54,5 +54,8 @@ Adopt a **feature-scoped-first** strategy:
 
 ## Implementation Notes
 
-- If/when Zustand is introduced, keep stores **feature-owned** unless truly global.
-- Prefer “derived state” computed from source-of-truth rather than storing duplicates.
+- **Zustand** was adopted as the global store (`src/shared/store/index.ts`) for cross-feature UI state: selected date, topic positions, dashboard section, scroll targets.
+- **TanStack Query** (see ADR-016) manages all server state (entries, topics, reminders, notifications, stickies, etc.), keeping the Zustand store lean and UI-focused.
+- Topic positions are persisted per-user in `localStorage` (outside Zustand persist).
+- The store persists only `user` and `dashboardSection` via `zustand/middleware/persist`.
+- Prefer "derived state" computed from source-of-truth rather than storing duplicates.

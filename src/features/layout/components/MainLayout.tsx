@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Sentry from "@sentry/nextjs";
 import { useStore } from "@/shared/store";
 import { LogOut } from "lucide-react";
@@ -13,6 +14,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const { user, login, logout } = useStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       // Proceed with client-side logout even if API fails
     }
     Sentry.setUser(null);
+    queryClient.clear();
     logout();
     router.push("/login");
   };

@@ -1,12 +1,16 @@
-# Neuraal — Calendar Tasks & Notes
+# Neuraal — Productivity App
 
-A full-stack web application where authenticated users manage **tasks**, **notes**, and **topics** through a **calendar-driven dashboard**. Features include a **rich text editor**, **file attachments**, **AI-powered summaries**, **auto-topic classification** via embeddings, **YouTube transcription**, **OCR**, **scheduled reminders**, **sticky notes**, and **weekly recap analytics**.
+A full-stack web application where authenticated users manage **tasks**, **notes**, and **topics** through a **calendar-driven dashboard**. Features include a **rich text editor**, **file attachments**, **AI-powered summaries**, **auto-topic classification** via embeddings, **YouTube transcription**, **OCR**, **scheduled reminders**, **sticky notes**, **weekly recap analytics**, and **cross-entry search**.
 
 > Built as a Master's Final Project (TFM) following **Clean Architecture**, **TDD**, and production-grade security and observability practices.
+
+**Live:** [https://neuraal.app](https://neuraal.app)
 
 ---
 
 ## Product Overview
+
+![Dashboard overview](docs/gifs%20and%20captures/Inicio%20dashboard.gif)
 
 Users can:
 
@@ -14,8 +18,9 @@ Users can:
 - **Recover and change passwords** (email-based reset flow).
 - Access a **responsive dashboard** with multiple sections (daily log, weekly recap, stickies, topics, settings).
 - **Create, edit, and manage entries** (tasks and notes) with a rich text editor (TipTap).
+- **Search across all entries** by title or content with a debounced search bar and keyboard navigation.
 - **Organize entries** into user-defined **Topics** (color-coded categories with interactive floating bubbles).
-- **Browse tasks by day** using a vertical calendar sidebar (expandable per day).
+- **Browse tasks by day** using a vertical calendar sidebar (expandable per day, with wire connections to topic bubbles).
 - **Drag-and-drop reorder** tasks and stickies.
 - **Attach files** to entries (images, documents via S3/MinIO presigned URLs with per-entry and per-user quotas).
 - **Schedule reminders** for tasks, processed asynchronously by BullMQ workers and n8n.
@@ -24,38 +29,41 @@ Users can:
   - **Auto-classify** entries into topics via embedding similarity (Ollama + pgvector).
   - **Extract text from images** (OCR via Ollama vision model).
   - **Transcribe YouTube videos** embedded in entries (async via n8n).
+  - Full **LLM observability** via LangSmith (tracing, prompt versioning, cost tracking) integrated through n8n.
 - **Sticky notes** — persistent kanban-style notes with two-column layout.
 - **Weekly recap** — analytics with completion donut chart, daily bar chart, and topic bubble chart.
 - **In-app notifications** for async operations (summaries, transcriptions, reminders).
-- **Settings** — view AI usage quotas and storage usage.
+- **Settings** — view AI usage quotas and storage usage, change password.
 
 ---
 
 ## Tech Stack
 
-| Category            | Technology                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| **Framework**       | Next.js 16 (App Router) + React 19 + TypeScript                                              |
-| **Styling**         | Tailwind CSS 4                                                                               |
-| **State**           | Zustand (with persist middleware)                                                            |
-| **Data Fetching**   | TanStack Query (React Query)                                                                 |
-| **Rich Text**       | TipTap 3 (ProseMirror-based, custom extensions)                                              |
-| **Animations**      | Framer Motion                                                                                |
-| **Charts**          | Recharts, D3 (force, hierarchy)                                                              |
-| **Icons**           | Lucide React                                                                                 |
-| **Date Handling**   | date-fns                                                                                     |
-| **Database**        | PostgreSQL 16 + pgvector (vector similarity)                                                 |
-| **ORM**             | Prisma 7 (+ raw SQL for pgvector operations)                                                 |
-| **Object Storage**  | S3-compatible (MinIO for dev, AWS S3/R2 for prod)                                            |
-| **Job Queues**      | BullMQ + Redis 7                                                                             |
-| **Automation**      | n8n (workflow orchestration for summaries, transcriptions, reminders)                        |
-| **AI / Embeddings** | Ollama (`qwen3-embedding:latest` for embeddings, `glm-ocr:q8_0` for OCR/vision)              |
-| **Auth**            | JWT (jose) + bcryptjs, httpOnly cookies with token rotation                                  |
-| **API Docs**        | OpenAPI 3.1 spec (`openapi/spec.ts`) + openapi-typescript                                    |
-| **Testing**         | Vitest + Testing Library + Playwright (E2E)                                                  |
-| **Quality**         | ESLint + SonarJS + Prettier + Commitlint + Husky                                             |
-| **Observability**   | Sentry (errors + performance + session replay) + Prometheus metrics + pino (structured logs) |
-| **Package Manager** | **pnpm** (v10+)                                                                              |
+| Category            | Technology                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Framework**       | Next.js 16 (App Router) + React 19 + TypeScript                                                                        |
+| **Styling**         | Tailwind CSS 4                                                                                                         |
+| **State**           | Zustand (with persist middleware)                                                                                      |
+| **Data Fetching**   | TanStack Query (React Query)                                                                                           |
+| **Rich Text**       | TipTap 3 (ProseMirror-based, custom extensions)                                                                        |
+| **Animations**      | Framer Motion                                                                                                          |
+| **Charts**          | Recharts, D3 (force, hierarchy)                                                                                        |
+| **Icons**           | Lucide React                                                                                                           |
+| **Date Handling**   | date-fns                                                                                                               |
+| **Database**        | PostgreSQL 16 + pgvector (vector similarity)                                                                           |
+| **ORM**             | Prisma 7 (+ raw SQL for pgvector operations)                                                                           |
+| **Object Storage**  | S3-compatible (MinIO for dev, AWS S3/R2 for prod)                                                                      |
+| **Job Queues**      | BullMQ + Redis 7                                                                                                       |
+| **Automation**      | n8n (workflow orchestration for summaries, transcriptions, reminders)                                                  |
+| **AI / Embeddings** | Ollama (`qwen3-embedding:latest` for embeddings, `glm-ocr:q8_0` for OCR/vision)                                        |
+| **Auth**            | JWT (jose) + bcryptjs, httpOnly cookies with token rotation                                                            |
+| **API Docs**        | OpenAPI 3.1 spec (`openapi/spec.ts`) + openapi-typescript                                                              |
+| **Testing**         | Vitest + Testing Library + Playwright (E2E)                                                                            |
+| **Quality**         | ESLint + SonarJS + Prettier + Commitlint + Husky                                                                       |
+| **Observability**   | Sentry (errors + performance + session replay) + Prometheus metrics + pino (structured logs) + LangSmith (LLM tracing) |
+| **CI/CD**           | GitHub Actions (CI + Docker build + deploy to VPS via SSH)                                                             |
+| **Reverse Proxy**   | Caddy (automatic TLS)                                                                                                  |
+| **Package Manager** | **pnpm** (v10+)                                                                                                        |
 
 ---
 
@@ -141,6 +149,8 @@ pnpm worker:transcriptions
 | `pnpm worker:transcriptions` | Start transcriptions worker              |
 | `pnpm monitor:queues`        | Open Bull Board queue monitor UI         |
 | `pnpm openapi:generate`      | Generate OpenAPI JSON + TypeScript types |
+| `pnpm quality`               | Lint + typecheck + tests                 |
+| `pnpm verify`                | Quality + E2E + build                    |
 | `pnpm db:seed:e2e`           | Seed database for E2E tests              |
 
 ---
@@ -215,12 +225,12 @@ src/
     types/                # Shared frontend types
     lib/                  # Utilities (cn, extractPlainText, topics...)
     constants/            # Embedding config, business rules
-    store/                # Global Zustand store (persisted)
+    store/                # Global Zustand store (UI state only; server data via TanStack Query)
     hooks/                # useEntries, useTopics
     ui/                   # ConfirmDialog, MinimalTiptapEditor
 
   features/
-    dashboard/            # Main dashboard with section navigation
+    dashboard/            # Main dashboard with section navigation, search bar
     calendar/             # Vertical calendar sidebar
     tasks-container/      # Drag-and-drop task list (Framer Motion Reorder)
     task-editor/          # TipTap rich text editor with custom extensions
@@ -251,7 +261,8 @@ docs/
   observability.md      # Logging, Sentry, Prometheus, healthcheck
   runbooks.md           # Operational runbooks
   ci.md                 # CI pipeline details
-  adr/                  # Architecture Decision Records (14 ADRs)
+  neuraal-deploy-rollback-backup-manual.md  # Deploy, rollback & backup manual
+  adr/                  # Architecture Decision Records (16 ADRs)
   context/              # AI/developer context docs
 n8n/
   workflows/            # n8n workflow definitions (JSON)
@@ -425,24 +436,60 @@ pnpm test:e2e        # Playwright E2E
 
 ---
 
-## Deployment
+## CI/CD Pipeline
 
-### Docker
+### Continuous Integration (`ci.yml`)
 
-Multi-stage Dockerfile (deps → build → runtime) producing a minimal Node 20 Alpine image.
+Runs on push to `main`/`develop` and on PRs:
 
-### CI/CD Pipeline (GitHub Actions)
+1. **Lint & Typecheck**: ESLint + TypeScript compilation.
+2. **Unit & Integration Tests**: Vitest with coverage report.
+3. **E2E Tests**: Playwright with Chromium against Postgres (pgvector) + Redis services, database migrations, and auth seed data.
 
-1. **CI** (`ci.yml`): Lint + typecheck → unit tests with coverage → E2E tests (Playwright + Postgres + Redis)
-2. **Build & Deploy** (`build-and-deploy.yml`): Build Docker image → push to GHCR → SSH deploy to VPS
+### Build & Deploy (`build-and-deploy.yml`)
 
-### Production
+Triggered by push to `develop` or CI completion on `main`:
+
+1. **Wait for CI** — deploy only proceeds if CI passes.
+2. **Build** — Docker multi-stage build (deps → build → runtime) with GitHub Actions cache (`type=gha`).
+3. **Push** — Tagged image pushed to GHCR (`ghcr.io/{owner}/neuraal:latest` + `:{sha}`).
+4. **Deploy via SSH** to VPS with the following safety steps:
+
+### Deploy Safety: Automatic Backup & Rollback
+
+Every deployment includes built-in safety mechanisms:
+
+```
+┌─────────────────────────────────────────────────┐
+│  1. Save current tag as rollback reference       │
+│  2. PostgreSQL backup (pg_dump → gzip)           │
+│  3. Backup retention (keep 7, delete >14 days)   │
+│  4. Pull new image from GHCR                     │
+│  5. Run Prisma migrations                        │
+│     └─ On failure → rollback to previous tag     │
+│  6. Start services (docker compose up)           │
+│  7. Health check (up to 10 min, /api/health)     │
+│     ├─ On success → save as .last_good_tag       │
+│     └─ On failure → automatic rollback           │
+│        ├─ Revert to .last_good_tag               │
+│        ├─ Pull + restart old image               │
+│        └─ Re-check health                        │
+└─────────────────────────────────────────────────┘
+```
+
+- **Pre-migration DB backup**: `pg_dump` compressed with gzip before every deploy.
+- **Backup retention**: Keeps the last 7 backups; deletes older ones only if >14 days old.
+- **Automatic rollback on migration failure**: Reverts `APP_IMAGE_TAG` to previous tag and restarts.
+- **Automatic rollback on health failure**: If `/api/health` doesn't respond within timeout, rolls back to `.last_good_tag`.
+- **Manual recovery**: Documented in [docs/neuraal-deploy-rollback-backup-manual.md](docs/neuraal-deploy-rollback-backup-manual.md).
+
+### Production Stack
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-Services: Postgres (pgvector), Redis (with persistence), MinIO, n8n, Ollama, App.
+Services: Postgres (pgvector), Redis (with persistence), MinIO, n8n, Ollama, Caddy (reverse proxy + automatic TLS), App.
 
 See [docs/deployment.md](docs/deployment.md) for the complete deployment guide.
 
@@ -484,7 +531,8 @@ See `.env.example` for the full list with documentation. Key groups:
 - **Sentry**: Error tracking, performance monitoring, and session replay (client/server/edge/workers).
 - **Prometheus**: HTTP request metrics, AI guardrail metrics, BullMQ job metrics at `/api/metrics`.
 - **Structured Logging**: pino with JSON output, auto-redaction of sensitive fields, request ID propagation.
-- **Health Check**: `/api/health` reports status of all critical dependencies.
+- **LangSmith**: LLM observability integrated through n8n — traces every AI Agent execution (summaries, transcriptions) with full input/output logging, latency breakdown, token usage, cost tracking, and prompt versioning. Enables iterating on system prompts with version history and A/B comparison without redeploying workflows.
+- **Health Check**: `/api/health` reports status of all critical dependencies (DB, Redis, Ollama, n8n, S3).
 - **Bull Board**: Queue monitoring UI via `pnpm monitor:queues`.
 
 See [docs/observability.md](docs/observability.md) for full details.
@@ -493,37 +541,43 @@ See [docs/observability.md](docs/observability.md) for full details.
 
 ## Architecture Decision Records
 
-| ADR                                                                        | Decision                                            | Status     |
-| -------------------------------------------------------------------------- | --------------------------------------------------- | ---------- |
-| [001](docs/adr/adr-001-nextjs-app-router-and-feature-structure.md)         | Next.js App Router + feature-based structure        | Accepted   |
-| [002](docs/adr/adr-002-state-management-feature-scoped-first.md)           | Feature-scoped state management                     | Accepted   |
-| [003](docs/adr/adr-003-testing-stack-vitest-testing-library-playwright.md) | Testing: Vitest + Testing Library + Playwright      | Accepted   |
-| [004](docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md)            | Auth: JWT access/refresh tokens in httpOnly cookies | Accepted   |
-| [005](docs/adr/adr-005-observability-sentry.md)                            | Observability with Sentry                           | Accepted   |
-| [006](docs/adr/adr-006-auth-oauth-authjs-postgres-sessions.md)             | Auth: OAuth + Auth.js (superseded by ADR-004)       | Superseded |
-| [007](docs/adr/adr-007-hybrid-persistence-postgres-s3-compatible.md)       | Hybrid persistence: Postgres + S3                   | Accepted   |
-| [008](docs/adr/adr-008-automation-n8n-orchestrated-async-jobs.md)          | Automation: n8n + BullMQ async jobs                 | Accepted   |
-| [009](docs/adr/adr-009-pgvector-embeddings-auto-topic.md)                  | pgvector embeddings for auto-topic classification   | Accepted   |
-| [010](docs/adr/adr-010-openapi-spec-generated-types.md)                    | OpenAPI spec as source of truth + generated types   | Accepted   |
-| [011](docs/adr/adr-011-ai-guardrails-usage-tracking.md)                    | AI guardrails and usage tracking                    | Accepted   |
-| [012](docs/adr/adr-012-rich-text-editor-tiptap.md)                         | Rich text editor: TipTap 3                          | Accepted   |
-| [013](docs/adr/adr-013-whatsapp-integration-evolution-api.md)              | WhatsApp reminders via Evolution API                | Deprecated |
-| [014](docs/adr/adr-014-docker-multistage-cicd-pipeline.md)                 | Docker multi-stage build + CI/CD pipeline           | Accepted   |
+| ADR                                                                         | Decision                                            | Status     |
+| --------------------------------------------------------------------------- | --------------------------------------------------- | ---------- |
+| [001](docs/adr/adr-001-nextjs-app-router-and-feature-structure.md)          | Next.js App Router + feature-based structure        | Accepted   |
+| [002](docs/adr/adr-002-state-management-feature-scoped-first.md)            | Feature-scoped state management + Zustand           | Accepted   |
+| [003](docs/adr/adr-003-testing-stack-vitest-testing-library-playwright.md)  | Testing: Vitest + Testing Library + Playwright      | Accepted   |
+| [004](docs/adr/adr-004-auth-access-refresh-httpOnly-cookies.md)             | Auth: JWT access/refresh tokens in httpOnly cookies | Accepted   |
+| [005](docs/adr/adr-005-observability-sentry.md)                             | Observability with Sentry                           | Accepted   |
+| [006](docs/adr/adr-006-auth-oauth-authjs-postgres-sessions.md)              | Auth: OAuth + Auth.js (superseded by ADR-004)       | Superseded |
+| [007](docs/adr/adr-007-hybrid-persistence-postgres-s3-compatible.md)        | Hybrid persistence: Postgres + S3                   | Accepted   |
+| [008](docs/adr/adr-008-automation-n8n-orchestrated-async-jobs.md)           | Automation: n8n + BullMQ async jobs                 | Accepted   |
+| [009](docs/adr/adr-009-pgvector-embeddings-auto-topic.md)                   | pgvector embeddings for auto-topic classification   | Accepted   |
+| [010](docs/adr/adr-010-openapi-spec-generated-types.md)                     | OpenAPI spec as source of truth + generated types   | Accepted   |
+| [011](docs/adr/adr-011-ai-guardrails-usage-tracking.md)                     | AI guardrails and usage tracking                    | Accepted   |
+| [012](docs/adr/adr-012-rich-text-editor-tiptap.md)                          | Rich text editor: TipTap 3                          | Accepted   |
+| [013](docs/adr/adr-013-whatsapp-integration-evolution-api.md)               | WhatsApp reminders via Evolution API                | Deprecated |
+| [014](docs/adr/adr-014-docker-multistage-cicd-pipeline.md)                  | Docker multi-stage build + CI/CD pipeline           | Accepted   |
+| [015](docs/adr/adr-015-structured-logging-prometheus-metrics.md)            | Structured logging (pino) + Prometheus metrics      | Accepted   |
+| [016](docs/adr/adr-016-tanstack-query-server-state.md)                      | TanStack Query for server state management          | Accepted   |
+| [017](docs/adr/adr-017-ollama-production-viability-external-ai-services.md) | Ollama production viability vs external AI services | Accepted   |
 
 ---
 
 ## Documentation
 
-| Document                                                                 | Description                                                  |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| [docs/design.md](docs/design.md)                                         | Software Design Document (architecture, domain model, flows) |
-| [docs/security.md](docs/security.md)                                     | Security: auth, rate limiting, HMAC, headers, OWASP          |
-| [docs/deployment.md](docs/deployment.md)                                 | Deployment: Docker, CI/CD, VPS, production config            |
-| [docs/observability.md](docs/observability.md)                           | Logging, Sentry, Prometheus, health checks                   |
-| [docs/runbooks.md](docs/runbooks.md)                                     | Operational runbooks for common scenarios                    |
-| [docs/ci.md](docs/ci.md)                                                 | CI pipeline configuration details                            |
-| [docs/n8n-transcription-workflow.md](docs/n8n-transcription-workflow.md) | n8n YouTube transcription workflow                           |
-| [docs/adr/](docs/adr/)                                                   | Architecture Decision Records                                |
+| Document                                                                                       | Description                                                  |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [docs/design.md](docs/design.md)                                                               | Software Design Document (architecture, domain model, flows) |
+| [docs/security.md](docs/security.md)                                                           | Security: auth, rate limiting, HMAC, headers, OWASP          |
+| [docs/deployment.md](docs/deployment.md)                                                       | Deployment: Docker, CI/CD, VPS, production config            |
+| [docs/neuraal-deploy-rollback-backup-manual.md](docs/neuraal-deploy-rollback-backup-manual.md) | Deploy, automatic rollback & PostgreSQL backup manual        |
+| [docs/observability.md](docs/observability.md)                                                 | Logging, Sentry, Prometheus, health checks                   |
+| [docs/runbooks.md](docs/runbooks.md)                                                           | Operational runbooks for common scenarios                    |
+| [docs/ci.md](docs/ci.md)                                                                       | CI pipeline configuration details                            |
+| [docs/n8n-transcription-workflow.md](docs/n8n-transcription-workflow.md)                       | n8n YouTube transcription workflow                           |
+| [docs/context/project-context.md](docs/context/project-context.md)                             | Full project context for AI assistants                       |
+| [docs/context/backend-plan.md](docs/context/backend-plan.md)                                   | Original backend design plan (with implementation notes)     |
+| [docs/adr/](docs/adr/)                                                                         | Architecture Decision Records (16 ADRs)                      |
 
 ---
 

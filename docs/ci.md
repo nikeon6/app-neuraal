@@ -25,7 +25,7 @@ If these are not set, the E2E job will fail when starting the Postgres service.
 ```bash
 pnpm install --frozen-lockfile
 pnpm lint
-pnpm typecheck   # may fail until TS errors in the codebase are fixed
+pnpm typecheck
 pnpm test:run    # unit/integration tests
 pnpm test:e2e    # requires Postgres + Redis (e.g. Docker) and env vars
 ```

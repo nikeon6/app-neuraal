@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useCallback, useRef, useMemo, memo, useEffect } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  memo,
+  useEffect,
+  useState,
+} from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +17,7 @@ import {
   createEntryAndInvalidate,
   reorderEntriesAndInvalidate,
 } from "@/shared/api/mutations";
-import { TaskEditor } from "@/features/task-editor";
+import { TaskEditor, MobileEditorOverlay } from "@/features/task-editor";
 import type { ApiEntry } from "@/shared/api/sdk";
 import { useAutoScrollOnDrag, useOrderedTaskIds } from "../hooks";
 
@@ -39,6 +46,7 @@ interface TaskEditorWrapperProps {
   dragControls: ReturnType<typeof useDragControls>;
   onExpand: (element: HTMLDivElement) => void;
   isDragDisabled: boolean;
+  onTapMobile?: (entry: ApiEntry) => void;
 }
 
 /**
@@ -50,35 +58,30 @@ const TaskEditorWrapper = memo(function TaskEditorWrapper({
   dragControls,
   onExpand,
   isDragDisabled,
+  onTapMobile,
 }: TaskEditorWrapperProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Handle TaskEditor expansion — auto-scroll only when this click caused the
-  // editor to grow (collapsed → expanded). We capture the height synchronously
-  // at click time and compare after React re-renders (250ms later). This avoids
-  // stale comparisons when NodeView interactions (e.g., expanding a transcription
-  // panel) change the height without propagating clicks to this handler.
   const handleEditorClick = useCallback(() => {
-    // Snapshot height at the moment of click, before React state changes
+    if (onTapMobile) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      onTapMobile(entry);
+      return;
+    }
+
     const heightAtClick = wrapperRef.current?.offsetHeight ?? 0;
 
     setTimeout(() => {
       if (!wrapperRef.current) return;
-
       const newHeight = wrapperRef.current.offsetHeight;
-
-      // Only auto-scroll when THIS click caused a significant height increase
-      // (i.e., collapsed → expanded transition, typically +200px).
-      // Pre-existing height changes (transcription panels, loaded images) are
-      // already reflected in heightAtClick and won't trigger a false positive.
       if (newHeight > heightAtClick + 40) {
         onExpand(wrapperRef.current);
       }
     }, 250);
-  }, [onExpand]);
+  }, [onExpand, onTapMobile, entry]);
 
-  // Handle pointer down on drag handle to initiate drag
-  // stopPropagation prevents the wrapper onClick (expand) from firing
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.stopPropagation();
@@ -130,6 +133,7 @@ interface ReorderableTaskItemProps {
   onDragStart: () => void;
   onDragEnd: () => void;
   updatePointerY: (y: number) => void;
+  onTapMobile?: (entry: ApiEntry) => void;
 }
 
 function ReorderableTaskItem({
@@ -138,7 +142,8 @@ function ReorderableTaskItem({
   onDragStart,
   onDragEnd,
   updatePointerY,
-}: ReorderableTaskItemProps) {
+  onTapMobile,
+}: Readonly<ReorderableTaskItemProps>) {
   const dragControls = useDragControls();
   const isDraggingRef = useRef(false);
 
@@ -194,6 +199,7 @@ function ReorderableTaskItem({
         dragControls={dragControls}
         onExpand={onExpand}
         isDragDisabled={false}
+        onTapMobile={onTapMobile}
       />
     </Reorder.Item>
   );
@@ -203,9 +209,28 @@ function ReorderableTaskItem({
 // TasksContainer Component
 // ============================================================================
 
+function useIsMobile(breakpoint = 1024): boolean {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false,
+  );
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 export function TasksContainer() {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
+  const isMobile = useIsMobile();
+  const [editingEntry, setEditingEntry] = useState<ApiEntry | null>(null);
   const { data: entries = [], isPending: isLoading } =
     useEntriesByDateQuery(dateKey);
   // Create a map for quick entry lookup by ID
@@ -275,6 +300,13 @@ export function TasksContainer() {
     }, 100);
   }, [dateKey, queryClient, containerRef]);
 
+  const handleTapMobile = useCallback(
+    (entry: ApiEntry) => setEditingEntry(entry),
+    [],
+  );
+
+  const handleCloseOverlay = useCallback(() => setEditingEntry(null), []);
+
   // Handle TaskEditor expansion - auto-scroll to show expanded content
   const handleTaskExpand = useCallback(
     (element: HTMLDivElement) => {
@@ -322,10 +354,10 @@ export function TasksContainer() {
 
     const timer = setInterval(() => {
       attempts++;
-      const container = containerRef.current as HTMLElement | null;
-      const el = document.querySelector(
+      const container = containerRef.current;
+      const el = document.querySelector<HTMLElement>(
         `[data-testid="task-editor-wrapper-${scrollToEntryId}"]`,
-      ) as HTMLElement | null;
+      );
 
       if (el && container) {
         clearInterval(timer);
@@ -455,6 +487,7 @@ export function TasksContainer() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               updatePointerY={updatePointerPosition}
+              onTapMobile={isMobile ? handleTapMobile : undefined}
             />
           );
         })}
@@ -478,6 +511,14 @@ export function TasksContainer() {
           <Plus className="w-4 h-4 lg:w-6 lg:h-6" />
         </button>
       </div>
+
+      {/* Mobile fullscreen editor overlay */}
+      {isMobile && (
+        <MobileEditorOverlay
+          entry={editingEntry}
+          onClose={handleCloseOverlay}
+        />
+      )}
     </div>
   );
 }

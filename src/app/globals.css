@@ -156,6 +156,7 @@
 /* Custom utilities */
 @utility glass-panel {
   @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
+  isolation: isolate;
 }
 
 @utility glass-card {

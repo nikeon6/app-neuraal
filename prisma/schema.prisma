@@ -25,7 +25,7 @@ model Topic {
 
   // Embedding fields for auto-topic classification (Slice 6)
   // pgvector column: managed via raw SQL since Prisma doesn't natively support vector type
-  // embedding         Unsupported("vector(768)")? — stored as SQL column, not in Prisma model
+  // embedding         Unsupported("vector(4096)")? — stored as SQL column, not in Prisma model
   embeddingModel    String?   @map("embedding_model") @db.VarChar(100)
   embeddingUpdatedAt DateTime? @map("embedding_updated_at")
 

@@ -71,7 +71,7 @@ This document describes the system's goals, architecture, domain model, key flow
 
 - Create / view / update / delete user-defined topics (color-coded categories).
 - Display topics as floating interactive bubbles (D3 force layout).
-- Embedding-based auto-topic: Ollama generates 768-dim vectors; cosine similarity via pgvector.
+- Embedding-based auto-topic: Ollama generates 4096-dim vectors; cosine similarity via pgvector.
 - Rebuild topic embedding on demand.
 
 ### 4.4 Reminders
@@ -371,7 +371,7 @@ erDiagram
 | `Password`          | 8+ chars, uppercase, lowercase, digit, special char                     |
 | `HexColor`          | `#RRGGBB` format, 7 chars                                               |
 | `ISODate`           | `YYYY-MM-DD` string                                                     |
-| `EmbeddingVector`   | Float array of 768 dimensions                                           |
+| `EmbeddingVector`   | Float array of 4096 dimensions                                          |
 | `SimilarityScore`   | Float in [0, 1] range                                                   |
 | `MimeType`          | Valid MIME type string                                                  |
 | `StorageKey`        | S3 object key path                                                      |
@@ -525,7 +525,7 @@ sequenceDiagram
 
     B->>A: POST /api/entries/{id}/auto-topic
     A->>O: Generate embedding for entry content
-    O-->>A: 768-dim vector
+    O-->>A: 4096-dim vector
     A->>P: Cosine similarity search against topic embeddings
     P-->>A: Best matching topic (if score > threshold)
     A->>A: Assign topic to entry

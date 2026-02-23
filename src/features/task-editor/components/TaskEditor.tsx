@@ -19,9 +19,10 @@ import {
   CirclePlay,
   Paperclip,
   ChevronDown,
-  Sparkles,
   CheckCircle2,
   Circle,
+  List,
+  ListOrdered,
   ListTodo,
   StickyNote,
   X,
@@ -45,7 +46,8 @@ import {
 import * as entriesSdk from "@/shared/api/sdk/entries";
 import * as attachmentsSdk from "@/shared/api/sdk/attachments";
 import { ApiError } from "@/shared/api/apiClient";
-import { cn } from "@/shared/lib";
+import { cn, uid } from "@/shared/lib";
+import { extractPlainText } from "@/shared/lib/extractPlainText";
 import { ConfirmDialog } from "@/shared/ui";
 import { ReminderDialog } from "./ReminderDialog";
 import { AttachmentPanel } from "@/features/attachments";
@@ -62,26 +64,102 @@ import {
   useEditorCollapse,
   useContentMenuClose,
 } from "../hooks/useEditorCollapse";
+import { useContentMenuPosition } from "../hooks/useContentMenuPosition";
 import type { ContentMenuItem, TaskEditorUIState } from "../types";
 import { YoutubeUrlDialog } from "./YoutubeUrlDialog";
 import { FormatMenu } from "./FormatMenu";
 
 const AUTOSAVE_DEBOUNCE_MS = 1800;
 
+async function uploadFileToEntry(
+  file: File,
+  entryId: string,
+  tiptapHandle: TiptapEditorHandle | null,
+  queryClient: ReturnType<typeof useQueryClient>,
+  triggerAutoSave: () => void,
+) {
+  const uploadId = uid();
+  const mime = file.type || "application/octet-stream";
+
+  tiptapHandle?.insertUploadingFileNode({
+    uploadId,
+    filename: file.name,
+    mimeType: mime,
+    sizeBytes: file.size,
+  });
+
+  try {
+    const initResult = await attachmentsSdk.initUpload({
+      entryId,
+      filename: file.name,
+      mimeType: mime,
+      sizeBytes: file.size,
+      kind: "file",
+    });
+
+    const uploadResp = await fetch(initResult.presignedPutUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": mime },
+    });
+
+    if (!uploadResp.ok) {
+      throw new Error(`Upload failed: ${uploadResp.status}`);
+    }
+
+    await attachmentsSdk.completeUpload(initResult.attachment.id);
+    await queryClient.invalidateQueries({
+      queryKey: attachmentsQueryKey(entryId),
+    });
+
+    tiptapHandle?.finalizeFileNode(uploadId, {
+      attachmentId: initResult.attachment.id,
+    });
+
+    triggerAutoSave();
+  } catch (error) {
+    console.error("[TaskEditor] File attachment failed:", error);
+    tiptapHandle?.removeUploadingFileNode(uploadId);
+  }
+}
+
 /** Sentinel value for "auto-classify" topic mode. Not a real topic ID. */
 const AUTO_TOPIC = "__auto__" as const;
 
-/**
- * Props for TaskEditor component.
- *
- * Receives the full ApiEntry object from the parent (TasksContainer).
- * All edits trigger debounced API calls via the store.
- */
+function getEditorMotionProps(forceExpanded: boolean) {
+  if (forceExpanded) {
+    return { initial: false as const, animate: undefined, exit: undefined };
+  }
+  return {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+  };
+}
+
+function getDeleteDialogMessage(
+  entryType: EntryType,
+  title: string,
+): React.ReactNode {
+  const fallback = entryType === "task" ? "this task" : "this note";
+  return (
+    <>
+      Are you sure you want to delete{" "}
+      <strong className="text-white">{title || fallback}</strong>
+      {"? This action cannot be undone."}
+    </>
+  );
+}
+
 interface TaskEditorProps {
   /** The entry being edited. */
   entry: ApiEntry;
   /** Callback when editor is closed / entry deleted. */
   onClose?: () => void;
+  /** When true, the editor stays permanently expanded and skips collapse/expand logic. Used by MobileEditorOverlay. */
+  forceExpanded?: boolean;
+  /** Ref populated with a function that flushes any pending autosave and awaits completion. */
+  flushSaveRef?: React.RefObject<(() => Promise<void>) | null>;
 }
 
 // ============================================================================
@@ -325,6 +403,68 @@ function TaskEditorActionButtons({
 }
 
 // ============================================================================
+// ContentMenuPortal — portal-rendered to escape parent overflow clipping
+// Extracted to reduce TaskEditor Cognitive Complexity.
+// ============================================================================
+interface ContentMenuPortalProps {
+  isOpen: boolean;
+  pos: { top: number; left: number; opensUp: boolean };
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  items: ContentMenuItem[];
+  onAction: (id: string) => void;
+}
+
+function ContentMenuPortal({
+  isOpen,
+  pos,
+  panelRef,
+  items,
+  onAction,
+}: Readonly<ContentMenuPortalProps>) {
+  if (typeof document === "undefined") return null;
+
+  const portalStyle: React.CSSProperties = {
+    position: "fixed",
+    zIndex: 9999,
+    ...(pos.opensUp
+      ? { bottom: window.innerHeight - pos.top, left: pos.left }
+      : { top: pos.top, left: pos.left }),
+  };
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          ref={panelRef}
+          role="menu"
+          initial={{ opacity: 0, y: pos.opensUp ? 10 : -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: pos.opensUp ? 10 : -10, scale: 0.95 }}
+          transition={{ duration: 0.15 }}
+          onMouseDown={(e) => e.preventDefault()}
+          style={portalStyle}
+          className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px]"
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              role="menuitem"
+              aria-label={item.label}
+              className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
+              onClick={() => onAction(item.id)}
+            >
+              <item.icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+// ============================================================================
 // TopicDropdown — portal-rendered to escape parent overflow clipping
 // ============================================================================
 interface TopicDropdownProps {
@@ -421,7 +561,7 @@ function TopicDropdown({
           {currentTopicDisplay.name}
         </span>
         {selectedTopicId === AUTO_TOPIC && (
-          <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />
+          <Brain className="w-3 h-3 text-purple-400 flex-shrink-0" />
         )}
         <ChevronDown
           className={cn(
@@ -482,7 +622,7 @@ function TopicDropdown({
                     style={{ "--dot-color": "#8b5cf6" } as React.CSSProperties}
                   />
                   <span>Auto</span>
-                  <Sparkles className="w-3 h-3 text-purple-400 ml-auto" />
+                  <Brain className="w-3 h-3 text-purple-400 ml-auto" />
                 </button>
 
                 {/* No topic option */}
@@ -539,7 +679,12 @@ function TopicDropdown({
   );
 }
 
-export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
+export function TaskEditor({
+  entry,
+  onClose,
+  forceExpanded = false,
+  flushSaveRef,
+}: Readonly<TaskEditorProps>) {
   const queryClient = useQueryClient();
   const dateKey = useStore(selectDateKey);
   const { data: topics = [] } = useTopicsQuery();
@@ -566,7 +711,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   // Refs that mirror draft state — used inside setTimeout to always read the
   // LATEST value, avoiding stale closures that caused topic/completed not saving.
   // ---------------------------------------------------------------------------
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const tiptapRef = useRef<TiptapEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatTriggerRef = useRef<HTMLButtonElement>(null);
@@ -606,9 +751,37 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
   // Track the current entry version for optimistic concurrency
   const versionRef = useRef<number>(entry.version);
+
+  // Sync local state from the entry prop when a newer version arrives
+  // (e.g. after save + query refetch). Skip when the editor is actively
+  // being used (forceExpanded = mobile overlay) to avoid overwriting the
+  // user's in-progress edits.
   useEffect(() => {
+    if (entry.version === versionRef.current) return;
     versionRef.current = entry.version;
-  }, [entry.version]);
+    if (forceExpanded) return;
+
+    setTitle(entry.title);
+    setContentJson(parseEntryContent(entry.content));
+    setSelectedTopicId(entry.topicId ?? AUTO_TOPIC);
+    setEntryType(entry.type as EntryType);
+    setIsCompleted(entry.completed ?? false);
+    draftRef.current = {
+      title: entry.title,
+      contentJson: parseEntryContent(entry.content),
+      selectedTopicId: (entry.topicId ?? AUTO_TOPIC) as string | null,
+      entryType: entry.type as EntryType,
+      isCompleted: entry.completed ?? false,
+    };
+  }, [
+    entry.version,
+    entry.title,
+    entry.content,
+    entry.topicId,
+    entry.type,
+    entry.completed,
+    forceExpanded,
+  ]);
 
   // Track whether the user has manually edited the title at least once.
   // Auto-topic should NOT fire until the user touches the title — otherwise
@@ -620,7 +793,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
   // UI state
   const [uiState, setUIState] = useState<TaskEditorUIState>({
-    isExpanded: false,
+    isExpanded: forceExpanded,
     isContentMenuOpen: false,
     isTopicMenuOpen: false,
     isSaving: false,
@@ -638,6 +811,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   // DOM / timer refs
   const editorRef = useRef<HTMLDivElement>(null);
   const contentMenuRef = useRef<HTMLDivElement>(null);
+  const contentMenuButtonRef = useRef<HTMLButtonElement>(null);
   const topicMenuRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -732,13 +906,42 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     }
   }, [runSave]);
 
+  useEffect(() => {
+    if (!flushSaveRef) return;
+    flushSaveRef.current = async () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      await runSave();
+    };
+    return () => {
+      flushSaveRef.current = null;
+    };
+  }, [flushSaveRef, runSave]);
+
+  // ---- Auto-resize title textarea ----------------------------------------
+
+  const autoResizeTitle = useCallback(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    requestAnimationFrame(autoResizeTitle);
+  }, [title, autoResizeTitle]);
+
   // ---- Handlers -----------------------------------------------------------
 
   const handleTitleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       titleEditedRef.current = true;
       const newTitle = e.target.value;
       setTitle(newTitle);
+
+      requestAnimationFrame(autoResizeTitle);
 
       // Optimistic update: reflect title immediately in VerticalCalendar
       queryClient.setQueryData<ApiEntry[]>(entriesQueryKey(dateKey), (old) =>
@@ -749,7 +952,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
       triggerAutoSave();
     },
-    [queryClient, dateKey, entry.id, triggerAutoSave],
+    [queryClient, dateKey, entry.id, triggerAutoSave, autoResizeTitle],
   );
 
   const handleContentUpdate = useCallback(
@@ -863,6 +1066,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     entry.summaryUpdatedAt,
     dateKey,
     queryClient,
+    extractPlainText(contentJson).length > 0,
     onClose,
   );
 
@@ -891,24 +1095,38 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
   const { data: userProfile } = useUserProfileQuery(isReminderDialogOpen);
 
   const handleEditorClick = useCallback(() => {
-    // Only expand if not already expanded — avoids scroll jump
+    if (forceExpanded) return;
     setUIState((prev) => {
       if (prev.isExpanded) return prev;
       return { ...prev, isExpanded: true };
     });
-  }, []);
+  }, [forceExpanded]);
 
-  // Click outside → collapse (but ignore clicks on portal-rendered dialogs)
-  useEditorCollapse(editorRef, flushPendingSave, setUIState);
+  // Click outside → collapse (skip when forceExpanded since the overlay handles closing)
+  useEditorCollapse(
+    editorRef,
+    flushPendingSave,
+    forceExpanded ? ((() => {}) as typeof setUIState) : setUIState,
+  );
+
+  const flushRef = useRef(flushPendingSave);
+  flushRef.current = flushPendingSave;
 
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
+    return () => flushRef.current();
   }, []);
 
-  // Close content menu on click outside its container
-  useContentMenuClose(isContentMenuOpen, contentMenuRef, setUIState);
+  // Content menu position — portal-rendered with smart up/down placement
+  const { pos: contentMenuPos, panelRef: contentMenuPanelRef } =
+    useContentMenuPosition(isContentMenuOpen, contentMenuButtonRef);
+
+  // Close content menu on click outside its container (including portal)
+  useContentMenuClose(
+    isContentMenuOpen,
+    contentMenuRef,
+    setUIState,
+    contentMenuPanelRef,
+  );
 
   // Content menu items
   const contentMenuItems: ContentMenuItem[] = [
@@ -916,6 +1134,8 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
     { id: "code", label: "Code snippet", icon: Code },
     { id: "youtube", label: "YouTube video", icon: CirclePlay },
     { id: "file", label: "Attach file", icon: Paperclip },
+    { id: "bulletList", label: "Bullet list", icon: List },
+    { id: "orderedList", label: "Numbered list", icon: ListOrdered },
   ];
 
   // Handle "+" menu item clicks
@@ -949,112 +1169,46 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           fileInputRef.current?.click();
           break;
         }
+        case "bulletList":
+          tiptapRef.current?.toggleBulletList();
+          break;
+        case "orderedList":
+          tiptapRef.current?.toggleOrderedList();
+          break;
       }
     },
     [uploadImages],
   );
 
-  // Handle pasted non-image files (from TiptapEditor paste handler)
   const handleFilePaste = useCallback(
     async (files: File[]) => {
       if (files.length === 0 || !entry.id) return;
-
       for (const file of files) {
-        try {
-          const initResult = await attachmentsSdk.initUpload({
-            entryId: entry.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-            kind: "file",
-          });
-
-          const uploadResp = await fetch(initResult.presignedPutUrl, {
-            method: "PUT",
-            body: file,
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
-          });
-
-          if (!uploadResp.ok) {
-            throw new Error(`Upload failed: ${uploadResp.status}`);
-          }
-
-          await attachmentsSdk.completeUpload(initResult.attachment.id);
-
-          await queryClient.invalidateQueries({
-            queryKey: attachmentsQueryKey(entry.id),
-          });
-
-          tiptapRef.current?.insertFileNode({
-            attachmentId: initResult.attachment.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-          });
-
-          triggerAutoSave();
-        } catch (error) {
-          console.error("[TaskEditor] File paste attachment failed:", error);
-        }
+        await uploadFileToEntry(
+          file,
+          entry.id,
+          tiptapRef.current,
+          queryClient,
+          triggerAutoSave,
+        );
       }
     },
     [entry.id, triggerAutoSave, queryClient],
   );
 
-  // Handle file attachment upload (from "+" menu → Attach file)
   const handleFileAttach = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
       if (files.length === 0 || !entry.id) return;
       e.target.value = "";
-
       for (const file of files) {
-        try {
-          // Init upload
-          const initResult = await attachmentsSdk.initUpload({
-            entryId: entry.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-            kind: "file",
-          });
-
-          // Upload to S3
-          const uploadResp = await fetch(initResult.presignedPutUrl, {
-            method: "PUT",
-            body: file,
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
-          });
-
-          if (!uploadResp.ok) {
-            throw new Error(`Upload failed: ${uploadResp.status}`);
-          }
-
-          // Complete
-          await attachmentsSdk.completeUpload(initResult.attachment.id);
-
-          // Invalidate attachments query so AttachmentPanel updates
-          await queryClient.invalidateQueries({
-            queryKey: attachmentsQueryKey(entry.id),
-          });
-
-          // Insert file node in editor
-          tiptapRef.current?.insertFileNode({
-            attachmentId: initResult.attachment.id,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
-            sizeBytes: file.size,
-          });
-
-          // Trigger save since editor content changed
-          triggerAutoSave();
-        } catch (error) {
-          console.error("[TaskEditor] File attachment failed:", error);
-        }
+        await uploadFileToEntry(
+          file,
+          entry.id,
+          tiptapRef.current,
+          queryClient,
+          triggerAutoSave,
+        );
       }
     },
     [entry.id, triggerAutoSave, queryClient],
@@ -1093,6 +1247,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
 
   // Current topic display info
   const currentTopicDisplay = getTopicDisplayInfo(selectedTopicId, topicMap);
+  const motionProps = getEditorMotionProps(forceExpanded);
 
   return (
     <motion.div
@@ -1100,9 +1255,9 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       data-testid="task-editor"
       data-task-id={entry.id}
       aria-label="Task editor"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
       onClick={handleEditorClick}
       className="task-editor glass-panel rounded-2xl p-5 w-full @container"
     >
@@ -1137,26 +1292,32 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           )}
 
           <div className="flex-1 min-w-0">
-            <label htmlFor={`title-${entry.id}`} className="sr-only">
+            <label htmlFor={`te-heading-${entry.id}`} className="sr-only">
               Title
             </label>
-            <input
+            <textarea
               ref={titleRef}
-              id={`title-${entry.id}`}
-              type="text"
+              id={`te-heading-${entry.id}`}
+              rows={1}
               aria-label="Title"
               autoComplete="off"
+              enterKeyHint="next"
               value={title}
               onChange={handleTitleChange}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  tiptapRef.current?.editor?.commands.focus();
+                  const editor = tiptapRef.current?.editor;
+                  if (editor && !editor.isDestroyed) {
+                    editor.commands.focus("start", {
+                      scrollIntoView: false,
+                    });
+                  }
                 }
               }}
               placeholder={entryType === "task" ? "Task title" : "Note title"}
               className={cn(
-                "w-full bg-transparent border-none outline-none text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all",
+                "w-full bg-transparent border-none outline-none resize-none overflow-hidden text-xl @[640px]:text-2xl font-semibold placeholder:text-white/30 focus:placeholder:text-white/10 transition-all leading-tight",
                 isCompleted ? "text-white/50 line-through" : "text-white/90",
               )}
             />
@@ -1211,6 +1372,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
           onFilePaste={handleFilePaste}
           onFocus={handleEditorClick}
           entryId={entry.id}
+          skipScrollPatches={false}
         />
       </div>
 
@@ -1274,6 +1436,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
             <div className="flex items-center gap-2">
               <div className="relative" ref={contentMenuRef}>
                 <button
+                  ref={contentMenuButtonRef}
                   type="button"
                   aria-label="Add content"
                   aria-haspopup="menu"
@@ -1296,31 +1459,13 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
                   />
                 </button>
 
-                <AnimatePresence>
-                  {isContentMenuOpen && (
-                    <motion.div
-                      role="menu"
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute bottom-full left-0 mb-2 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50"
-                    >
-                      {contentMenuItems.map((item) => (
-                        <button
-                          key={item.id}
-                          role="menuitem"
-                          aria-label={item.label}
-                          className="w-full px-4 py-3 flex items-center gap-3 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
-                          onClick={() => handleContentMenuAction(item.id)}
-                        >
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <ContentMenuPortal
+                  isOpen={isContentMenuOpen}
+                  pos={contentMenuPos}
+                  panelRef={contentMenuPanelRef}
+                  items={contentMenuItems}
+                  onAction={handleContentMenuAction}
+                />
               </div>
 
               <div className="relative">
@@ -1398,15 +1543,7 @@ export function TaskEditor({ entry, onClose }: Readonly<TaskEditorProps>) {
       <ConfirmDialog
         open={isDeleteDialogOpen}
         title={entryType === "task" ? "Delete task" : "Delete note"}
-        message={
-          <>
-            Are you sure you want to delete{" "}
-            <strong className="text-white">
-              {title || (entryType === "task" ? "this task" : "this note")}
-            </strong>
-            {"? This action cannot be undone."}
-          </>
-        }
+        message={getDeleteDialogMessage(entryType, title)}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}

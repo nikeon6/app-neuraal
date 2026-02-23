@@ -9,6 +9,7 @@ import { cn } from "@/shared/lib/utils";
 
 // Maximum characters allowed for topic name
 const MAX_TOPIC_NAME_LENGTH = 18;
+const MIN_TOPIC_NAME_LENGTH = 2;
 
 // ============================================================================
 // Color Options for Topic Creation
@@ -38,6 +39,10 @@ function getCharCountClassName(remaining: number): string {
   return "text-white/40";
 }
 
+const PALETTE_COLOR_SET = new Set<string>(
+  COLOR_OPTIONS.map((c) => c.toLowerCase()),
+);
+
 function getColorButtonClassName(isUsed: boolean, isSelected: boolean): string {
   if (isUsed) return "opacity-25 cursor-not-allowed";
   if (isSelected) return "ring-2 ring-white scale-110";
@@ -64,8 +69,10 @@ export function CreateTopicDialog({
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
+  const [customColorValue, setCustomColorValue] = useState("#ffffff");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when dialog opens
   useEffect(() => {
@@ -77,6 +84,8 @@ export function CreateTopicDialog({
   // Validation
   const trimmedName = name.trim();
   const isNameEmpty = trimmedName.length === 0;
+  const isTooShort =
+    trimmedName.length > 0 && trimmedName.length < MIN_TOPIC_NAME_LENGTH;
   const isTooLong = trimmedName.length > MAX_TOPIC_NAME_LENGTH;
   const isColorSelected = color !== null;
   const isDuplicate = useMemo(() => {
@@ -96,14 +105,26 @@ export function CreateTopicDialog({
   }, [existingTopics]);
 
   const isColorUsed = color !== null && usedColors.has(color.toLowerCase());
+  const isCustomColor =
+    color !== null && !PALETTE_COLOR_SET.has(color.toLowerCase());
   const isValid =
     !isNameEmpty &&
+    !isTooShort &&
     !isDuplicate &&
     !isTooLong &&
     isColorSelected &&
     !isColorUsed &&
     !isSubmitting;
   const charsRemaining = MAX_TOPIC_NAME_LENGTH - name.length;
+
+  const handleCustomColorChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const picked = e.target.value.toLowerCase();
+      setCustomColorValue(picked);
+      setColor(picked);
+    },
+    [],
+  );
 
   const closeAndReturnFocus = useCallback(() => {
     onClose();
@@ -124,9 +145,9 @@ export function CreateTopicDialog({
           name: trimmedName,
           color,
         });
-        // Reset form and close
         setName("");
         setColor(null);
+        setCustomColorValue("#ffffff");
         closeAndReturnFocus();
       } catch (error) {
         console.error("[CreateTopicDialog] Failed to create topic:", error);
@@ -140,6 +161,7 @@ export function CreateTopicDialog({
   const handleCancel = useCallback(() => {
     setName("");
     setColor(null);
+    setCustomColorValue("#ffffff");
     closeAndReturnFocus();
   }, [closeAndReturnFocus]);
 
@@ -209,11 +231,16 @@ export function CreateTopicDialog({
               className={cn(
                 "w-full px-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30",
                 "focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all",
-                isDuplicate || isTooLong
+                isDuplicate || isTooShort || isTooLong
                   ? "border-red-500/50"
                   : "border-white/10 focus:border-sky-500/50",
               )}
             />
+            {isTooShort && (
+              <p className="text-sm text-red-400">
+                Topic name must be at least {MIN_TOPIC_NAME_LENGTH} characters
+              </p>
+            )}
             {isDuplicate && (
               <p className="text-sm text-red-400">Topic already exists</p>
             )}
@@ -263,7 +290,47 @@ export function CreateTopicDialog({
                   </button>
                 );
               })}
+
+              {/* Custom color picker */}
+              <input
+                ref={colorInputRef}
+                type="color"
+                className="sr-only"
+                data-testid="custom-color-input"
+                value={customColorValue}
+                onChange={handleCustomColorChange}
+                aria-label="Pick a custom color"
+              />
+              <button
+                type="button"
+                data-testid="custom-color-button"
+                onClick={() => colorInputRef.current?.click()}
+                aria-label="Pick a custom color"
+                className={cn(
+                  "relative w-8 h-8 rounded-full transition-all",
+                  "ring-offset-2 ring-offset-slate-900",
+                  isCustomColor
+                    ? "ring-2 ring-white scale-110"
+                    : "hover:scale-105 opacity-70 hover:opacity-100",
+                )}
+                style={{
+                  background: isCustomColor
+                    ? color
+                    : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
+                }}
+              >
+                {!isCustomColor && (
+                  <span className="absolute inset-0 flex items-center justify-center text-white text-sm font-bold drop-shadow-md">
+                    +
+                  </span>
+                )}
+              </button>
             </div>
+            {isColorUsed && (
+              <p className="text-sm text-red-400">
+                This color is already used by another topic
+              </p>
+            )}
           </div>
 
           {/* Buttons */}

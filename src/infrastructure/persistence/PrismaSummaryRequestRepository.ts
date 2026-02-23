@@ -3,11 +3,47 @@ import type { SummaryRequestRepository } from "@/application/ports/SummaryReques
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 
+const PENDING_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SUBMITTED_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_PENDING_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_SUBMITTED_ACTIVE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function resolveTtl(rawValue: number, fallback: number): number {
+  if (!Number.isFinite(rawValue) || rawValue <= 0) return fallback;
+  return rawValue;
+}
+
 /**
  * Prisma implementation of SummaryRequestRepository.
  * Handles persistence of EntrySummaryRequest entities to PostgreSQL.
  */
 export class PrismaSummaryRequestRepository implements SummaryRequestRepository {
+  private buildActiveWhere() {
+    const now = Date.now();
+    const pendingCutoff = new Date(
+      now - resolveTtl(PENDING_ACTIVE_TTL_MS, DEFAULT_PENDING_ACTIVE_TTL_MS),
+    );
+    const submittedCutoff = new Date(
+      now -
+        resolveTtl(SUBMITTED_ACTIVE_TTL_MS, DEFAULT_SUBMITTED_ACTIVE_TTL_MS),
+    );
+
+    // Defensive TTL to avoid stale pending/submitted requests blocking users forever
+    // when worker/callback failures leave requests in active states.
+    return {
+      OR: [
+        {
+          status: "pending",
+          createdAt: { gte: pendingCutoff },
+        },
+        {
+          status: "submitted",
+          updatedAt: { gte: submittedCutoff },
+        },
+      ],
+    };
+  }
+
   async save(request: EntrySummaryRequest): Promise<void> {
     await prisma.entrySummaryRequest.create({
       data: {
@@ -64,7 +100,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
     const record = await prisma.entrySummaryRequest.findFirst({
       where: {
         entryId,
-        status: { in: ["pending", "submitted"] },
+        ...this.buildActiveWhere(),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -80,7 +116,7 @@ export class PrismaSummaryRequestRepository implements SummaryRequestRepository 
     return prisma.entrySummaryRequest.count({
       where: {
         userId,
-        status: { in: ["pending", "submitted"] },
+        ...this.buildActiveWhere(),
       },
     });
   }

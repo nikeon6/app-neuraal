@@ -51,7 +51,7 @@ test.describe("Dashboard critical flows", () => {
       .poll(async () => await entries.count())
       .toBeGreaterThan(beforeCount);
     const newEntry = entries.last();
-    const titleInput = newEntry.locator('input[aria-label="Title"]');
+    const titleInput = newEntry.locator('textarea[aria-label="Title"]');
     await expect(titleInput).toBeVisible();
 
     await titleInput.fill("E2E created task");

@@ -14,13 +14,17 @@ import {
   useEntriesForDates,
   useSummaryDoneWatcher,
   useTranscriptionDoneWatcher,
+  useReminderDoneWatcher,
+  useTopicsQuery,
 } from "@/shared/api/queries";
 import { FloatingTopics } from "@/features/topics/components/FloatingTopics";
+import { TopicsLaneEmptyState } from "@/features/topics/components/TopicsLaneEmptyState";
 import { TopicsSection } from "@/features/topics/components/TopicsSection";
 import { TasksContainer } from "@/features/tasks-container";
 import { StickiesContainer } from "@/features/stickies";
 import { VerticalCalendar } from "@/features/calendar/components/VerticalCalendar";
 import { DashboardHeader } from "./DashboardHeader";
+import { EntrySearchBar } from "./EntrySearchBar";
 import { NotificationCenter } from "@/features/notifications";
 import { WeeklyRecap } from "@/features/weekly-recap";
 import { SettingsPanel } from "@/features/settings";
@@ -72,11 +76,22 @@ export function Dashboard() {
   }, [selectedDate]);
 
   const { entriesByDate } = useEntriesForDates(monthDateKeys);
+  const { data: allTopics = [] } = useTopicsQuery();
 
-  // Watch for SUMMARY_DONE notifications and auto-refresh entries
+  const hasTopics = allTopics.length > 0;
+  const hasAssignedTopics = useMemo(() => {
+    if (!hasTopics) return false;
+    const topicIdSet = new Set(allTopics.map((t) => t.id));
+    return Object.values(entriesByDate)
+      .flat()
+      .some((e) => e.topicId && topicIdSet.has(e.topicId));
+  }, [hasTopics, allTopics, entriesByDate]);
+
+  // Watch for async operation notifications and auto-refresh relevant queries
   const currentDateKey = useStore(selectDateKey);
   useSummaryDoneWatcher(currentDateKey);
   useTranscriptionDoneWatcher(currentDateKey);
+  useReminderDoneWatcher();
 
   // Ref for the main container (used by FloatingTopics)
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -91,25 +106,52 @@ export function Dashboard() {
   // Mobile portrait detection — used to hide bubbles lane in specific sections.
   const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
-  // FIX ANDROID: Use visualViewport to get real viewport height
-  // Also detect virtual keyboard open (viewport significantly shorter than screen)
+  // FIX ANDROID: visualViewport API gives the real visible height (excluding
+  // browser chrome). On mobile, we also detect virtual keyboard open/close to
+  // hide the bubbles lane and calendar so the editor has room.
   useEffect(() => {
-    // Only detect virtual keyboard on touch-only devices (phones/tablets).
-    // This avoids false positives when resizing desktop browser windows
-    // (where screen.height >> viewport height triggers the heuristic incorrectly).
     const touchOnlyMql = matchMedia("(hover: none) and (pointer: coarse)");
+    let baselineVh = 0;
 
-    const update = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
-      const vh = window.visualViewport?.height ?? window.innerHeight;
+    const applyHeight = (vh: number) => {
       setAppHeight(`${vh}px`);
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
-      // Keyboard detection: viewport is much shorter than the full screen height
-      // Gate behind touch-only check to prevent false positives on desktop
+    };
+
+    const update = () => {
+      const vv = window.visualViewport;
+      const vw = vv?.width ?? window.innerWidth;
+      const vh = vv?.height ?? window.innerHeight;
       const isTouchOnly = touchOnlyMql.matches;
-      const fullHeight = window.screen.height;
-      const isKb = isTouchOnly && vh < fullHeight * 0.65 && vw < 1024;
-      setIsKeyboardOpen(isKb);
+
+      if (!isTouchOnly || vw >= 1024) {
+        applyHeight(vh);
+        setIsKeyboardOpen(false);
+        baselineVh = Math.max(baselineVh, vh);
+        return;
+      }
+
+      if (baselineVh === 0 || vh > baselineVh) {
+        baselineVh = vh;
+      }
+
+      const delta = baselineVh - vh;
+      const kbOpen = delta > 100;
+      setIsKeyboardOpen(kbOpen);
+
+      // Only update container height when keyboard is NOT open.
+      // When the virtual keyboard appears the visualViewport shrinks; resizing
+      // the Dashboard to match causes a visible layout shift ("double jump").
+      // Keeping the baseline height keeps the layout stable while the
+      // MobileEditorOverlay (position:fixed) handles the keyboard natively.
+      if (!kbOpen) {
+        applyHeight(vh);
+      }
+    };
+
+    const handleOrientationChange = () => {
+      baselineVh = 0;
+      setTimeout(update, 150);
     };
 
     update();
@@ -117,19 +159,16 @@ export function Dashboard() {
     const vv = window.visualViewport;
     if (vv) {
       vv.addEventListener("resize", update);
-      vv.addEventListener("scroll", update);
     }
-
     window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", () => setTimeout(update, 150));
+    window.addEventListener("orientationchange", handleOrientationChange);
 
     return () => {
       if (vv) {
         vv.removeEventListener("resize", update);
-        vv.removeEventListener("scroll", update);
       }
       window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("orientationchange", handleOrientationChange);
     };
   }, []);
 
@@ -256,6 +295,14 @@ export function Dashboard() {
           notificationSlot={
             <NotificationCenter onNavigateToEntry={handleNavigateToEntry} />
           }
+          searchSlot={
+            dashboardSection === "daily" ? (
+              <EntrySearchBar
+                entriesByDate={entriesByDate}
+                onSelect={handleNavigateToEntry}
+              />
+            ) : undefined
+          }
         />
 
         {/* Content area - shows different content based on section */}
@@ -268,13 +315,16 @@ export function Dashboard() {
       {showTopicsLane && (
         <div
           ref={laneRef}
+          data-testid="topics-lane"
           className={cn(
             "relative min-w-0 flex-shrink-0 order-2 lg:order-none h-[120px] sm:h-[150px] md:h-[200px] lg:h-auto landscape-mobile-hidden",
             isKeyboardOpen && "hidden",
           )}
-          aria-hidden="true"
+          aria-hidden={hasAssignedTopics ? "true" : undefined}
           onClick={handleLaneClick}
-        />
+        >
+          {!hasAssignedTopics && <TopicsLaneEmptyState hasTopics={hasTopics} />}
+        </div>
       )}
 
       {/* Column 3: Calendar sidebar (hidden when keyboard open on mobile) */}

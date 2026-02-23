@@ -84,6 +84,18 @@ export async function POST(
     }
 
     const plainText = extractPlainText(entry.content.toJSON());
+    if (plainText.trim().length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Cannot summarize an entry without content",
+          },
+        },
+        { status: 400 },
+      );
+    }
+
     const title = entry.title.toString();
     const inputChars = title.length + plainText.length;
 

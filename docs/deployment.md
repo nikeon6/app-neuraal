@@ -125,11 +125,21 @@ Depends on Job 2 passing.
 
 ### Deploy via SSH
 
+Each deploy executes the following safety sequence on the VPS:
+
 1. SSH to VPS using `appleboy/ssh-action`.
-2. Login to GHCR with pull token.
-3. Pull latest image.
-4. Run Prisma migrations (`prisma migrate deploy`).
-5. Restart services (`docker compose up -d --remove-orphans`).
+2. Save current tag as rollback reference (`.last_good_tag`).
+3. **Create PostgreSQL backup** (`pg_dump` → gzip) before any changes.
+4. Apply backup retention policy (keep last 7; delete only if >14 days old).
+5. Login to GHCR and pull the new image.
+6. Run Prisma migrations (`prisma migrate deploy`).
+   - On migration failure: **automatic rollback** to previous tag.
+7. Restart services (`docker compose up -d --remove-orphans`).
+8. Run health check loop (up to 10 min, polling `/api/health`).
+   - On success: save tag as `.last_good_tag`.
+   - On failure: **automatic rollback** to `.last_good_tag`, pull + restart, re-check health.
+
+See [neuraal-deploy-rollback-backup-manual.md](neuraal-deploy-rollback-backup-manual.md) for the complete deploy safety documentation including manual recovery procedures.
 
 ### Required GitHub Secrets
 
@@ -246,17 +256,39 @@ MINIO_ROOT_PASSWORD=...
 
 ## 7. SSL / Reverse Proxy
 
-Neuraal should be placed behind a reverse proxy for SSL termination. Recommended setup:
+Neuraal uses **Caddy** as a reverse proxy with automatic TLS certificate management via Let's Encrypt/ZeroSSL.
 
-### Nginx (example)
+### Caddy (production)
+
+Caddy runs as a Docker Compose service alongside the app and handles:
+
+- Automatic HTTPS certificate provisioning and renewal.
+- HTTP → HTTPS redirect.
+- Reverse proxying to the Next.js app on port 3000.
+
+```
+neuraal.app {
+    reverse_proxy app:3000
+}
+```
+
+The deploy health check verifies the full stack through Caddy:
+
+```bash
+curl -fsS --resolve neuraal.app:443:127.0.0.1 https://neuraal.app/api/health
+```
+
+### Alternative: Nginx
+
+If you prefer Nginx, configure SSL termination with Let's Encrypt/Certbot:
 
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name neuraal.yourdomain.com;
+    server_name neuraal.app;
 
-    ssl_certificate     /etc/letsencrypt/live/neuraal.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/neuraal.yourdomain.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/neuraal.app/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/neuraal.app/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -268,25 +300,26 @@ server {
 }
 ```
 
-Use **Certbot** / Let's Encrypt for automated SSL certificate management.
-
 ---
 
 ## 8. Backup Strategy
 
 ### Database (PostgreSQL)
 
+**Automatic (CI/CD):** Every deployment creates a compressed PostgreSQL backup (`pg_dump -Fc | gzip`) before running migrations. Backups are stored in `/srv/neuraal/backups/postgres/` with automatic retention (keep last 7, delete only if >14 days old). See [neuraal-deploy-rollback-backup-manual.md](neuraal-deploy-rollback-backup-manual.md) for details.
+
+**Manual backup:**
+
 ```bash
-# Manual backup
 docker compose -f docker-compose.prod.yml exec postgres \
-  pg_dump -U neuraal neuraal > backup_$(date +%Y%m%d_%H%M%S).sql
+  pg_dump -U neuraal neuraal -Fc | gzip > backup_$(date +%Y%m%d_%H%M%S).dump.gz
 
 # Restore
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U neuraal neuraal < backup_20260218_120000.sql
+gunzip -c backup_file.dump.gz | docker compose -f docker-compose.prod.yml exec -T postgres \
+  pg_restore -U neuraal -d neuraal --clean --if-exists
 ```
 
-Recommended: Schedule daily backups via cron and upload to external storage (S3, backblaze).
+Recommended: Copy backups to external storage (S3, Backblaze) for disaster recovery.
 
 ### Object Storage (MinIO)
 
@@ -349,11 +382,17 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-or
 
 ### Rollback
 
+Rollback happens **automatically** when a deploy fails health checks. For manual rollback:
+
 ```bash
-# Pin to a specific image version
-APP_IMAGE=ghcr.io/OWNER/neuraal:PREVIOUS_SHA docker compose \
-  -f docker-compose.prod.yml --env-file .env.prod up -d
+cd /srv/neuraal
+# Use the last known good tag
+sed -i "s/^APP_IMAGE_TAG=.*/APP_IMAGE_TAG=$(cat .last_good_tag)/" .env.prod
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 ```
+
+See [neuraal-deploy-rollback-backup-manual.md](neuraal-deploy-rollback-backup-manual.md) for the full rollback and database restore playbook.
 
 ### View Logs
 

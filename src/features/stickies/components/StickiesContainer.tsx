@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { Plus, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -98,6 +98,7 @@ export function StickiesContainer() {
   const queryClient = useQueryClient();
   const { data: stickies = [], isPending: isLoading } = useStickiesQuery();
   const { left, right } = useMemo(() => stickiesByColumn(stickies), [stickies]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleAddSticky = useCallback(async () => {
     const columnIndex = left.length <= right.length ? 0 : 1;
@@ -106,6 +107,9 @@ export function StickiesContainer() {
       content: EMPTY_DOC,
       columnIndex,
     });
+    if (typeof scrollRef.current?.scrollTo === "function") {
+      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [queryClient, left.length, right.length]);
 
   // IDs per column for each Reorder.Group
@@ -190,7 +194,10 @@ export function StickiesContainer() {
       className="flex flex-col h-full w-full overflow-hidden"
     >
       {/* Single scrollable container with 2-col grid; each column is its own Reorder.Group */}
-      <div className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 py-4 md:py-6 pl-10 lg:pl-10 pr-2 lg:pr-4 stickies-scrollbar tasks-scroll-fade content-start auto-rows-min">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 py-4 md:py-6 pl-6 lg:pl-10 pr-2 lg:pr-4 stickies-scrollbar tasks-scroll-fade content-start auto-rows-min"
+      >
         {/* Left column */}
         <Reorder.Group
           axis="y"

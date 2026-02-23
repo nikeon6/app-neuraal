@@ -9,6 +9,9 @@ import type { ApiEntry } from "@/shared/api/sdk";
 
 const insertCodeBlockMock = vi.fn();
 const insertFileNodeMock = vi.fn();
+const insertUploadingFileNodeMock = vi.fn();
+const finalizeFileNodeMock = vi.fn();
+const removeUploadingFileNodeMock = vi.fn();
 const insertYoutubeMock = vi.fn();
 const uploadImagesMock = vi.fn();
 const initUploadMock = vi.fn();
@@ -175,8 +178,13 @@ vi.mock("./TiptapEditor", () => ({
         insertCodeBlock: insertCodeBlockMock,
         insertYoutube: insertYoutubeMock,
         insertFileNode: insertFileNodeMock,
+        insertUploadingFileNode: insertUploadingFileNodeMock,
+        finalizeFileNode: finalizeFileNodeMock,
+        removeUploadingFileNode: removeUploadingFileNodeMock,
         syncYoutubeTranscriptions: vi.fn(),
         syncImageVisionResults: vi.fn(),
+        toggleBulletList: vi.fn(),
+        toggleOrderedList: vi.fn(),
       };
     }
 
@@ -315,20 +323,23 @@ describe("TaskEditor file paste coverage", () => {
     await user.click(screen.getByRole("button", { name: /mock paste file/i }));
 
     await waitFor(() => {
-      expect(initUploadMock).toHaveBeenCalledTimes(1);
-      expect(putFetch).toHaveBeenCalledTimes(1);
-      expect(completeUploadMock).toHaveBeenCalledWith("att-paste-1");
-      expect(insertFileNodeMock).toHaveBeenCalledWith(
+      expect(insertUploadingFileNodeMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          attachmentId: "att-paste-1",
+          uploadId: expect.any(String),
           filename: "from-paste.txt",
           mimeType: "text/plain",
         }),
       );
+      expect(initUploadMock).toHaveBeenCalledTimes(1);
+      expect(putFetch).toHaveBeenCalledTimes(1);
+      expect(completeUploadMock).toHaveBeenCalledWith("att-paste-1");
+      expect(finalizeFileNodeMock).toHaveBeenCalledWith(expect.any(String), {
+        attachmentId: "att-paste-1",
+      });
     });
   });
 
-  it("logs error and skips completion when paste upload fails", async () => {
+  it("logs error and removes placeholder when paste upload fails", async () => {
     const putFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     vi.stubGlobal("fetch", putFetch);
     const errorSpy = vi
@@ -340,12 +351,16 @@ describe("TaskEditor file paste coverage", () => {
     await user.click(screen.getByRole("button", { name: /mock paste file/i }));
 
     await waitFor(() => {
+      expect(insertUploadingFileNodeMock).toHaveBeenCalledTimes(1);
       expect(initUploadMock).toHaveBeenCalledTimes(1);
       expect(putFetch).toHaveBeenCalledTimes(1);
     });
     expect(completeUploadMock).not.toHaveBeenCalled();
+    expect(removeUploadingFileNodeMock).toHaveBeenCalledWith(
+      expect.any(String),
+    );
     expect(errorSpy).toHaveBeenCalledWith(
-      "[TaskEditor] File paste attachment failed:",
+      "[TaskEditor] File attachment failed:",
       expect.any(Error),
     );
     errorSpy.mockRestore();

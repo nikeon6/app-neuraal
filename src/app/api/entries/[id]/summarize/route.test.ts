@@ -132,12 +132,34 @@ describe("POST /api/entries/[id]/summarize", () => {
     expect(res.status).toBe(404);
   });
 
-  it("maps guard QUOTA_EXCEEDED to 403", async () => {
+  it("returns 400 when entry has no summarizable content", async () => {
     mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
     mocks.entryFindById.mockResolvedValue({
       userId: "u1",
       title: { toString: () => "t" },
       content: { toJSON: () => ({ type: "doc", content: [] }) },
+    });
+    const req = new NextRequest(
+      "http://localhost:3000/api/entries/e1/summarize",
+      { method: "POST" },
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: "e1" }) });
+    expect(res.status).toBe(400);
+    expect(mocks.guardExecute).not.toHaveBeenCalled();
+    expect(mocks.summaryExecute).not.toHaveBeenCalled();
+  });
+
+  it("maps guard QUOTA_EXCEEDED to 403", async () => {
+    mocks.getAuthUserId.mockResolvedValue({ ok: true, userId: "u1" });
+    mocks.entryFindById.mockResolvedValue({
+      userId: "u1",
+      title: { toString: () => "t" },
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [{ type: "text", text: "hello" }],
+        }),
+      },
     });
     mocks.guardExecute.mockResolvedValue(err("QUOTA_EXCEEDED", "quota"));
     const req = new NextRequest(
@@ -155,7 +177,12 @@ describe("POST /api/entries/[id]/summarize", () => {
     mocks.entryFindById.mockResolvedValue({
       userId: "u1",
       title: { toString: () => "t" },
-      content: { toJSON: () => ({ type: "doc", content: [] }) },
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [{ type: "text", text: "hello" }],
+        }),
+      },
     });
     mocks.guardExecute.mockResolvedValue(err("RATE_LIMITED", "limit"));
     const req = new NextRequest(
@@ -171,7 +198,12 @@ describe("POST /api/entries/[id]/summarize", () => {
     mocks.entryFindById.mockResolvedValue({
       userId: "u1",
       title: { toString: () => "t" },
-      content: { toJSON: () => ({ type: "doc", content: [] }) },
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [{ type: "text", text: "hello" }],
+        }),
+      },
     });
     mocks.guardExecute.mockResolvedValue(err("CONCURRENCY_LIMIT", "busy"));
     const req = new NextRequest(
@@ -187,7 +219,12 @@ describe("POST /api/entries/[id]/summarize", () => {
     mocks.entryFindById.mockResolvedValue({
       userId: "u1",
       title: { toString: () => "title" },
-      content: { toJSON: () => ({ type: "doc", content: [] }) },
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [{ type: "text", text: "hello" }],
+        }),
+      },
     });
     mocks.summaryExecute.mockResolvedValue(err("CONFLICT", "already running"));
     const req = new NextRequest(
@@ -204,7 +241,12 @@ describe("POST /api/entries/[id]/summarize", () => {
     mocks.entryFindById.mockResolvedValue({
       userId: "u1",
       title: { toString: () => "title" },
-      content: { toJSON: () => ({ type: "doc", content: [] }) },
+      content: {
+        toJSON: () => ({
+          type: "doc",
+          content: [{ type: "text", text: "hello" }],
+        }),
+      },
     });
     mocks.summaryExecute.mockResolvedValue(err("NOT_FOUND", "missing"));
     const req = new NextRequest(

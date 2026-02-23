@@ -49,6 +49,14 @@ export const FileAttachment = Node.create({
       filename: { default: "" },
       mimeType: { default: "application/octet-stream" },
       sizeBytes: { default: 0 },
+      uploading: {
+        default: false,
+        renderHTML: () => ({}),
+      },
+      uploadId: {
+        default: null,
+        renderHTML: () => ({}),
+      },
     };
   },
 
@@ -122,7 +130,17 @@ export const FileAttachment = Node.create({
       deleteIcon.style.height = "0.875rem";
       deleteBtn.appendChild(deleteIcon);
 
-      root.append(fileIcon, fileInfo, downloadBtn, deleteBtn);
+      // Upload spinner overlay
+      const spinner = document.createElement("div");
+      spinner.className = "file-upload-spinner";
+      const spinnerRing = document.createElement("div");
+      spinnerRing.className = "file-upload-spinner-ring";
+      const spinnerLabel = document.createElement("span");
+      spinnerLabel.className = "file-upload-spinner-label";
+      spinnerLabel.textContent = "Uploading…";
+      spinner.append(spinnerRing, spinnerLabel);
+
+      root.append(fileIcon, fileInfo, downloadBtn, deleteBtn, spinner);
 
       // ---- Event handlers ----
       const prevent = (e: MouseEvent) => {
@@ -160,10 +178,18 @@ export const FileAttachment = Node.create({
         const fname = (n.attrs.filename as string) || "Untitled";
         const size = (n.attrs.sizeBytes as number) || 0;
         const mime = (n.attrs.mimeType as string) || "application/octet-stream";
+        const isUploading = Boolean(n.attrs.uploading);
 
         fileName.textContent = fname;
-        fileSize.textContent = `${formatBytes(size)} · ${mime}`;
+        fileSize.textContent = isUploading
+          ? "Uploading…"
+          : `${formatBytes(size)} · ${mime}`;
         downloadBtn.title = `Download ${fname}`;
+
+        downloadBtn.style.display = isUploading ? "none" : "";
+        deleteBtn.style.display = isUploading ? "none" : "";
+        spinner.style.display = isUploading ? "flex" : "none";
+        root.style.opacity = isUploading ? "0.7" : "1";
       }
 
       refreshView(node);

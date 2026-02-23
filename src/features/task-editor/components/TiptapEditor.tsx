@@ -51,6 +51,17 @@ export interface TiptapEditorHandle {
     mimeType: string;
     sizeBytes: number;
   }) => void;
+  /** Insert a placeholder file node with uploading state. */
+  insertUploadingFileNode: (attrs: {
+    uploadId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  }) => void;
+  /** Finalize an uploading file node by replacing its attrs with the real attachment data. */
+  finalizeFileNode: (uploadId: string, attrs: { attachmentId: string }) => void;
+  /** Remove an uploading file node (on error). */
+  removeUploadingFileNode: (uploadId: string) => void;
   /**
    * Inject transcription text into YouTube nodes, keyed by src URL.
    * This uses a ProseMirror transaction without triggering onUpdate
@@ -66,6 +77,10 @@ export interface TiptapEditorHandle {
   syncImageVisionResults: (
     visionResults: Map<string, { text: string; mode: string }>,
   ) => Record<string, unknown> | null;
+  /** Toggle a bullet list at the current selection. */
+  toggleBulletList: () => void;
+  /** Toggle a numbered list at the current selection. */
+  toggleOrderedList: () => void;
 }
 
 interface TiptapEditorProps {
@@ -89,6 +104,8 @@ interface TiptapEditorProps {
   readonly onFocus?: () => void;
   /** Entry ID — passed to ImageAttachment extension for OCR feature. */
   readonly entryId?: string;
+  /** Skip ancestor-scroll-restore patches (used inside MobileEditorOverlay to avoid fighting browser's native keyboard scroll). */
+  readonly skipScrollPatches?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +137,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   onImagePaste,
   onFilePaste,
   onFocus,
+  skipScrollPatches = false,
   entryId,
 }: TiptapEditorProps) {
   // Track whether we should skip the next onUpdate (to avoid loops when setting content)
@@ -375,6 +393,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
+    if (skipScrollPatches) return;
 
     type ViewWithScrollToSelection = typeof editor.view & {
       scrollToSelection: () => void;
@@ -452,7 +471,7 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       // Remove the instance override so the prototype method is used again
       Reflect.deleteProperty(editorDom, "focus");
     };
-  }, [editor]);
+  }, [editor, skipScrollPatches]);
 
   // Sync external content changes (e.g., when entry changes from API)
   useEffect(() => {
@@ -559,6 +578,71 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     [editor],
   );
 
+  const insertUploadingFileNode = useCallback(
+    (attrs: {
+      uploadId: string;
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+    }) => {
+      if (!editor) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "fileAttachment",
+          attrs: { ...attrs, uploading: true, attachmentId: null },
+        })
+        .run();
+    },
+    [editor],
+  );
+
+  const finalizeFileNode = useCallback(
+    (uploadId: string, attrs: { attachmentId: string }) => {
+      if (!editor) return;
+      const { tr } = editor.state;
+      let updated = false;
+      editor.state.doc.descendants((n, pos) => {
+        if (
+          !updated &&
+          n.type.name === "fileAttachment" &&
+          n.attrs.uploadId === uploadId
+        ) {
+          tr.setNodeMarkup(pos, undefined, {
+            ...n.attrs,
+            ...attrs,
+            uploading: false,
+            uploadId: null,
+          });
+          updated = true;
+        }
+      });
+      if (updated) editor.view.dispatch(tr);
+    },
+    [editor],
+  );
+
+  const removeUploadingFileNode = useCallback(
+    (uploadId: string) => {
+      if (!editor) return;
+      const { tr } = editor.state;
+      let removed = false;
+      editor.state.doc.descendants((n, pos) => {
+        if (
+          !removed &&
+          n.type.name === "fileAttachment" &&
+          n.attrs.uploadId === uploadId
+        ) {
+          tr.delete(pos, pos + n.nodeSize);
+          removed = true;
+        }
+      });
+      if (removed) editor.view.dispatch(tr);
+    },
+    [editor],
+  );
+
   const syncYoutubeTranscriptions = useCallback(
     (transcriptions: Map<string, string>): Record<string, unknown> | null => {
       if (!editor || editor.isDestroyed || transcriptions.size === 0)
@@ -627,6 +711,16 @@ export const TiptapEditor = React.memo(function TiptapEditor({
     [editor],
   );
 
+  const toggleBulletList = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().toggleBulletList().run();
+  }, [editor]);
+
+  const toggleOrderedList = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().toggleOrderedList().run();
+  }, [editor]);
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -635,8 +729,13 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      insertUploadingFileNode,
+      finalizeFileNode,
+      removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
+      toggleBulletList,
+      toggleOrderedList,
     }),
     [
       editor,
@@ -644,8 +743,13 @@ export const TiptapEditor = React.memo(function TiptapEditor({
       insertCodeBlock,
       insertYoutube,
       insertFileNode,
+      insertUploadingFileNode,
+      finalizeFileNode,
+      removeUploadingFileNode,
       syncYoutubeTranscriptions,
       syncImageVisionResults,
+      toggleBulletList,
+      toggleOrderedList,
     ],
   );
 

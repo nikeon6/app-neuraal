@@ -271,18 +271,26 @@ prisma/
 - Define shared types for tasks/notes/reminders (and avoid duplicating shapes).
 - Avoid prop drilling for large trees; prefer feature-level composition.
 
-### Zustand Store (Global State)
+### Zustand Store (UI State Only)
 
-- Global state lives in `src/shared/store/index.ts`.
-- Store is persisted via `zustand/middleware/persist`.
-- Current state includes:
+- Global UI state lives in `src/shared/store/index.ts`.
+- Store is persisted via `zustand/middleware/persist` (only `user` and `dashboardSection`).
+- **All server data** (entries, topics, reminders, notifications, stickies) is managed by **TanStack Query** — NOT Zustand.
+- Current Zustand state includes:
+  - `user` — authenticated user (`{ id, email }`)
   - `selectedDate`, `selectedDay` — calendar selection
-  - `tasksByDay` — tasks organized by day number (1-31)
-  - `notes` — notes organized by ISODate
-  - `topicPositions` — UI positions for floating topic bubbles
+  - `topicPositions` — UI positions for floating topic bubbles (persisted per-user in localStorage)
   - `highlightedTopic` — currently highlighted topic for visual feedback
-- Keep actions inside the store (e.g., `addTask`, `removeTask`, `reorderTasks`).
+  - `selectedTopicIds`, `expandedDayKeys`, `pinnedDayKeys` — topic/day wire selection
+  - `dashboardSection` — active section (`daily`, `weeklyRecap`, `stickies`, `topics`, `settings`)
+  - `scrollToEntryId` — navigation aid for scrolling to a specific entry
 - Use selectors for derived state when possible.
+
+### TanStack Query (Server State)
+
+- All API data flows through query hooks in `src/shared/api/queries/`.
+- Query hooks use consistent patterns: `queryKey` functions, `staleTime`, and automatic invalidation on mutations.
+- Notification watchers (`useSummaryDoneWatcher`, `useTranscriptionDoneWatcher`, `useReminderDoneWatcher`) auto-refresh relevant queries when async operations complete.
 
 ---
 
@@ -342,7 +350,7 @@ If any security tradeoff is unclear, ask before implementing.
 
 ### AI Features (Ollama)
 
-- **Embeddings**: Ollama (`qwen3-embedding:latest`) generates 768-dim vectors for topics and entries.
+- **Embeddings**: Ollama (`qwen3-embedding:latest`) generates 4096-dim vectors for topics and entries.
 - **Auto-topic**: Cosine similarity via pgvector finds the best matching topic.
 - **Summaries**: Async flow via BullMQ → n8n → LLM → callback → in-app notification.
 - **Transcriptions**: YouTube videos in entries, async via BullMQ → n8n → transcript → callback.

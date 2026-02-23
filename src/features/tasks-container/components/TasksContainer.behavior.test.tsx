@@ -169,6 +169,7 @@ vi.mock("@/features/task-editor", () => ({
   TaskEditor: ({ entry }: { entry: ApiEntry }) => (
     <div data-testid={`editor-${entry.id}`}>{entry.title}</div>
   ),
+  MobileEditorOverlay: () => null,
 }));
 
 vi.mock("../hooks", () => ({

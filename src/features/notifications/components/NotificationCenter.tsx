@@ -120,7 +120,7 @@ function getEntryId(notification: ApiNotification): string | undefined {
  */
 export function NotificationCenter({
   onNavigateToEntry,
-}: NotificationCenterProps) {
+}: Readonly<NotificationCenterProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -233,6 +233,8 @@ export function NotificationCenter({
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
   }, [notifications]);
+  const notificationsAriaLabel =
+    unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications";
 
   return (
     <div className="relative">
@@ -240,7 +242,7 @@ export function NotificationCenter({
       <button
         ref={buttonRef}
         type="button"
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-label={notificationsAriaLabel}
         aria-expanded={isOpen}
         aria-haspopup="true"
         onClick={() => setIsOpen((v) => !v)}
@@ -285,7 +287,7 @@ export function NotificationCenter({
                 }}
                 className={cn(
                   "bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl",
-                  "overflow-hidden",
+                  "overflow-hidden isolate",
                 )}
               >
                 {/* Header */}
@@ -316,7 +318,7 @@ export function NotificationCenter({
 
                 {/* List */}
                 <div
-                  className="max-h-[360px] overflow-y-auto custom-scrollbar"
+                  className="max-h-[360px] overflow-y-auto custom-scrollbar isolate"
                   aria-label="Notifications list"
                   aria-busy={isLoading}
                 >
@@ -341,7 +343,7 @@ export function NotificationCenter({
                       <div
                         key={n.id}
                         className={cn(
-                          "flex gap-3 px-4 py-3 border-b border-white/5 transition-colors",
+                          "flex gap-3 px-4 py-3 border-b border-white/5 transition-colors [backface-visibility:hidden]",
                           isUnread
                             ? "bg-sky-500/5 hover:bg-sky-500/10"
                             : "hover:bg-white/5",

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MainLayout } from "./MainLayout";
 
 const pushMock = vi.fn();
@@ -11,6 +12,15 @@ const sentryAddBreadcrumbMock = vi.fn();
 
 const loginMock = vi.fn();
 const logoutMock = vi.fn();
+
+function createWrapper() {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+  );
+}
 
 let storeState: {
   user: { id: string; email: string } | null;
@@ -50,10 +60,13 @@ describe("MainLayout", () => {
       }),
     );
 
+    const Wrapper = createWrapper();
     const { rerender } = render(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     await waitFor(() => {
@@ -70,9 +83,11 @@ describe("MainLayout", () => {
     // Simulate store update after login.
     storeState = { ...storeState, user: { id: "u1", email: "u1@example.com" } };
     rerender(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     expect(screen.getByText("private-content")).toBeInTheDocument();
@@ -88,6 +103,7 @@ describe("MainLayout", () => {
       <MainLayout>
         <div>private-content</div>
       </MainLayout>,
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -111,6 +127,7 @@ describe("MainLayout", () => {
       <MainLayout>
         <div>private-content</div>
       </MainLayout>,
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -133,18 +150,23 @@ describe("MainLayout", () => {
     );
 
     const user = userEvent.setup();
+    const Wrapper = createWrapper();
     const { rerender } = render(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     await waitFor(() => expect(loginMock).toHaveBeenCalled());
     storeState = { ...storeState, user: { id: "u1", email: "u1@example.com" } };
     rerender(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
@@ -169,18 +191,23 @@ describe("MainLayout", () => {
     );
 
     const user = userEvent.setup();
+    const Wrapper = createWrapper();
     const { rerender } = render(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     await waitFor(() => expect(loginMock).toHaveBeenCalled());
     storeState = { ...storeState, user: { id: "u1", email: "u1@example.com" } };
     rerender(
-      <MainLayout>
-        <div>private-content</div>
-      </MainLayout>,
+      <Wrapper>
+        <MainLayout>
+          <div>private-content</div>
+        </MainLayout>
+      </Wrapper>,
     );
 
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));

@@ -32,6 +32,8 @@ export interface DashboardHeaderProps {
   selectedDate: Date;
   /** Slot for the notifications widget (rendered in the nav bar). */
   notificationSlot?: React.ReactNode;
+  /** Slot for the search widget (rendered next to the daily title). */
+  searchSlot?: React.ReactNode;
 }
 
 // ============================================================================
@@ -118,7 +120,8 @@ export function DashboardHeader({
   onChangeSection,
   selectedDate,
   notificationSlot,
-}: DashboardHeaderProps) {
+  searchSlot,
+}: Readonly<DashboardHeaderProps>) {
   const isDaily = section === "daily";
   const isWeekly = section === "weeklyRecap";
   const isStickies = section === "stickies";
@@ -185,12 +188,12 @@ export function DashboardHeader({
         {notificationSlot}
       </nav>
 
-      {/* Kicker (small label) + Title - changes based on section */}
+      {/* Kicker (small label) + Title - aligned with task list (pl-6 lg:pl-10) */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         key={motionKey}
-        className="space-y-0.5 lg:space-y-2"
+        className="space-y-0.5 lg:space-y-2 pl-6 lg:pl-10"
       >
         {/* Kicker - always visible, blue accent */}
         <div className="flex items-center gap-1.5 lg:gap-2 text-sky-400/90">
@@ -205,12 +208,15 @@ export function DashboardHeader({
         {/* Main title */}
         {isDaily && (
           <>
-            <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
-              {format(selectedDate, "MMMM d")}
-              <span className="text-white/20">
-                , {format(selectedDate, "yyyy")}
-              </span>
-            </h1>
+            <div className="flex items-center justify-between pr-2 lg:pr-4">
+              <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white tracking-tight">
+                {format(selectedDate, "MMMM d")}
+                <span className="text-white/20">
+                  , {format(selectedDate, "yyyy")}
+                </span>
+              </h1>
+              {searchSlot}
+            </div>
             <p className="text-white/40 text-sm lg:text-lg">
               {format(selectedDate, "EEEE")}
             </p>

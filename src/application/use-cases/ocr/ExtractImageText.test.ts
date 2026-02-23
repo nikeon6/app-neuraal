@@ -32,6 +32,12 @@ class FakeOcrProvider implements OcrPort {
 const TEST_FILENAME_PHOTO = "photo.jpg";
 const ATTACHMENT_KIND_INLINE = "inline";
 
+// Minimal valid 1x1 black JPEG generated with sharp — avoids "unsupported
+// image format" warnings that appear when using a fake buffer.
+const TINY_JPEG_B64 =
+  "/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJ+AD//Z";
+const TINY_JPEG = Buffer.from(TINY_JPEG_B64, "base64");
+
 describe("ExtractImageText", () => {
   let entryRepository: InMemoryEntryRepository;
   let attachmentRepository: InMemoryAttachmentRepository;
@@ -98,11 +104,7 @@ describe("ExtractImageText", () => {
     });
     if (initResult.isErr()) throw new Error("Failed to init attachment");
 
-    // Put fake image data into storage so getObjectBuffer works
-    objectStorage.putObject(
-      initResult.value.attachment.storageKey,
-      Buffer.from("fake-image-data"),
-    );
+    objectStorage.putObject(initResult.value.attachment.storageKey, TINY_JPEG);
 
     const completeResult = await completeUpload.execute({
       userId: uid,
@@ -148,9 +150,7 @@ describe("ExtractImageText", () => {
         attachmentId: attachment.id,
       });
 
-      expect(ocrProvider.lastImageBase64).toBe(
-        Buffer.from("fake-image-data").toString("base64"),
-      );
+      expect(ocrProvider.lastImageBase64).toBe(TINY_JPEG_B64);
       expect(ocrProvider.lastMimeType).toBe("image/png");
     });
 

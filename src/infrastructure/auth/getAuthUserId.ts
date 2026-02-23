@@ -16,16 +16,23 @@ export type AuthResult =
   | { ok: true; userId: string }
   | { ok: false; error: AuthError };
 
+let devHeaderWarningLogged = false;
+
+function isDevHeaderEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ALLOW_DEV_USER_HEADER === "true"
+  );
+}
+
 /**
  * Extracts the authenticated user ID from the request.
  *
  * Priority chain:
  * 1. Cookie `access_token` → verify JWT → extract userId
- * 2. Dev fallback: `x-user-id` header if NODE_ENV !== "production"
+ * 2. Dev fallback: `x-user-id` header (requires NODE_ENV !== "production"
+ *    AND explicit ALLOW_DEV_USER_HEADER=true)
  * 3. Else → UNAUTHORIZED
- *
- * @param request - The incoming Next.js request
- * @returns AuthResult with userId on success, or error on failure
  */
 export async function getAuthUserId(request: NextRequest): Promise<AuthResult> {
   // 1. Try JWT from cookie
@@ -41,13 +48,20 @@ export async function getAuthUserId(request: NextRequest): Promise<AuthResult> {
         return { ok: true, userId: payload.sub };
       }
     }
-    // If token exists but is invalid/expired, fall through to dev fallback
   }
 
-  // 2. Dev fallback: x-user-id header (non-production only)
-  if (process.env.NODE_ENV !== "production") {
+  // 2. Dev fallback: x-user-id header (explicit opt-in only)
+  if (isDevHeaderEnabled()) {
     const userId = request.headers.get("x-user-id");
     if (userId && userId.trim().length > 0) {
+      if (!devHeaderWarningLogged) {
+        console.warn(
+          "[AUTH] x-user-id header fallback is ACTIVE. " +
+            "This must NEVER be enabled in production. " +
+            "Set ALLOW_DEV_USER_HEADER to anything other than 'true' to disable.",
+        );
+        devHeaderWarningLogged = true;
+      }
       return { ok: true, userId: userId.trim() };
     }
   }

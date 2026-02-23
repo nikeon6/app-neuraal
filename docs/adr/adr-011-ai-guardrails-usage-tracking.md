@@ -1,7 +1,7 @@
 # ADR-011: AI Guardrails and Usage Tracking
 
 - **Status:** Accepted
-- **Date:** 2026-02-10
+- **Date:** 2026-02-05
 - **Deciders:** Project maintainer(s)
 - **Technical Story:** Neuraal (TFM) — responsible AI feature usage
 
@@ -31,10 +31,10 @@ Implement a centralized AI guardrails system with four protection layers, applie
 
 | Action                | Rate/min | Rate/hour | Concurrency | Monthly Quota | Input Limit  |
 | --------------------- | -------- | --------- | ----------- | ------------- | ------------ |
-| Summary               | 5        | 30        | 1           | 100 requests  | 12,000 chars |
-| YouTube Transcription | 3        | -         | 1           | 50 requests   | 12,000 chars |
-| OCR                   | 5        | -         | 1           | 200 requests  | 4 MB         |
-| WhatsApp Reminder     | 5        | -         | 50          | 200 requests  | 500 chars    |
+| Summary               | 5        | 30        | 1           | 50 requests   | 12,000 chars |
+| YouTube Transcription | 3        | -         | 1           | 10 requests   | 30,000 chars |
+| OCR                   | 3        | -         | 1           | 30 requests   | 4 MB         |
+| WhatsApp Reminder     | 3        | -         | 40          | 40 requests   | 500 chars    |
 
 ## Consequences
 

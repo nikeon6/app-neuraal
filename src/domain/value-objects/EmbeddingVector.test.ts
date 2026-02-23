@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EmbeddingVector } from "./EmbeddingVector";
 
 describe("EmbeddingVector", () => {
-  const DIM = 768;
+  const DIM = 4096;
 
   describe("create", () => {
     it("should create a valid EmbeddingVector of correct dimension", () => {
@@ -31,7 +31,7 @@ describe("EmbeddingVector", () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error).toContain("768");
+        expect(result.error).toContain("4096");
       }
     });
 
