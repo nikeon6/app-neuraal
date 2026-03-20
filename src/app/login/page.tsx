@@ -39,7 +39,7 @@ function LoginPageContent() {
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
-  const { login, user } = useStore();
+  const { login, logout } = useStore();
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -48,16 +48,8 @@ function LoginPageContent() {
   const verifyError = searchParams.get("verify-error");
 
   useEffect(() => {
-    if (user) {
-      router.push("/");
-      return;
-    }
-
     fetch("/api/auth/me", { credentials: "include" })
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user) {
           Sentry.setUser({ id: data.user.id, email: data.user.email });
@@ -68,10 +60,14 @@ function LoginPageContent() {
           });
           login(data.user);
           router.push("/");
+        } else {
+          logout();
         }
       })
-      .catch(() => {});
-  }, [user, login, router]);
+      .catch(() => {
+        logout();
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResendVerification = async () => {
     if (!email.trim()) {

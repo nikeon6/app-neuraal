@@ -48,20 +48,29 @@ export default function RegisterPage() {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
-  const { user } = useStore();
+  const { user, logout } = useStore();
   const router = useRouter();
-
-  const isAuthenticated = user !== null;
   const requirements = getPasswordRequirements(password);
   const allRequirementsMet = requirements.every((r) => r.met);
   const passwordsMatch =
     password === confirmPassword && confirmPassword.length > 0;
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, router]);
+    if (!user) return;
+
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          router.push("/");
+        } else {
+          logout();
+        }
+      })
+      .catch(() => {
+        logout();
+      });
+  }, [user, logout, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +123,6 @@ export default function RegisterPage() {
       setResendLoading(false);
     }
   };
-
-  if (isAuthenticated) return null;
 
   if (registrationSuccess) {
     return (
