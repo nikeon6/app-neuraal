@@ -50,26 +50,42 @@ export default function RegisterPage() {
   const [resendMessage, setResendMessage] = useState("");
   const { user, logout } = useStore();
   const router = useRouter();
+  const [verifying, setVerifying] = useState(!!user);
   const requirements = getPasswordRequirements(password);
   const allRequirementsMet = requirements.every((r) => r.met);
   const passwordsMatch =
     password === confirmPassword && confirmPassword.length > 0;
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setVerifying(false);
+      return;
+    }
 
-    fetch("/api/auth/me", { credentials: "include" })
+    setVerifying(true);
+    const controller = new AbortController();
+
+    fetch("/api/auth/me", {
+      credentials: "include",
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        if (controller.signal.aborted) return;
         if (data?.user) {
           router.push("/");
         } else {
           logout();
+          setVerifying(false);
         }
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         logout();
+        setVerifying(false);
       });
+
+    return () => controller.abort();
   }, [user, logout, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,6 +139,8 @@ export default function RegisterPage() {
       setResendLoading(false);
     }
   };
+
+  if (verifying) return null;
 
   if (registrationSuccess) {
     return (

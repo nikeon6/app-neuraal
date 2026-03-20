@@ -48,9 +48,15 @@ function LoginPageContent() {
   const verifyError = searchParams.get("verify-error");
 
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
+    const controller = new AbortController();
+
+    fetch("/api/auth/me", {
+      credentials: "include",
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        if (controller.signal.aborted) return;
         if (data?.user) {
           Sentry.setUser({ id: data.user.id, email: data.user.email });
           Sentry.addBreadcrumb({
@@ -65,8 +71,11 @@ function LoginPageContent() {
         }
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         logout();
       });
+
+    return () => controller.abort();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResendVerification = async () => {
